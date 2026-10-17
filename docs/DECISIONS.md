@@ -129,7 +129,37 @@ something that still needs confirming.
 - **M3 (week 3):** a minimal React UI, the MCP server, the TamTam connector (fake by default), auth and the demo.
 - If time runs out, cut meeting analysis first. Keep the org chart, because it complements TamTam. The UI or the TamTam connector come next.
 
-## H. Open
-1. Confirm whether the minimal CRM scope is enough (the note says "to confirm").
-2. TamTam MCP: a real account and token, and its tool list, to replace the assumptions.
-3. LLM key: the PO adds `GEMINI_API_KEY` to `backend/.env`. M1 doesn't need it; M2 (title classification, theme naming) does.
+## H. M1b: local UI and TamTam connect (2026-10-17) [PO + build]
+- **The PO tests the CRM in a web UI [PO].** Part of the M3 UI was pulled forward: the CRM screens, a
+  read-only analysis page and a settings page. Spec and ownership: `docs/UI-CONTRACT.md`.
+- **TamTam is connected from the UI over MCP [PO].** No token is copied by hand. TamTam publishes
+  standard MCP OAuth metadata (checked 2026-10-17): authorization server `https://api.tamtam.ai`,
+  dynamic client registration, PKCE S256, public client, refresh tokens. "Connect TamTam" runs that
+  flow; *Check connection* lists the tools the server really offers (this replaces our guess of
+  the tool list).
+- **Local only, no login before M3 [build].** The app listens on 127.0.0.1 and refuses other
+  bind addresses. Another website cannot drive it: Host allow-list (DNS rebinding), an allowed
+  Origin plus a custom header on every change, JSON-only bodies, a strict CSP. Any program already
+  running on the computer can use it; login and hosting come with M3.
+- **One TamTam connection per workspace [build].** It matches the multi-tenant model (a workspace
+  is a team). Demo workspaces never use TamTam: their people are fictional, so enrichment there is
+  always the fake provider and spends nothing. To try TamTam, the PO creates a real workspace.
+- **Secrets at rest [build].** Tokens, the PKCE verifier and enriched emails / mobiles are sealed
+  with a Fernet key (`DATAFORCE_SECRET_KEY`), which `make ui` writes into `backend/.env` (0600) and
+  never prints. Losing the key means reconnecting TamTam and losing stored enriched values; there is
+  no key rotation yet.
+- **Enriched contact data [PO rule, build detail].** The `contact` row stays at the strict minimum.
+  An email / mobile exists only after an explicit, confirmed (paid) click, in a separate
+  `contact_channel` table, sealed, with a one-click delete; erasing the contact deletes it. The
+  server refuses a paid lookup above the credit estimate the user accepted, while another lookup for
+  the same contact is running, or for a value already stored.
+- **Demo size 350 [PO].** See section E for what changed in the measured reliability.
+
+## I. Open
+1. CRM scope: the PO is testing the minimal CRM in the UI and will say whether it is enough.
+2. TamTam: connect a real account from the UI, then confirm the tool list and the real credit
+   prices (still assumed: email about 1, mobile about 10).
+3. LLM key: the PO adds `GEMINI_API_KEY` to `backend/.env`. M1 doesn't need it; M2 (title
+   classification, theme naming) does.
+4. Noise seed 42 shows one chance finding at 350 deals. It is kept as an honest example; the PO
+   may prefer another seed for demos.

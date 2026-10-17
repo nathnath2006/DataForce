@@ -1,4 +1,4 @@
-"""Render docs/BUILD-REPORT.md to docs/DataForce-M1-build-report.pdf.
+"""Render docs/BUILD-REPORT.md to docs/DataForce-build-report.pdf.
 
 Not a project dependency on purpose: run it from a throwaway venv.
 
@@ -6,6 +6,9 @@ Not a project dependency on purpose: run it from a throwaway venv.
     /tmp/pdfenv/bin/python docs/tools/build_pdf.py
 
 Fonts: macOS Arial (it has the ≥ → ± × glyphs the report uses). Pass --font-dir elsewhere.
+
+xhtml2pdf quirk: a list item that has sub-items loses its bullet when its text contains inline
+markup (bold, code), so write such parent items as plain text.
 """
 
 from __future__ import annotations
@@ -21,7 +24,7 @@ from xhtml2pdf import pisa
 
 DOCS = Path(__file__).resolve().parents[1]
 SRC = DOCS / "BUILD-REPORT.md"
-OUT = DOCS / "DataForce-M1-build-report.pdf"
+OUT = DOCS / "DataForce-build-report.pdf"
 
 CSS = """
 @font-face {{ font-family: Body; src: url("{fonts}/Arial.ttf"); }}
@@ -57,14 +60,20 @@ blockquote {{ background-color: #fffbea; border-left: 3px solid #f0b429; padding
 _LIST_ITEM = re.compile(r"^\s*(?:[-*]|\d+\.)\s")
 
 
+_NESTED_ITEM = re.compile(r"^( +)((?:[-*]|\d+\.)\s)")
+
+
 def _blank_line_before_lists(text: str) -> str:
     """Python-Markdown needs a blank line before a list that follows a paragraph (GitHub does
-    not), otherwise the items are glued into the paragraph."""
+    not), otherwise the items are glued into the paragraph. It also needs 4 spaces per nesting
+    level where GitHub accepts 2, so nested items get their indentation doubled."""
     out: list[str] = []
     in_code = False
     for line in text.splitlines():
         if line.startswith("```"):
             in_code = not in_code
+        if not in_code:
+            line = _NESTED_ITEM.sub(lambda m: " " * (2 * len(m.group(1))) + m.group(2), line)
         prev = out[-1] if out else ""
         if (
             not in_code
@@ -87,12 +96,12 @@ def build(font_dir: str) -> Path:
     # A literal "<pdf:nextpage />" line in the Markdown (kept by the md parser as raw HTML)
     # forces a page break.
     footer = (
-        '<div id="footer" class="footer">DataForce · Milestone 1 build report · generated '
+        '<div id="footer" class="footer">DataForce · build report (M1 + M1b) · generated '
         f"{dt.date.today().isoformat()} · page <pdf:pagenumber /> / <pdf:pagecount /></div>"
     )
     doc = (
         '<html><head><meta charset="utf-8"><title>'
-        + html.escape("DataForce — Milestone 1 build report")
+        + html.escape("DataForce — build report (M1 + M1b)")
         + "</title><style>"
         + CSS.format(fonts=font_dir)
         + "</style></head><body>"

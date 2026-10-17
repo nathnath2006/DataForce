@@ -8,8 +8,39 @@ computed.
 
 The demo data is **synthetic, generated with a known ground truth, and announced as such**.
 
-Design and build contract: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Decisions:
-[`docs/DECISIONS.md`](docs/DECISIONS.md).
+Design and build contract: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (M1) and
+[`docs/UI-CONTRACT.md`](docs/UI-CONTRACT.md) (M1b: local UI, TamTam connect). Decisions:
+[`docs/DECISIONS.md`](docs/DECISIONS.md). What was built and why, for non-developers:
+[`docs/DataForce-build-report.pdf`](docs/DataForce-build-report.pdf).
+
+## Use it in the browser (M1b)
+
+Requirements: Docker, Python 3.13, Node 20+. From the repository root, the first time:
+
+```bash
+make db-up                                     # Postgres on 127.0.0.1:5433
+cd backend && python3.13 -m venv .venv \
+  && .venv/bin/pip install --require-hashes -r requirements-dev.lock \
+  && .venv/bin/pip install --no-deps -e . && cd ..
+make migrate                                   # create / upgrade the schema
+backend/.venv/bin/dataforce demo generate --variant planted --seed 42 --replace
+backend/.venv/bin/dataforce demo generate --variant noise   --seed 42 --replace
+```
+
+Then, every time: `make ui` and open **http://127.0.0.1:8800** (use exactly this address: the
+TamTam sign-in comes back to it). `make ui` creates the secret key in `backend/.env` the first time,
+builds the frontend when it changed, and starts the app on loopback only. There is no login before
+M3: anyone who can run programs on this computer can use it, nobody else can.
+
+- **Demo workspaces** (marked *synthetic*) hold generated companies and people, with a known
+  answer key. Enrichment there always uses a fake provider and never spends credits.
+- **Connect TamTam**: create a real workspace (workspace menu, *+ New workspace…*), open
+  *Settings*, click *Connect TamTam* and sign in on TamTam's page. DataForce registers itself with
+  TamTam, keeps the token encrypted in the database and never shows it. *Check connection* lists
+  the tools TamTam offers; *Disconnect* deletes the token.
+- **Paid lookups** happen only when you click *Enrich* on a contact of a real workspace and
+  confirm the credit amount. Found emails / mobiles are stored encrypted, each with a *Delete*.
+- `make ui-dev` runs the same app with the Vite dev server (hot reload) on 127.0.0.1:5173.
 
 ## Quickstart
 
@@ -52,7 +83,10 @@ any drift (then `make db-reset-test`).
 |---|---|
 | `docker-compose.yml`, `docker/postgres/init/` | local database (+ `dataforce_test`, `vector` extension) |
 | `backend/app/` | domain contracts, DB models, services, stats engine, demo generator, LLM, CLI |
-| `backend/alembic/` | migrations (`0001_initial`, `0002_lockdown`) |
+| `backend/app/api/` | local HTTP API (FastAPI) + request guards + SPA hosting |
+| `backend/app/connectors/` | TamTam OAuth over MCP (discovery, registration, PKCE, sealed tokens) |
+| `backend/alembic/` | migrations (`0001_initial` ... `0004_connectors`) |
+| `frontend/` | React UI (Vite + TypeScript), built into `frontend/dist` by `make ui` |
 | `docs/` | architecture, decisions, security reports |
 
 ## Changing the database password
@@ -84,8 +118,13 @@ Generate, load and check the demo data (workspace `demo-<variant>-<seed>`; the a
 .venv/bin/dataforce demo generate --variant planted --seed 42 --replace
 .venv/bin/dataforce demo generate --variant noise   --seed 42 --replace
 .venv/bin/dataforce demo check --variant planted --seed 42   # exit code 1 if the engine fails
-.venv/bin/dataforce demo check --variant noise   --seed 42   # nothing may be verified
+.venv/bin/dataforce demo check --variant noise   --seed 42   # exit 1: see below
 ```
+
+At 350 deals, about 1 noise dataset in 25 shows one chance finding that passes every gate (the 5%
+false discovery rate doing what it promises, see `docs/DECISIONS.md` section E). Seed 42 is such a
+dataset: its check fails on purpose and names the false positive (owner x cycle days). Seed 1 is
+clean: `demo generate --variant noise --seed 1` then `demo check --variant noise --seed 1`.
 
 Look at the numbers (every read command accepts `--json`). "Not verified" means the evidence is too thin
 to call it a finding (too few deals, interval too wide, or not significant after correcting for many
