@@ -51,6 +51,7 @@ class TamTamStub:
         self.code_reply: tuple[int, Any] | None = None  # override for the code exchange
         self.refresh_reply: tuple[int, Any] | None = None  # override for the refresh
         self.registered_client_id = CLIENT_ID
+        self.on_token: Any = None  # called (sync) before each token reply
         mock.get(PRM_URL).mock(side_effect=lambda r: httpx.Response(200, json=self.prm))
         mock.get(AS_URL).mock(side_effect=lambda r: httpx.Response(200, json=self.as_meta))
         mock.post(f"{ISSUER}/register").mock(side_effect=self._register)
@@ -74,6 +75,8 @@ class TamTamStub:
     def _token(self, request: httpx.Request) -> httpx.Response:
         form = {k: v[0] for k, v in parse_qs(request.content.decode()).items()}
         self.token_calls.append(form)
+        if self.on_token is not None:
+            self.on_token()
         override = (
             self.code_reply if form["grant_type"] == "authorization_code" else self.refresh_reply
         )

@@ -107,21 +107,32 @@ def status_view(session: Session, settings: Settings, ws: Workspace) -> Connecto
 # --- connect --------------------------------------------------------------------------------
 
 
-async def start_connect(db: Session, settings: Settings, ws_id: uuid.UUID) -> tuple[str, str]:
+async def start_connect(
+    db: Session, settings: Settings, ws_id: uuid.UUID, host: str | None = None
+) -> tuple[str, str]:
     """(authorize_url, browser_secret). The secret goes into the `df_oauth` cookie."""
     seal("probe", settings)  # EnrichmentConfigError (hint: dataforce secrets init) when no key
 
-    def load() -> tuple[str, str | None, str] | None:
+    def load() -> tuple[str, str | None, str, str] | None:
         cred = store.get_credential(db, ws_id)
-        snap = (cred.client_id, cred.client_secret_enc, cred.redirect_uri) if cred else None
+        snap = (
+            (cred.client_id, cred.client_secret_enc, cred.redirect_uri, cred.issuer)
+            if cred
+            else None
+        )
         db.rollback()
         return snap
 
     existing = await run_in_threadpool(load)
-    redirect_uri = oauth.redirect_uri_for(settings)
+    redirect_uri = oauth.redirect_uri_for(settings, host)
     async with oauth.new_client() as client:
         meta = await oauth.discover(client, settings)
-        if existing is not None and existing[2] == redirect_uri and existing[0]:
+        if (
+            existing is not None
+            and existing[0]
+            and existing[2] == redirect_uri
+            and existing[3] == meta.issuer
+        ):
             client_id, secret_enc = existing[0], existing[1]
         else:
             registered = await oauth.register_client(client, meta, redirect_uri)
@@ -225,6 +236,7 @@ async def finish_callback(
             )
 
         def save() -> None:
+            store.lock_connector(db, pending.workspace_id)
             store.save_credential(
                 db,
                 pending.workspace_id,
@@ -271,6 +283,7 @@ class _Snapshot:
     access_token_enc: str
     refresh_token_enc: str | None
     expires_at: datetime | None
+    connected_at: datetime
 
 
 _locks: dict[uuid.UUID, asyncio.Lock] = {}
@@ -286,6 +299,7 @@ def _snapshot(cred: ConnectorCredential) -> _Snapshot:
         cred.access_token_enc,
         cred.refresh_token_enc,
         cred.token_expires_at,
+        cred.connected_at,
     )
 
 
@@ -302,72 +316,83 @@ async def access_token(db: Session, settings: Settings, ws_id: uuid.UUID) -> str
     token replaces the old one. `invalid_grant` marks the credential `expired`."""
     lock = _locks.setdefault(ws_id, asyncio.Lock())
     async with lock:
+        return await _access_token_locked(db, settings, ws_id)
 
-        def load() -> _Snapshot | None:
-            cred = store.get_credential(db, ws_id)
-            snap = _snapshot(cred) if cred else None
-            db.rollback()
-            return snap
 
-        snap = await run_in_threadpool(load)
-        if snap is None:
-            raise EnrichmentConfigError("TamTam is not connected for this workspace")
-        if snap.resource.rstrip("/") != settings.tamtam_mcp_url.rstrip("/"):
-            msg = "the stored connection is for a different TamTam URL; reconnect"
-            await _mark(db, ws_id, "error", msg)
-            raise ConnectorNotUsable(msg)
-        if snap.status != "connected":
-            raise ConnectorNotUsable(
-                "the TamTam connection has expired; reconnect"
-                if snap.status == "expired"
-                else "the TamTam connection is in error; reconnect"
+async def _access_token_locked(db: Session, settings: Settings, ws_id: uuid.UUID) -> str:
+
+    def load() -> _Snapshot | None:
+        cred = store.get_credential(db, ws_id)
+        snap = _snapshot(cred) if cred else None
+        db.rollback()
+        return snap
+
+    snap = await run_in_threadpool(load)
+    if snap is None:
+        raise EnrichmentConfigError("TamTam is not connected for this workspace")
+    if snap.resource.rstrip("/") != settings.tamtam_mcp_url.rstrip("/"):
+        msg = "the stored connection is for a different TamTam URL; reconnect"
+        await _mark(db, ws_id, "error", msg)
+        raise ConnectorNotUsable(msg)
+    if snap.status != "connected":
+        raise ConnectorNotUsable(
+            "the TamTam connection has expired; reconnect"
+            if snap.status == "expired"
+            else "the TamTam connection is in error; reconnect"
+        )
+    try:
+        access = unseal(snap.access_token_enc, settings)
+        refresh = unseal(snap.refresh_token_enc, settings) if snap.refresh_token_enc else None
+        secret = unseal(snap.client_secret_enc, settings) if snap.client_secret_enc else None
+    except UnsealError:
+        msg = "stored secrets cannot be decrypted (the secret key changed); reconnect"
+        await _mark(db, ws_id, "error", msg)
+        raise ConnectorNotUsable(msg) from None
+    if not oauth.needs_refresh(snap.expires_at):
+        return access
+    if not refresh:
+        msg = "the access token expired and there is no refresh token; reconnect"
+        await _mark(db, ws_id, "expired", msg)
+        raise ConnectorNotUsable(msg)
+    try:
+        async with oauth.new_client() as client:
+            meta = await oauth.discover(client, settings)
+            if meta.issuer != snap.issuer:
+                raise oauth.OAuthError("the authorization server changed")
+            tokens = await oauth.refresh_tokens(
+                client,
+                meta,
+                client_id=snap.client_id,
+                client_secret=secret,
+                refresh_token=refresh,
+                resource=snap.resource,
             )
-        try:
-            access = unseal(snap.access_token_enc, settings)
-            refresh = unseal(snap.refresh_token_enc, settings) if snap.refresh_token_enc else None
-            secret = unseal(snap.client_secret_enc, settings) if snap.client_secret_enc else None
-        except UnsealError:
-            msg = "stored secrets cannot be decrypted (the secret key changed); reconnect"
-            await _mark(db, ws_id, "error", msg)
-            raise ConnectorNotUsable(msg) from None
-        if not oauth.needs_refresh(snap.expires_at):
-            return access
-        if not refresh:
-            msg = "the access token expired and there is no refresh token; reconnect"
-            await _mark(db, ws_id, "expired", msg)
-            raise ConnectorNotUsable(msg)
-        try:
-            async with oauth.new_client() as client:
-                meta = await oauth.discover(client, settings)
-                if meta.issuer != snap.issuer:
-                    raise oauth.OAuthError("the authorization server changed")
-                tokens = await oauth.refresh_tokens(
-                    client,
-                    meta,
-                    client_id=snap.client_id,
-                    client_secret=secret,
-                    refresh_token=refresh,
-                    resource=snap.resource,
-                )
-        except oauth.InvalidGrant:
-            msg = "the TamTam sign-in expired (invalid_grant); reconnect"
-            await _mark(db, ws_id, "expired", msg)
-            raise ConnectorNotUsable(msg) from None
+    except oauth.InvalidGrant:
+        msg = "the TamTam sign-in expired (invalid_grant); reconnect"
+        await _mark(db, ws_id, "expired", msg)
+        raise ConnectorNotUsable(msg) from None
 
-        def save() -> None:
-            store.update_tokens(
-                db,
-                ws_id,
-                access_token_enc=seal(tokens.access_token, settings),
-                refresh_token_enc=seal(tokens.refresh_token, settings)
-                if tokens.refresh_token
-                else None,
-                token_expires_at=tokens.expires_at,
-            )
-            db.commit()
+    def save() -> bool:
+        store.lock_connector(db, ws_id)
+        stored = store.update_tokens(
+            db,
+            ws_id,
+            access_token_enc=seal(tokens.access_token, settings),
+            refresh_token_enc=seal(tokens.refresh_token, settings)
+            if tokens.refresh_token
+            else None,
+            token_expires_at=tokens.expires_at,
+            expected_connected_at=snap.connected_at,
+            expected_access_token_enc=snap.access_token_enc,
+        )
+        db.commit()
+        return stored
 
-        await run_in_threadpool(save)
-        return tokens.access_token
+    if not await run_in_threadpool(save):
+        # A reconnect, another refresh or a disconnect won: our tokens belong to an old
+        # session and are dropped. Use whatever is stored now.
+        return await _access_token_locked(db, settings, ws_id)
+    return tokens.access_token
 
 
 async def build_provider(db: Session, settings: Settings, ws_id: uuid.UUID) -> TamTamMCPEnrichment:
@@ -456,6 +481,7 @@ async def disconnect(db: Session, settings: Settings, ws_id: uuid.UUID) -> None:
     an endpoint. Revocation is best effort and never blocks or fails the disconnect."""
 
     def work() -> _Snapshot | None:
+        store.lock_connector(db, ws_id)
         cred = store.get_credential(db, ws_id)
         snap = _snapshot(cred) if cred else None
         store.delete_credential(db, ws_id)

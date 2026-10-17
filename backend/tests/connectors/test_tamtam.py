@@ -596,3 +596,52 @@ async def test_no_secret_reaches_the_logs(db_session, settings, ws, stub, caplog
     secret_key = settings.dataforce_secret_key.get_secret_value()
     for secret in (*SECRETS, secret_key):
         assert secret not in text
+
+
+# --- SR7: races, issuer binding ---------------------------------------------------------------
+
+
+async def test_a_refresh_does_not_overwrite_a_newer_reconnect(db_session, settings, ws, stub):
+    await connect(db_session, settings, ws)
+    age_token(db_session, ws, 30)
+
+    def reconnect_mid_refresh():
+        store.save_credential(
+            db_session,
+            ws.id,
+            access_token_enc=seal("access-from-reconnect", settings),
+            refresh_token_enc=seal("refresh-from-reconnect", settings),
+            token_expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+        db_session.commit()
+
+    stub.on_token = reconnect_mid_refresh
+    token = await tamtam.access_token(db_session, settings, ws.id)
+    assert token == "access-from-reconnect"
+    cred = credential(db_session, ws)
+    assert unseal(cred.access_token_enc, settings) == "access-from-reconnect"
+    assert unseal(cred.refresh_token_enc, settings) == "refresh-from-reconnect"
+
+
+async def test_a_refresh_does_not_revive_a_disconnected_credential(db_session, settings, ws, stub):
+    await connect(db_session, settings, ws)
+    age_token(db_session, ws, 30)
+
+    def disconnect_mid_refresh():
+        store.delete_credential(db_session, ws.id)
+        db_session.commit()
+
+    stub.on_token = disconnect_mid_refresh
+    with pytest.raises(EnrichmentConfigError):
+        await tamtam.access_token(db_session, settings, ws.id)
+    assert store.get_credential(db_session, ws.id) is None
+
+
+async def test_a_stored_client_is_not_reused_for_another_issuer(db_session, settings, ws, stub):
+    await connect(db_session, settings, ws)
+    assert len(stub.register_calls) == 1
+    cred = credential(db_session, ws)
+    cred.issuer = "https://other.example"
+    db_session.commit()
+    await start(db_session, settings, ws)
+    assert len(stub.register_calls) == 2  # same redirect URI, different issuer: re-register

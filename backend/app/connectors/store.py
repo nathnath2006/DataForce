@@ -45,6 +45,17 @@ def save_credential(session: Session, ws_id: uuid.UUID, **fields: Any) -> Connec
     return cred
 
 
+_LOCK_NS = 7_461_220_007
+
+
+def lock_connector(session: Session, ws_id: uuid.UUID) -> None:
+    """Transaction-level advisory lock on (workspace, provider): token refresh writes, callback
+    saves and disconnect run one after the other, across processes. Released at commit/rollback."""
+    session.execute(
+        select(func.pg_advisory_xact_lock(func.hashtextextended(f"{ws_id}:{PROVIDER}", _LOCK_NS)))
+    )
+
+
 def update_tokens(
     session: Session,
     ws_id: uuid.UUID,
@@ -52,15 +63,26 @@ def update_tokens(
     access_token_enc: str,
     refresh_token_enc: str | None,
     token_expires_at: datetime | None,
-) -> None:
+    expected_connected_at: datetime,
+    expected_access_token_enc: str,
+) -> bool:
+    """Store refreshed tokens only if the credential is still the one the refresh started from
+    (same `connected_at`, same access token). Returns False when a reconnect, another refresh or
+    a disconnect got there first: the caller then drops its tokens. Call under `lock_connector`."""
     cred = get_credential(session, ws_id)
-    if cred is not None:
-        cred.access_token_enc = access_token_enc
-        cred.refresh_token_enc = refresh_token_enc
-        cred.token_expires_at = token_expires_at
-        cred.status = "connected"
-        cred.last_error = None
-        session.flush()
+    if (
+        cred is None
+        or cred.connected_at != expected_connected_at
+        or cred.access_token_enc != expected_access_token_enc
+    ):
+        return False
+    cred.access_token_enc = access_token_enc
+    cred.refresh_token_enc = refresh_token_enc
+    cred.token_expires_at = token_expires_at
+    cred.status = "connected"
+    cred.last_error = None
+    session.flush()
+    return True
 
 
 def set_status(session: Session, ws_id: uuid.UUID, status: str, last_error: str | None) -> None:
@@ -147,11 +169,13 @@ def create_pending(
 def take_pending(session: Session, state: str) -> OAuthPending | None:
     """Single use: the row is deleted whatever happens next and returned detached. The caller
     checks `expires_at` (an expired flow is reported as "expired", not as an unknown state)."""
-    pending = session.scalar(
-        select(OAuthPending).where(OAuthPending.state_hash == sha256_hex(state))
-    )
-    if pending is None:
-        return None
-    session.expunge(pending)
-    session.execute(delete(OAuthPending).where(OAuthPending.id == pending.id))
+    # One atomic statement: two concurrent callbacks with the same state cannot both get the row.
+    pending = session.execute(
+        delete(OAuthPending)
+        .where(OAuthPending.state_hash == sha256_hex(state))
+        .returning(OAuthPending)
+        .execution_options(synchronize_session=False)
+    ).scalar_one_or_none()
+    if pending is not None:
+        session.expunge(pending)
     return pending

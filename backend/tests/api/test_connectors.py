@@ -325,3 +325,26 @@ def test_demo_workspace_reports_fake_mode(client, db_session, stub):
     workspaces.create_workspace(db_session, "demo-x", "Demo", is_demo=True)
     db_session.commit()
     assert client.get("/api/w/demo-x/connectors/tamtam").json()["enrichment_mode"] == "fake"
+
+
+@pytest.mark.parametrize("host", ["localhost:8800", "127.0.0.1:8800", "127.0.0.1:5173"])
+def test_redirect_uri_and_cookie_share_the_browsers_host_and_round_trip(client, ws, stub, host):
+    origin = {"Host": host, "Origin": f"http://{host}"}
+    response = client.post(f"{BASE}/connect", headers=origin)
+    assert response.status_code == 200, response.text
+    query = parse_qs(urlsplit(response.json()["authorize_url"]).query)
+    assert query["redirect_uri"] == [f"http://{host}/api/connectors/tamtam/callback"]
+    assert stub.register_calls[-1]["redirect_uris"] == [query["redirect_uri"][0]]
+    result = callback(client, code=CODE, state=query["state"][0])
+    assert result.headers["location"] == "/w/acme-real/settings?tamtam=connected"
+    assert stub.token_calls[-1]["redirect_uri"] == query["redirect_uri"][0]
+
+
+def test_a_stored_client_is_re_registered_when_the_redirect_uri_changes(client, ws, stub):
+    for host in ("127.0.0.1:8800", "127.0.0.1:8800", "localhost:8800"):
+        response = client.post(
+            f"{BASE}/connect", headers={"Host": host, "Origin": f"http://{host}"}
+        )
+        state = parse_qs(urlsplit(response.json()["authorize_url"]).query)["state"][0]
+        assert callback(client, code=CODE, state=state).status_code == 303
+    assert len(stub.register_calls) == 2  # reused on the repeat, re-registered for localhost

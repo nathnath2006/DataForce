@@ -47,6 +47,15 @@ def _channel_out(row: ContactChannel, value: str) -> ChannelOut:
 async def enrich_contact(
     contact_id: uuid.UUID, body: EnrichRequest, db: Db, ws: CurrentWorkspace, settings: AppSettings
 ) -> EnrichResponse:
+    if ws.is_demo:  # the fake provider is free: no guard needed
+        return await _enrich(contact_id, body, db, ws, settings)
+    async with channels.lookup_guard(db, ws.id, contact_id):
+        return await _enrich(contact_id, body, db, ws, settings)
+
+
+async def _enrich(
+    contact_id: uuid.UUID, body: EnrichRequest, db: Db, ws: CurrentWorkspace, settings: AppSettings
+) -> EnrichResponse:
     ws_id, is_demo = ws.id, ws.is_demo
     wants = [k.value for k in dict.fromkeys(body.want)]
 
@@ -60,6 +69,9 @@ async def enrich_contact(
             want=wants,  # type: ignore[arg-type]
         )
         connected = store.get_credential(db, ws_id) is not None
+        if not is_demo and connected:
+            paid = [w for w in wants if DEFAULT_CREDIT_COSTS.get(w, 0.0) > 0]
+            channels.refuse_stored_kinds(db, ws_id, contact_id, paid)
         db.rollback()  # no transaction stays open during the lookup
         return request, connected
 

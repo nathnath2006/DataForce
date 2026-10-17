@@ -7,6 +7,7 @@ The key seals connector tokens and enriched contact values at rest. It is writte
 from __future__ import annotations
 
 import os
+import re
 import stat
 from typing import Annotated
 
@@ -39,7 +40,7 @@ def init(
         typer.Option("--if-missing", help="Do nothing when a key is already set (for `make ui`)."),
     ] = False,
 ) -> None:
-    """Generate a Fernet key and append it to backend/.env (chmod 600). Never prints the key."""
+    """Generate a Fernet key and write it to backend/.env (chmod 600). Never prints the key."""
     path = config.ENV_FILE
     present = _key_in_environment() or _key_in_file(path)
     if present:
@@ -50,14 +51,34 @@ def init(
             "DATAFORCE_SECRET_KEY is already set. Replacing it would make every stored token and "
             "channel unreadable; remove it from the env file by hand if you really mean to."
         )
-    line = f"{KEY_NAME}={Fernet.generate_key().decode('ascii')}\n"
-    prefix = ""
-    if path.exists() and path.stat().st_size > 0:
-        with path.open("rb") as fh:
-            fh.seek(-1, os.SEEK_END)
-            prefix = "" if fh.read(1) == b"\n" else "\n"
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-    with os.fdopen(fd, "a", encoding="utf-8") as fh:
-        fh.write(prefix + line)
-    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
+    if path.is_symlink():
+        raise fail(
+            f"{path} is a symbolic link. Refusing to write through it; replace it with a regular "
+            "file (or write the key there by hand)."
+        )
+    line = f"{KEY_NAME}={Fernet.generate_key().decode('ascii')}"
+    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    lines = existing.splitlines()
+    empty = re.compile(rf"^\s*(?:export\s+)?{KEY_NAME}\s*=\s*(?:(['\"])\s*\1)?\s*(?:#.*)?$")
+    for index, current in enumerate(lines):
+        if empty.match(current):
+            lines[index] = line  # replace the empty assignment instead of adding a duplicate
+            break
+    else:
+        lines.append(line)
+    _write_private(path, "\n".join(lines) + "\n")
     console.print(f"Wrote {KEY_NAME} to {path} (mode 600). The key is not shown.")
+
+
+def _write_private(path, content: str) -> None:
+    """Temp file in the same directory (mode 0600 from creation), then an atomic replace."""
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        os.chmod(tmp, stat.S_IRUSR | stat.S_IWUSR)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise

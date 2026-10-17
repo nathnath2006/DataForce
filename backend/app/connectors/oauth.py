@@ -18,6 +18,7 @@ import base64
 import hashlib
 import json
 import math
+import re
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -49,7 +50,7 @@ def new_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
         follow_redirects=False,
         timeout=httpx.Timeout(REQUEST_TIMEOUT_S),
-        headers={"Accept": "application/json"},
+        headers={"Accept": "application/json", "Accept-Encoding": "identity"},
     )
 
 
@@ -216,8 +217,19 @@ class RegisteredClient:
     client_secret: str | None
 
 
-def redirect_uri_for(settings: Settings) -> str:
-    return f"http://127.0.0.1:{settings.ui_port}/api/connectors/tamtam/callback"
+_HOST_RE = re.compile(r"^(127\.0\.0\.1|localhost|\[::1\]):(\d{2,5})$")
+_VITE_PORT = 5173
+
+
+def redirect_uri_for(settings: Settings, host: str | None = None) -> str:
+    """The callback URL on the origin the browser is using (so the host-only `df_oauth` cookie
+    comes back with it). `host` is the request's Host header; anything outside the loopback
+    names on the UI or Vite port falls back to 127.0.0.1 on the UI port."""
+    netloc = f"127.0.0.1:{settings.ui_port}"
+    match = _HOST_RE.match((host or "").strip().lower())
+    if match and int(match.group(2)) in {settings.ui_port, _VITE_PORT}:
+        netloc = match.group(0)
+    return f"http://{netloc}/api/connectors/tamtam/callback"
 
 
 async def register_client(

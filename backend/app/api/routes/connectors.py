@@ -31,9 +31,11 @@ def get_tamtam(db: Db, ws: CurrentWorkspace, settings: AppSettings) -> Connector
 
 @router.post("/w/{ws}/connectors/tamtam/connect", response_model=ConnectStart, tags=["connectors"])
 async def connect_tamtam(
-    db: Db, ws: CurrentWorkspace, settings: AppSettings, response: Response
+    request: Request, db: Db, ws: CurrentWorkspace, settings: AppSettings, response: Response
 ) -> ConnectStart:
-    url, browser_secret = await tamtam.start_connect(db, settings, ws.id)
+    url, browser_secret = await tamtam.start_connect(
+        db, settings, ws.id, request.headers.get("host")
+    )
     response.set_cookie(
         COOKIE_NAME,
         browser_secret,

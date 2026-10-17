@@ -453,3 +453,24 @@ async def test_an_infinite_expires_in_is_refused(settings, stub):
     )
     with pytest.raises(oauth.OAuthError, match="expires_in"):
         await exchange(settings)
+
+
+@pytest.mark.parametrize(
+    ("host", "expected"),
+    [
+        ("localhost:8800", "http://localhost:8800/api/connectors/tamtam/callback"),
+        ("127.0.0.1:8800", "http://127.0.0.1:8800/api/connectors/tamtam/callback"),
+        ("127.0.0.1:5173", "http://127.0.0.1:5173/api/connectors/tamtam/callback"),
+        ("[::1]:8800", "http://[::1]:8800/api/connectors/tamtam/callback"),
+        ("evil.example:8800", "http://127.0.0.1:8800/api/connectors/tamtam/callback"),
+        ("localhost:9999", "http://127.0.0.1:8800/api/connectors/tamtam/callback"),
+        (None, "http://127.0.0.1:8800/api/connectors/tamtam/callback"),
+    ],
+)
+def test_redirect_uri_follows_an_allowed_host(host, expected):
+    s = Settings(_env_file=None, environment="test")
+    assert oauth.redirect_uri_for(s, host) == expected
+
+
+def test_oauth_client_asks_for_identity_encoding():
+    assert oauth.new_client().headers["accept-encoding"] == "identity"

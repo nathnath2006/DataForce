@@ -57,3 +57,56 @@ def test_only_hashes_are_stored(db_session, ws):
     row = db_session.scalars(select(OAuthPending)).one()
     assert "plain-state" not in (row.state_hash, row.browser_hash)
     assert len(row.state_hash) == 64
+
+
+def test_take_pending_is_one_delete_returning_statement(db_session, ws):
+    from sqlalchemy import event
+
+    make_pending(db_session, ws, "a")
+    seen: list[str] = []
+    engine = db_session.get_bind().engine
+
+    def spy(conn, cursor, statement, *args):
+        seen.append(statement)
+
+    event.listen(engine, "before_cursor_execute", spy)
+    try:
+        taken = store.take_pending(db_session, "a")
+    finally:
+        event.remove(engine, "before_cursor_execute", spy)
+    assert taken is not None and taken.browser_hash == store.sha256_hex("b-a")
+    sql = [s for s in seen if "oauth_pending" in s.lower()]
+    assert len(sql) == 1 and sql[0].lower().startswith("delete") and "returning" in sql[0].lower()
+
+
+def test_connector_lock_is_a_transaction_level_advisory_lock(db_session, ws):
+    from sqlalchemy import text
+
+    count = "select count(*) from pg_locks where locktype='advisory' and pid=pg_backend_pid()"
+    before = db_session.scalar(text(count))
+    store.lock_connector(db_session, ws.id)
+    assert db_session.scalar(text(count)) == before + 1
+
+
+def test_update_tokens_is_conditional_on_the_credential_it_started_from(db_session, ws):
+    store.save_credential(
+        db_session,
+        ws.id,
+        status="connected",
+        issuer="i",
+        resource="r",
+        client_id="c",
+        redirect_uri="u",
+        access_token_enc="old",
+        refresh_token_enc=None,
+    )
+    cred = store.get_credential(db_session, ws.id)
+    stamp = cred.connected_at
+    kw = {"access_token_enc": "new", "refresh_token_enc": None, "token_expires_at": None}
+    assert not store.update_tokens(
+        db_session, ws.id, **kw, expected_connected_at=stamp, expected_access_token_enc="other"
+    )
+    assert store.update_tokens(
+        db_session, ws.id, **kw, expected_connected_at=stamp, expected_access_token_enc="old"
+    )
+    assert cred.access_token_enc == "new"

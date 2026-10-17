@@ -344,3 +344,64 @@ def test_no_secret_in_any_enrichment_body(
     ]
     for text_ in texts:
         assert not [s for s in (*SECRETS, TEST_SECRET_KEY) if s in text_]
+
+
+# --- SR7-02: in-flight guard and stored kinds ---------------------------------------------------
+
+
+def _hold_lookup_lock(db_session, ws, contact):
+    from sqlalchemy import func, select
+
+    from app.services import channels
+
+    conn = db_session.get_bind().engine.connect()
+    key = func.hashtextextended(f"{ws.id}:{contact.id}", channels._LOOKUP_LOCK_NS)
+    assert conn.execute(select(func.pg_try_advisory_lock(key))).scalar_one() is True
+    return conn
+
+
+def test_a_second_concurrent_lookup_is_409_and_sends_nothing(
+    client, db_session, ws, contact, stub, monkeypatch, api_settings
+):
+    spy = McpSpy(monkeypatch)
+    seed_credential(db_session, ws, api_settings)
+    held = _hold_lookup_lock(db_session, ws, contact)
+    try:
+        response = client.post(url(ws.slug, contact.id), json=body())
+    finally:
+        held.close()
+    assert response.status_code == 409
+    err = response.json()["error"]
+    assert (
+        err["code"] == "conflict"
+        and err["message"] == "a lookup for this contact is already running"
+    )
+    assert spy.opened == 0 and stub.traffic == 0
+
+
+def test_the_guard_is_released_after_the_lookup(
+    client, db_session, ws, contact, stub, monkeypatch, api_settings
+):
+    McpSpy(monkeypatch, result=text_result({"email": EMAIL, "credits_used": 1}))
+    seed_credential(db_session, ws, api_settings)
+    assert client.post(url(ws.slug, contact.id), json=body()).status_code == 200
+    held = _hold_lookup_lock(db_session, ws, contact)  # would fail the assert if still locked
+    held.close()
+
+
+def test_a_lookup_for_a_stored_kind_is_refused_without_traffic(
+    client, db_session, ws, contact, stub, monkeypatch, api_settings
+):
+    spy = McpSpy(monkeypatch, result=text_result({"email": EMAIL, "credits_used": 1}))
+    seed_credential(db_session, ws, api_settings)
+    assert client.post(url(ws.slug, contact.id), json=body()).status_code == 200
+    assert spy.opened == 1
+    again = client.post(url(ws.slug, contact.id), json=body())
+    assert again.status_code == 409 and again.json()["error"]["code"] == "conflict"
+    assert "delete the stored value" in again.json()["error"]["message"]
+    assert spy.opened == 1 and len(client.get(url(ws.slug, contact.id, "channels")).json()) == 1
+    # deleting the stored value allows a new lookup
+    channel_id = client.get(url(ws.slug, contact.id, "channels")).json()[0]["id"]
+    assert client.delete(url(ws.slug, contact.id, f"channels/{channel_id}")).status_code == 204
+    assert client.post(url(ws.slug, contact.id), json=body()).status_code == 200
+    assert spy.opened == 2
