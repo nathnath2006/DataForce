@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, NavLink, Outlet, Route, Routes, useNavigate, useParams } from "react-router";
 import { api } from "./api";
 import { WsContext } from "./context";
@@ -12,9 +12,13 @@ import { AnalysisPage } from "./pages/Analysis";
 import { SettingsPage } from "./pages/Settings";
 import { CompaniesPage } from "./companies/CompaniesPage";
 import { CompanyDetailPage } from "./companies/CompanyDetail";
-import { FlowEditorPage } from "./flows/FlowEditor";
 import { FlowsPage } from "./flows/FlowsPage";
 import { ThemeToggle } from "./theme";
+
+// The flow editor (and its canvas library) is the largest part of the bundle: load it on demand.
+const FlowEditorPage = lazy(() =>
+  import("./flows/FlowEditor").then((m) => ({ default: m.FlowEditorPage })),
+);
 
 export function App() {
   return (
@@ -31,7 +35,7 @@ export function App() {
         <Route path="deals" element={<DealsPage />} />
         <Route path="analysis" element={<FlowsPage />} />
         <Route path="analysis/scan" element={<AnalysisPage />} />
-        <Route path="analysis/:flowId" element={<FlowEditorPage />} />
+        <Route path="analysis/:flowId" element={<Suspense fallback={<Loading />}><FlowEditorPage /></Suspense>} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<p className="muted">Page not found.</p>} />
       </Route>
