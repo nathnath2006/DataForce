@@ -1,6 +1,7 @@
 // Mirrors backend/app/flows/schemas.py (the contract). Keep in sync by hand.
 export type Scalar = string | number | boolean | null;
-export type CrmTable = "deals" | "accounts" | "contacts" | "companies";
+export type CrmTable =
+  | "deals" | "accounts" | "contacts" | "companies" | "meetings" | "meeting_themes" | "deal_theme_flags";
 
 export type DatasetSource =
   | { source: "crm"; table: CrmTable }

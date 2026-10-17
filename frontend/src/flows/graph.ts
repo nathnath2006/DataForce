@@ -227,6 +227,22 @@ const node = (id: string, x: number, y: number, config: BlockConfig, label?: str
 const edge = (id: string, source: string, target: string, source_port = "out", target_port = "in"): GraphEdge =>
   ({ id, source, source_port, target, target_port });
 
+/** "Themes vs win rate (theme X)": closed deals, win rate split by whether the theme was mentioned. */
+export function themesVsWinRateGraph(theme: string): FlowGraph {
+  return {
+    version: 1,
+    nodes: [
+      node("n1", 0, 0, { type: "dataset", dataset: { source: "crm", table: "deal_theme_flags" } }, "Deal themes"),
+      node("n2", 280, 0, {
+        type: "filter", mode: "all",
+        conditions: [{ column: "theme", op: "eq", value: theme }, { column: "is_closed", op: "eq", value: true }],
+      }, "Theme, closed only"),
+      node("n3", 560, 0, { type: "stats", group_by: "mentioned", outcome: "is_won", outcome_kind: "rate", success_value: true }),
+    ],
+    edges: [edge("e1", "n1", "n2"), edge("e2", "n2", "n3")],
+  };
+}
+
 export interface Template { key: string; title: string; description: string; build: () => FlowGraph }
 export const TEMPLATES: Template[] = [
   {
@@ -281,6 +297,10 @@ export const TEMPLATES: Template[] = [
       ],
       edges: [edge("e1", "n1", "n2")],
     }),
+  },
+  {
+    key: "themes", title: "Themes vs win rate", description: "Win rate of closed deals whose meetings mention a theme (set the theme in the filter).",
+    build: () => themesVsWinRateGraph("theme label"),
   },
 ];
 

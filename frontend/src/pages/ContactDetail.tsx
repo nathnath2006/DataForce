@@ -7,6 +7,7 @@ import type { ChannelKind, ContactOut } from "../types";
 import { Confirm, Empty, ErrorNote, Loading, Tag, useAction, useLoad } from "../ui";
 import { ContactForm } from "./Contacts";
 import { NoteThread } from "./Notes";
+import { TitleClassRow } from "../titles/TitleClass";
 
 export function ContactDetailPage() {
   const { id = "" } = useParams();
@@ -37,6 +38,7 @@ export function ContactDetailPage() {
       </div>
       <dl className="facts">
         <dt>Title</dt><dd>{k.title ?? "—"}</dd>
+        <TitleClassRow contactId={k.id} fn={k.title_function} sen={k.title_seniority} source={k.title_source} flag={k.title_flag} onChanged={c.reload} />
         <dt>Account</dt><dd><Link to={`${base}/accounts/${k.account_id}`}>{k.account_name}</Link></dd>
         <dt>Reports to</dt>
         <dd>

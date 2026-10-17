@@ -1,0 +1,11 @@
+.turn { margin: 0 0 .7rem; }
+.turn .who { font-weight: 600; display: block; font-size: .85rem; color: var(--muted); }
+.turn .says { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.transcript { max-height: 60vh; overflow: auto; }
+.th0 { background: rgba(36, 86, 214, .22); } .th1 { background: rgba(27, 122, 67, .24); }
+.th2 { background: rgba(214, 140, 0, .28); } .th3 { background: rgba(179, 38, 30, .20); }
+.th4 { background: rgba(130, 70, 200, .24); } .th5 { background: rgba(0, 150, 170, .26); }
+.swatch { display: inline-block; padding: 0 .4rem; border-radius: 3px; font-size: .8rem; margin-right: .4rem; }
+.quote { border-left: 3px solid var(--line); margin: .3rem 0; padding-left: .6rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.themes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: .8rem; }
+.pager { align-items: center; }

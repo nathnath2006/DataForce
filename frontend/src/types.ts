@@ -44,6 +44,7 @@ export interface ContactOut {
   id: string; workspace_id: string; created_at: string; account_id: string; full_name: string;
   title: string | null; reports_to_id: string | null; source: RecordSource; source_ref: string | null;
   title_function: string | null; title_seniority: string | null;
+  title_source?: string | null; title_flag?: string | null;
   account_name: string; reports_to_name: string | null; n_direct_reports: number;
   n_notes: number; n_channels: number;
 }
