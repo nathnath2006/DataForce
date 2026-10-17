@@ -1,0 +1,60 @@
+# Developer shortcuts. Run from the repository root.
+BACKEND := backend
+VENV    := $(BACKEND)/.venv/bin
+
+.PHONY: help db-up db-down migrate db-reset-test test test-integration test-all lint lock notebook
+
+# Used by `make lock`: pip-tools from the dev extras. UPGRADE=1 also bumps every pinned version.
+PIP_COMPILE := $(CURDIR)/$(VENV)/pip-compile --generate-hashes --strip-extras --allow-unsafe --quiet
+
+help:
+	@echo "db-up            start Postgres + pgvector (docker compose, localhost:5433) and wait until healthy"
+	@echo "db-down          stop the database (data volume is kept)"
+	@echo "migrate          alembic upgrade head on the dev database"
+	@echo "db-reset-test    drop and recreate the schema of dataforce_test (after changing models/migrations)"
+	@echo "test             unit tests only (no database, no network)"
+	@echo "test-integration tests that need the database (make db-up first)"
+	@echo "test-all         everything except live tests"
+	@echo "lint             ruff check"
+	@echo "lock             regenerate the three hashed locks (UPGRADE=1 to bump)"
+	@echo "notebook         open the Milestone 1 demo notebook in JupyterLab"
+
+db-up:
+	docker compose up -d --wait db
+
+db-down:
+	docker compose down
+
+migrate:
+	cd $(BACKEND) && .venv/bin/alembic upgrade head
+
+# The integration fixtures migrate dataforce_test on their own; reset it only when its schema
+# drifted from models.py (the migration test then tells you to run this).
+db-reset-test:
+	docker compose exec -T db psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-dataforce} -d dataforce_test \
+		-c 'DROP SCHEMA public CASCADE' -c 'CREATE SCHEMA public' -c 'CREATE EXTENSION vector'
+
+test:
+	cd $(BACKEND) && .venv/bin/pytest -m "not integration and not live"
+
+test-integration:
+	cd $(BACKEND) && .venv/bin/pytest -m integration
+
+test-all:
+	cd $(BACKEND) && .venv/bin/pytest -m "not live"
+
+lint:
+	cd $(BACKEND) && .venv/bin/ruff check app tests alembic
+
+# Hashed, pinned locks (SR3-08). Runtime lock first, then the dev lock (runtime + dev tools).
+# Install with: pip install --require-hashes -r requirements.lock && pip install --no-deps -e .
+lock:
+	cd $(BACKEND) && $(PIP_COMPILE) $(if $(UPGRADE),--upgrade) \
+		--output-file=requirements.lock pyproject.toml
+	cd $(BACKEND) && $(PIP_COMPILE) $(if $(UPGRADE),--upgrade) --constraint requirements.lock --extra dev \
+		--output-file=requirements-dev.lock pyproject.toml
+	cd $(BACKEND) && $(PIP_COMPILE) $(if $(UPGRADE),--upgrade) --constraint requirements.lock --extra notebook \
+		--output-file=requirements-notebook.lock pyproject.toml
+
+notebook:
+	cd $(BACKEND) && .venv/bin/jupyter lab ../notebooks/M1_engine_demo.ipynb

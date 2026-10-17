@@ -1,0 +1,36 @@
+# Local dev database: Postgres 16 + pgvector, reachable on localhost:5433 only.
+# Credentials default to the dev values in backend/app/config.py; override with env vars
+# (e.g. POSTGRES_PASSWORD=... docker compose up -d db). Never reuse these defaults outside dev.
+#
+# POSTGRES_PASSWORD / POSTGRES_USER / POSTGRES_DB are applied only when the data volume is first
+# created. On an existing volume changing them does NOTHING (the old password keeps working): use
+# `ALTER ROLE ... PASSWORD` or recreate the volume (`docker compose down -v`, destroys the data).
+# See README "Changing the database password".
+services:
+  db:
+    # Pinned by digest (multi-arch index: amd64 + arm64) so a compromised or moved tag cannot
+    # change what we run. Tag for humans, digest for Docker. To update: pull the new tag, check
+    # `docker buildx imagetools inspect pgvector/pgvector:pg16`, replace the digest, run the tests.
+    image: pgvector/pgvector:pg16@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
+    container_name: dataforce-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dataforce}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dataforce}
+      POSTGRES_DB: ${POSTGRES_DB:-dataforce}
+    ports:
+      # Bound to loopback on purpose: the DB must not be reachable from the network.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - dataforce_pgdata:/var/lib/postgresql/data
+      # Runs once, on first start of an empty volume: creates dataforce_test + the vector extension.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  dataforce_pgdata:
