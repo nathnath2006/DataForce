@@ -24,7 +24,7 @@ cd backend && python3.13 -m venv .venv \
   && .venv/bin/pip install --no-deps -e . && cd ..
 make migrate                                   # create / upgrade the schema
 backend/.venv/bin/dataforce demo generate --variant planted --seed 42 --replace
-backend/.venv/bin/dataforce demo generate --variant noise   --seed 42 --replace
+backend/.venv/bin/dataforce demo generate --variant noise   --seed 1  --replace
 ```
 
 Then, every time: `make ui` and open **http://127.0.0.1:8800** (use exactly this address: the
@@ -116,15 +116,15 @@ Generate, load and check the demo data (workspace `demo-<variant>-<seed>`; the a
 
 ```bash
 .venv/bin/dataforce demo generate --variant planted --seed 42 --replace
-.venv/bin/dataforce demo generate --variant noise   --seed 42 --replace
+.venv/bin/dataforce demo generate --variant noise   --seed 1  --replace
 .venv/bin/dataforce demo check --variant planted --seed 42   # exit code 1 if the engine fails
-.venv/bin/dataforce demo check --variant noise   --seed 42   # exit 1: see below
+.venv/bin/dataforce demo check --variant noise   --seed 1    # nothing may be verified
 ```
 
-At 350 deals, about 1 noise dataset in 25 shows one chance finding that passes every gate (the 5%
-false discovery rate doing what it promises, see `docs/DECISIONS.md` section E). Seed 42 is such a
-dataset: its check fails on purpose and names the false positive (owner x cycle days). Seed 1 is
-clean: `demo generate --variant noise --seed 1` then `demo check --variant noise --seed 1`.
+The noise demo uses seed 1. At 350 deals, about 1 noise dataset in 25 shows one chance finding that
+passes every gate (the 5% false discovery rate doing what it promises, see `docs/DECISIONS.md`
+section E): noise seed 42 is such a dataset, and its check fails on purpose, naming the false
+positive (owner x cycle days).
 
 Look at the numbers (every read command accepts `--json`). "Not verified" means the evidence is too thin
 to call it a finding (too few deals, interval too wide, or not significant after correcting for many
