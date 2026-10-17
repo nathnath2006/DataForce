@@ -158,7 +158,15 @@ class OrgChartNode(BaseModel):
     full_name: str
     title: str | None
     reports_to_id: UUID | None
-    source: str  # where the link comes from: manual / demo / import / tamtam
+    source: str  # where the contact comes from: manual / demo / import / tamtam
+    # M2b
+    title_function: str | None = None
+    title_seniority: str | None = None
+    # How the current manager link was set: "manual" (typed by a user or loaded), or "rule" /
+    # "meeting" when it was validated from a proposal (link_proposal_id points at its evidence).
+    link_origin: Literal["manual", "rule", "meeting"] | None = None
+    link_proposal_id: UUID | None = None
+    signals: list[str] = []  # accepted champion / blocker / decision_maker signals
 
 
 class OrgChartOut(BaseModel):

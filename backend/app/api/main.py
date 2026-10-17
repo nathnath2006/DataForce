@@ -12,10 +12,14 @@ from app.api.routes import (
     connectors,
     crm,
     data,
+    documents,
     enrichment,
     flows,
     notes,
+    orgchart,
     stats,
+    themes,
+    titles,
     workspaces,
 )
 from app.api.schemas import Health
@@ -43,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return Health(ok=True, version=__version__, environment=settings.environment)
 
     routers = (workspaces, crm, notes, stats, connectors, enrichment, companies, data, flows, ai)
+    routers += (titles, orgchart, documents, themes)  # M2b
     for module in routers:
         app.include_router(module.router, prefix="/api")
     install_security(app, settings)  # last added = outermost middleware

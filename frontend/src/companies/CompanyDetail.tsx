@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api";
 import { AskPanel } from "../assistant/AskPanel";
+import { MeetingsPanel } from "../meetings/MeetingsPanel";
 import { useWs } from "../context";
 import { formatDate, formatDateTime, formatEur, label } from "../lib";
 import type { AccountOut } from "../types";
@@ -112,6 +113,7 @@ export function CompanyDetailPage() {
         )}
       </div>
 
+      <MeetingsPanel scope={{ kind: "company", id: c.id }} />
       <AskPanel scope={{ kind: "company", id: c.id }} />
 
       {editing && <CompanyForm company={c} onClose={() => setEditing(false)} onSaved={() => d.reload()} />}

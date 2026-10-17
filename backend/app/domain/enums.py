@@ -107,6 +107,9 @@ class RunKind(StrEnum):
     DEMO_GENERATE = "demo_generate"
     STATS_SCAN = "stats_scan"
     FLOW_RUN = "flow_run"  # M2a: an analysis flow was run (params: flow id, node; result: summary)
+    TITLE_NORMALIZE = "title_normalize"  # M2b
+    ORG_RULES = "org_rules"  # M2b: org-chart proposals from rules and meetings
+    THEME_ANALYSIS = "theme_analysis"  # M2b
 
 
 class RunStatus(StrEnum):
@@ -130,3 +133,37 @@ class ConnectorStatus(StrEnum):
 class ChannelKind(StrEnum):
     EMAIL = "email"
     MOBILE = "mobile"
+
+
+# --- M2b: titles, org-chart proposals, transcripts and themes -------------------------------------
+class TitleSource(StrEnum):
+    DICTIONARY = "dictionary"
+    LLM = "llm"  # classified by the AI once, cached and flagged for review
+    MANUAL = "manual"  # set by a user: never overwritten by a normalisation run
+
+
+class ProposalKind(StrEnum):
+    REPORTS_TO = "reports_to"
+    CHAMPION = "champion"
+    BLOCKER = "blocker"
+    DECISION_MAKER = "decision_maker"
+
+
+class ProposalOrigin(StrEnum):
+    RULE = "rule"  # same account + normalised titles
+    MEETING = "meeting"  # a sentence in a transcript (the excerpt is kept)
+
+
+class ProposalStatus(StrEnum):
+    PROPOSED = "proposed"
+    AMBIGUOUS = "ambiguous"  # several candidates: never guessed, the candidates are listed
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
+class ThemeKind(StrEnum):
+    OBJECTION = "objection"
+    NEED = "need"
+    COMPETITOR = "competitor"
+    TIMING = "timing"
+    OTHER = "other"

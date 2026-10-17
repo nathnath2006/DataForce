@@ -25,6 +25,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -130,8 +131,20 @@ class Contact(Base):
     title: Mapped[str | None] = mapped_column(Text)
     title_function: Mapped[str | None] = mapped_column(String(16))  # JobFunction, filled in M2
     title_seniority: Mapped[str | None] = mapped_column(String(16))  # Seniority, filled in M2
+    title_source: Mapped[str | None] = mapped_column(String(16))  # TitleSource (M2b)
+    title_flag: Mapped[str | None] = mapped_column(Text)  # why it needs a look (M2b), else None
     reports_to_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("contact.id", ondelete="SET NULL")
+    )
+    # M2b: set when the manager link was validated from a rule / meeting proposal (its evidence
+    # stays viewable); None for a link entered by hand.
+    reports_to_proposal_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(
+            "org_proposal.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_contact_reports_to_proposal",
+        )
     )
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
     source_ref: Mapped[str | None] = mapped_column(Text)
@@ -467,3 +480,159 @@ class LlmCredential(Base):
     last_error: Mapped[str | None] = mapped_column(Text)  # sanitised, never holds the key
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _updated()
+
+
+# --- M2b: titles, org-chart proposals, transcripts and themes ------------------------------------
+class TitleCache(Base):
+    """An unknown title classified once by the AI, per workspace (the normalised title text is
+    the key). Reused by every later run; shown flagged until a user confirms or overrides."""
+
+    __tablename__ = "title_cache"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "normalized_title", name="uq_title_cache_ws_title"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    normalized_title: Mapped[str] = mapped_column(Text, nullable=False)
+    function: Mapped[str] = mapped_column(String(16), nullable=False)
+    seniority: Mapped[str] = mapped_column(String(16), nullable=False)
+    confidence: Mapped[str] = mapped_column(String(8), nullable=False)  # low | medium | high
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = _created()
+
+
+class OrgProposal(Base):
+    """A suggested org-chart fact, never shown as fact until a user accepts it. kind reports_to:
+    `manager_id` is the proposed manager (None when ambiguous: `candidates` lists them). kinds
+    champion / blocker / decision_maker are signals about `contact_id` from a meeting."""
+
+    __tablename__ = "org_proposal"
+    __table_args__ = (
+        Index("ix_org_proposal_account", "account_id", "status"),
+        Index("ix_org_proposal_contact", "contact_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("account.id", ondelete="CASCADE"), nullable=False
+    )
+    contact_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contact.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # ProposalKind
+    manager_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("contact.id", ondelete="CASCADE")
+    )
+    origin: Mapped[str] = mapped_column(String(16), nullable=False)  # ProposalOrigin
+    rule: Mapped[str | None] = mapped_column(String(64))  # rule id (origin rule) or pattern id
+    # rule: {"contact_title", "manager_title", "explanation"}; meeting: {"document_id",
+    # "chunk_id", "excerpt", "speaker", "char_start", "char_end"} (the excerpt is exact text).
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    candidates: Mapped[list[str] | None] = mapped_column(JSONB)  # contact ids when ambiguous
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="proposed")
+    run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("run.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = _created()
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decided_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+
+
+class Document(Base):
+    """An imported meeting transcript (PDF / Markdown / text) attached to an account. Only the
+    extracted text is kept (sanitised); the original file is not stored."""
+
+    __tablename__ = "document"
+    __table_args__ = (Index("ix_document_account", "account_id", "meeting_date"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("account.id", ondelete="CASCADE"), nullable=False
+    )
+    # The deal the meeting was about, when known: lets flows relate themes to deal outcomes.
+    deal_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("deal.id", ondelete="SET NULL"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="transcript")
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    meeting_date: Mapped[date | None] = mapped_column(Date)
+    file_name: Mapped[str | None] = mapped_column(Text)
+    media_type: Mapped[str | None] = mapped_column(String(100))
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    n_chars: Mapped[int] = mapped_column(Integer, nullable=False)
+    language: Mapped[str | None] = mapped_column(String(8))  # fr | en | mixed
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = _created()
+
+
+class DocumentChunk(Base):
+    """A speaker turn (or a slice of a long one). `char_start` / `char_end` index the parent
+    document's text, so every excerpt can be shown in context and verified."""
+
+    __tablename__ = "document_chunk"
+    __table_args__ = (Index("ix_document_chunk_document", "document_id", "seq"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("document.id", ondelete="CASCADE"), nullable=False
+    )
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    speaker: Mapped[str | None] = mapped_column(Text)  # as written in the transcript
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("contact.id", ondelete="SET NULL")
+    )  # the account contact the speaker was matched to
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )  # or our own rep
+    char_start: Mapped[int] = mapped_column(Integer, nullable=False)
+    char_end: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class Theme(Base):
+    """A theme found by code (TF-IDF + NMF over transcript chunks) in one analysis run. `label`
+    and `description` come from the AI (named_by llm) or from the top terms (named_by keywords).
+    Counts are computed by code."""
+
+    __tablename__ = "theme"
+    __table_args__ = (Index("ix_theme_run", "run_id"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("run.id", ondelete="CASCADE"), nullable=False
+    )
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="other")  # ThemeKind
+    named_by: Mapped[str] = mapped_column(String(16), nullable=False)  # llm | keywords
+    top_terms: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    n_chunks: Mapped[int] = mapped_column(Integer, nullable=False)
+    n_documents: Mapped[int] = mapped_column(Integer, nullable=False)
+    n_accounts: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = _created()
+
+
+class ThemeAssignment(Base):
+    __tablename__ = "theme_assignment"
+    __table_args__ = (Index("ix_theme_assignment_chunk", "chunk_id"),)
+
+    theme_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("theme.id", ondelete="CASCADE"), primary_key=True
+    )
+    chunk_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("document_chunk.id", ondelete="CASCADE"), primary_key=True
+    )
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    weight: Mapped[float] = mapped_column(Float, nullable=False)

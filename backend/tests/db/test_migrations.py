@@ -46,7 +46,7 @@ def test_every_model_table_has_rls_enabled(engine: Engine):
 
 # Migrations that enable RLS on the tables they list in TABLES (0002 for the original schema,
 # later ones for the tables they create). Together they must cover every model table.
-LOCKDOWN_MIGRATIONS = ("0002_lockdown.py", "0004_connectors.py", "0005_m2a.py")
+LOCKDOWN_MIGRATIONS = ("0002_lockdown.py", "0004_connectors.py", "0005_m2a.py", "0006_m2b.py")
 
 
 def test_lockdown_list_covers_every_model_table():

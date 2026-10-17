@@ -296,6 +296,14 @@ class Settings(BaseSettings):
     assistant_max_context_chars: int = Field(default=40_000, ge=2_000, le=400_000)
     assistant_max_asks_per_hour: int = Field(default=60, ge=1, le=10_000)  # per workspace
 
+    # --- M2b: titles, transcripts, themes ---------------------------------------------------
+    # AI title classifications per normalisation run (unknown titles only, then cached).
+    titles_max_llm_calls_per_run: int = Field(default=200, ge=0, le=5_000)
+    transcript_max_bytes: int = Field(default=5 * 1024 * 1024, ge=1024, le=50 * 1024 * 1024)
+    transcript_max_pages: int = Field(default=300, ge=1, le=2_000)  # PDF
+    transcript_max_chars: int = Field(default=1_000_000, ge=1_000, le=10_000_000)
+    themes_default_k: int = Field(default=8, ge=2, le=30)
+
     # --- validators -----------------------------------------------------------------------
     # Field validators (not a model validator) on purpose: they see the already-wrapped
     # SecretStr, and `environment` is declared first so `info.data` has it.

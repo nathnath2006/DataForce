@@ -9,7 +9,8 @@ import { Confirm, Empty, ErrorNote, Loading, Modal, Tag, useAction, useLoad } fr
 import { AccountForm } from "./Accounts";
 import { ContactForm } from "./Contacts";
 import { NoteThread } from "./Notes";
-import { OrgChart } from "./OrgChart";
+import { OrgChartPanel } from "../orgchart/OrgChartPanel";
+import { MeetingsPanel } from "../meetings/MeetingsPanel";
 
 export function AccountDetailPage() {
   const { id = "" } = useParams();
@@ -67,7 +68,9 @@ export function AccountDetailPage() {
       <div className="card">
         <h2>Org chart</h2>
         <ErrorNote error={chart.error} />
-        {chart.data && <OrgChart nodes={chart.data.nodes} base={base} />}
+        {chart.data && (
+          <OrgChartPanel accountId={a.id} nodes={chart.data.nodes} base={base} onChanged={chart.reload} />
+        )}
       </div>
 
       <div className="card">
@@ -88,6 +91,7 @@ export function AccountDetailPage() {
         <NoteThread kind="comment" parentId={a.id} />
       </div>
 
+      <MeetingsPanel scope={{ kind: "account", id: a.id }} />
       <AskPanel scope={{ kind: "account", id: a.id }} />
 
       {picking && <CompanyPicker accountId={a.id} current={a.company_id ?? null} onClose={() => setPicking(false)} onSaved={refreshAll} />}

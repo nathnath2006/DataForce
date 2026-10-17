@@ -88,6 +88,8 @@ class ContactRead(ContactIn):
     workspace_id: UUID
     title_function: JobFunction | None = None
     title_seniority: Seniority | None = None
+    title_source: str | None = None  # M2b: dictionary | llm | manual
+    title_flag: str | None = None  # M2b: why the classification needs a look
     created_at: datetime
 
 
@@ -201,6 +203,29 @@ class PlantedEffect(BaseModel):
     magnitude: str  # human-readable, e.g. "+25 pts win rate", "x2.5 cycle length"
 
 
+class MeetingTruth(BaseModel):
+    """What the generator planted in one synthetic transcript (M2b)."""
+
+    document_key: str
+    account_key: str
+    deal_key: str | None = None
+    themes: list[str] = []  # planted theme ids (see M2Truth.theme_ids)
+    # (speaker contact key, manager contact key) for "I report to X" style sentences
+    org_statements: list[tuple[str, str]] = []
+    # (contact key, "champion" | "blocker" | "decision_maker")
+    signals: list[tuple[str, str]] = []
+
+
+class M2Truth(BaseModel):
+    """Answer key for M2b: titles, org chart and meetings. Kept out of the CRM."""
+
+    roles: dict[str, str] = {}  # contact key -> role (app.demo.names.ROLE_TITLES key)
+    org: dict[str, str | None] = {}  # contact key -> true manager key (full tree)
+    links_removed: list[str] = []  # contact keys whose manual link is absent from the CRM
+    theme_ids: list[str] = []
+    meetings: list[MeetingTruth] = []
+
+
 class GroundTruth(BaseModel):
     variant: Literal["planted", "noise"]
     seed: int
@@ -216,6 +241,7 @@ class GroundTruth(BaseModel):
     null_cells: list[tuple[Dimension, Metric]] = []
     small_groups: list[tuple[Dimension, str]] = []  # must come out "not verified" (too few rows)
     notes: list[str] = []
+    m2: M2Truth | None = None  # M2b answer key (titles, org chart, meetings)
 
 
 # --- LLM usage + enrichment (kept from v1) -------------------------------------------------------

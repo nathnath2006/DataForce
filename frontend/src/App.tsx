@@ -12,6 +12,7 @@ import { AnalysisPage } from "./pages/Analysis";
 import { SettingsPage } from "./pages/Settings";
 import { CompaniesPage } from "./companies/CompaniesPage";
 import { CompanyDetailPage } from "./companies/CompanyDetail";
+import { MeetingsPage } from "./meetings/MeetingsPage";
 import { FlowsPage } from "./flows/FlowsPage";
 import { ThemeToggle } from "./theme";
 
@@ -33,6 +34,7 @@ export function App() {
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="contacts/:id" element={<ContactDetailPage />} />
         <Route path="deals" element={<DealsPage />} />
+        <Route path="meetings" element={<MeetingsPage />} />
         <Route path="analysis" element={<FlowsPage />} />
         <Route path="analysis/scan" element={<AnalysisPage />} />
         <Route path="analysis/:flowId" element={<Suspense fallback={<Loading />}><FlowEditorPage /></Suspense>} />
@@ -132,7 +134,7 @@ function Shell() {
         )}
         <div className="body">
           <nav className={`side ${navOpen ? "open" : ""}`} onClick={() => setNavOpen(false)}>
-            {["companies", "accounts", "contacts", "deals", "analysis", "settings"].map((p) => (
+            {["companies", "accounts", "contacts", "deals", "meetings", "analysis", "settings"].map((p) => (
               <NavLink key={p} to={`/w/${slug}/${p}`}>{p.charAt(0).toUpperCase() + p.slice(1)}</NavLink>
             ))}
             <p className="muted small">Acting as is a label only: there is no login before M3.</p>

@@ -39,6 +39,9 @@ dependencies = [
     "pandas>=2.2",
     "openpyxl>=3.1",
     "scikit-learn>=1.5",
+    # meeting transcripts (M2b): PDF text extraction. Pinned below releases younger than two
+    # weeks at pin time (supply-chain rule); bump deliberately.
+    "pypdf>=6.19,<6.20",
 ]
 
 [project.optional-dependencies]
