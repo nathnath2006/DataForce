@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dataforce"
-version = "0.1.0"
+version = "0.2.0"
 description = "DataForce: analysis workspace for sales / marketing teams (minimal CRM + verified analytics)"
 requires-python = ">=3.12"
 dependencies = [
@@ -30,6 +30,10 @@ dependencies = [
     # CLI
     "typer>=0.12",
     "rich>=13.7",
+    # local web UI + API (M1b), connector secrets sealed at rest
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "cryptography>=43",
 ]
 
 [project.optional-dependencies]

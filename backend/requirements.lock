@@ -11,7 +11,9 @@ alembic==1.20.0 \
 annotated-doc==0.0.5 \
     --hash=sha256:117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101 \
     --hash=sha256:c7e58ce09192557605d8bbd92836d7e1d520ac9580096042c0bfd197efacf1bb
-    # via typer
+    # via
+    #   fastapi
+    #   typer
 annotated-types==0.8.0 \
     --hash=sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7 \
     --hash=sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0
@@ -385,6 +387,7 @@ cryptography==50.0.2 \
     --hash=sha256:fa8f5efb344d6908a1ce62f4a24e2e5780f825d6f53f5f50ec5ffacac72936cb \
     --hash=sha256:fdd28f912fccfec1846a94e2e1e8f9b0012f557f0c46fe4f3eb0d7a87afcf90b
     # via
+    #   dataforce (pyproject.toml)
     #   google-auth
     #   pyjwt
 distro==1.9.0 \
@@ -395,6 +398,10 @@ docstring-parser==0.18.0 \
     --hash=sha256:292510982205c12b1248696f44959db3cdd1740237a968ea1e2e7a900eeb2015 \
     --hash=sha256:b3fcbed555c47d8479be0796ef7e19c2670d428d72e96da63f3a40122860374b
     # via anthropic
+fastapi==0.143.3 \
+    --hash=sha256:75e8bd68e2f52f77d29b2879749c257d64de2d85282d25270caf2bfccce5efe5 \
+    --hash=sha256:b9ab567ee57afb4454004ce04c889f8f0160ac47946b99795887cd6e88484848
+    # via dataforce (pyproject.toml)
 google-auth==2.62.0 \
     --hash=sha256:0bef0ce54bdf9ce226c5d66e4264413bd918141c31bbe49fb52eac882f513d69 \
     --hash=sha256:4ff4319aeb4ad128409759d397a9fcafad126d0031d241cc0dd6b9a00b43e3f3
@@ -815,6 +822,7 @@ opentelemetry-api==1.45.1 \
     --hash=sha256:b31553efa588ae44bc306f863c785c5333a9ecc091248c6ee68b4b6c87fdedfb
     # via
     #   anthropic
+    #   fastapi
     #   mcp
 pgvector==0.5.1 \
     --hash=sha256:94998a54b801b1075d623b8fa677fcb8210a7977b88f8e2203ab115c155af2e4 \
@@ -910,6 +918,7 @@ pydantic==2.14.1 \
     # via
     #   anthropic
     #   dataforce (pyproject.toml)
+    #   fastapi
     #   google-genai
     #   mcp
     #   mcp-types
@@ -1457,6 +1466,7 @@ starlette==1.8.0 \
     --hash=sha256:1565dc0b35d5737a271ed1e0e04e949f4e81198799f216d2667b0a0fb9cf9522 \
     --hash=sha256:dfdd6b29c26483288088d990eee59631dedadd66ce20d203402a7ca8e3c4656f
     # via
+    #   fastapi
     #   mcp
     #   sse-starlette
 tenacity==9.1.4 \
@@ -1480,6 +1490,7 @@ typing-extensions==4.16.0 \
     #   alembic
     #   anthropic
     #   anyio
+    #   fastapi
     #   google-genai
     #   mcp
     #   mcp-types
@@ -1493,6 +1504,7 @@ typing-inspection==0.4.4 \
     --hash=sha256:547274fa6b0a561ccf549cc9524b999a578e737d015d8709d021f9d0d13bea47 \
     --hash=sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147
     # via
+    #   fastapi
     #   mcp
     #   pydantic
     #   pydantic-settings
@@ -1503,7 +1515,9 @@ urllib3==2.8.0 \
 uvicorn==0.54.0 \
     --hash=sha256:505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf \
     --hash=sha256:a2e33cbfaa0306f8e6b0c13e0cb89d7d7a2da3e62b90c66e18c33d9807b28620
-    # via mcp
+    # via
+    #   dataforce (pyproject.toml)
+    #   mcp
 websockets==16.1.1 \
     --hash=sha256:01fbdcbac298efe19360b94bc0039c8f746f0220ba570f327577bfee81059175 \
     --hash=sha256:024193f8551a2b0eafbdd160911012c4e6c228c28430c84433253299a9e42d6a \

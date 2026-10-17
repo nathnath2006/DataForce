@@ -15,6 +15,7 @@ annotated-doc==0.0.5 \
     --hash=sha256:c7e58ce09192557605d8bbd92836d7e1d520ac9580096042c0bfd197efacf1bb
     # via
     #   -c requirements.lock
+    #   fastapi
     #   typer
 annotated-types==0.8.0 \
     --hash=sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7 \
@@ -556,6 +557,7 @@ cryptography==50.0.2 \
     --hash=sha256:fdd28f912fccfec1846a94e2e1e8f9b0012f557f0c46fe4f3eb0d7a87afcf90b
     # via
     #   -c requirements.lock
+    #   dataforce (pyproject.toml)
     #   google-auth
     #   pyjwt
 cycler==0.12.1 \
@@ -614,6 +616,12 @@ executing==2.3.0 \
     --hash=sha256:15919cb5d667e5cb4e099511971d00d659573fff2dd5c4e6cd8b71636c7858d2 \
     --hash=sha256:736e859c9f8701f11fcf516856f26f562e04776387824b43a35a1dfe21c84122
     # via stack-data
+fastapi==0.143.3 \
+    --hash=sha256:75e8bd68e2f52f77d29b2879749c257d64de2d85282d25270caf2bfccce5efe5 \
+    --hash=sha256:b9ab567ee57afb4454004ce04c889f8f0160ac47946b99795887cd6e88484848
+    # via
+    #   -c requirements.lock
+    #   dataforce (pyproject.toml)
 fastjsonschema==2.22.2 \
     --hash=sha256:0fb3915616adac85ccfdd737d26be1089845d2019819505b42d39888458f74d4 \
     --hash=sha256:72064e12356a7d6ef02165be2946b9abadbdf238536e07eb587e3dbaa33099cf
@@ -1474,6 +1482,7 @@ opentelemetry-api==1.45.1 \
     # via
     #   -c requirements.lock
     #   anthropic
+    #   fastapi
     #   mcp
 packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
@@ -1795,6 +1804,7 @@ pydantic==2.14.1 \
     #   -c requirements.lock
     #   anthropic
     #   dataforce (pyproject.toml)
+    #   fastapi
     #   google-genai
     #   mcp
     #   mcp-types
@@ -2515,6 +2525,7 @@ starlette==1.8.0 \
     --hash=sha256:dfdd6b29c26483288088d990eee59631dedadd66ce20d203402a7ca8e3c4656f
     # via
     #   -c requirements.lock
+    #   fastapi
     #   mcp
     #   sse-starlette
 tenacity==9.1.4 \
@@ -2588,6 +2599,7 @@ typing-extensions==4.16.0 \
     #   anthropic
     #   anyio
     #   beautifulsoup4
+    #   fastapi
     #   google-genai
     #   jupyter-client
     #   mcp
@@ -2603,6 +2615,7 @@ typing-inspection==0.4.4 \
     --hash=sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147
     # via
     #   -c requirements.lock
+    #   fastapi
     #   mcp
     #   pydantic
     #   pydantic-settings
@@ -2625,6 +2638,7 @@ uvicorn==0.54.0 \
     --hash=sha256:a2e33cbfaa0306f8e6b0c13e0cb89d7d7a2da3e62b90c66e18c33d9807b28620
     # via
     #   -c requirements.lock
+    #   dataforce (pyproject.toml)
     #   mcp
 wcwidth==0.9.2 \
     --hash=sha256:0a47e03d8293590ecce66c45dc20ff7b4b885e3c78093722239585eca0d77ab2 \

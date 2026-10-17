@@ -270,3 +270,78 @@ class LlmCall(Base):
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created()
+
+
+# --- M1b: connectors and enriched contact channels ----------------------------------------------
+class ConnectorCredential(Base):
+    """A workspace's OAuth connection to an external MCP server (TamTam). Tokens and any client
+    secret are sealed (Fernet, DATAFORCE_SECRET_KEY): they never leave the backend, never reach
+    the browser and are never logged."""
+
+    __tablename__ = "connector_credential"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "provider", name="uq_connector_credential_ws_provider"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)  # ConnectorProvider
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="connected")
+    issuer: Mapped[str] = mapped_column(Text, nullable=False)  # authorization server origin
+    resource: Mapped[str] = mapped_column(Text, nullable=False)  # the MCP URL (RFC 8707)
+    client_id: Mapped[str] = mapped_column(Text, nullable=False)  # from dynamic registration
+    client_secret_enc: Mapped[str | None] = mapped_column(Text)
+    redirect_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    access_token_enc: Mapped[str] = mapped_column(Text, nullable=False)
+    refresh_token_enc: Mapped[str | None] = mapped_column(Text)
+    token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scope: Mapped[str | None] = mapped_column(Text)
+    # Last tool list seen on the server (names, sanitised descriptions, annotations). No secrets.
+    tools: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)  # sanitised, never holds a token
+    connected_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _updated()
+
+
+class OAuthPending(Base):
+    """An authorization in flight, between the "Connect" click and the callback. Single use and
+    short-lived: the callback deletes it; rows past `expires_at` are refused and purged. Only a
+    SHA-256 of the `state` and of the browser-binding cookie is stored."""
+
+    __tablename__ = "oauth_pending"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    state_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    browser_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    code_verifier_enc: Mapped[str] = mapped_column(Text, nullable=False)
+    issuer: Mapped[str] = mapped_column(Text, nullable=False)
+    resource: Mapped[str] = mapped_column(Text, nullable=False)
+    client_id: Mapped[str] = mapped_column(Text, nullable=False)
+    client_secret_enc: Mapped[str | None] = mapped_column(Text)
+    redirect_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _created()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ContactChannel(Base):
+    """An email / mobile of a contact, obtained only by an explicit (possibly paid) enrichment
+    click. The value is sealed at rest; one click deletes it, and erasing the contact cascades.
+    Kept apart from `contact`, which stays at the strict minimum."""
+
+    __tablename__ = "contact_channel"
+    __table_args__ = (Index("ix_contact_channel_contact", "contact_id"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    contact_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contact.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # ChannelKind
+    value_enc: Mapped[str] = mapped_column(Text, nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)  # "tamtam_mcp" | "fake"
+    credits_used: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False, default=0)
+    raw_tool: Mapped[str | None] = mapped_column(String(200))
+    fetched_at: Mapped[datetime] = _created()

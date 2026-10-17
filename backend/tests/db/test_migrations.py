@@ -44,9 +44,17 @@ def test_every_model_table_has_rls_enabled(engine: Engine):
     assert [t for t in expected if not rls[t]] == []
 
 
+# Migrations that enable RLS on the tables they list in TABLES (0002 for the original schema,
+# later ones for the tables they create). Together they must cover every model table.
+LOCKDOWN_MIGRATIONS = ("0002_lockdown.py", "0004_connectors.py")
+
+
 def test_lockdown_list_covers_every_model_table():
-    path = BACKEND_DIR / "alembic" / "versions" / "0002_lockdown.py"
-    spec = importlib.util.spec_from_file_location("lockdown", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    assert set(Base.metadata.tables) | {"alembic_version"} == set(module.TABLES)
+    covered: set[str] = set()
+    for name in LOCKDOWN_MIGRATIONS:
+        path = BACKEND_DIR / "alembic" / "versions" / name
+        spec = importlib.util.spec_from_file_location(name.removesuffix(".py"), path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        covered |= set(module.TABLES)
+    assert set(Base.metadata.tables) | {"alembic_version"} == covered

@@ -18,6 +18,8 @@ secret; `hide_input_in_errors` keeps pydantic from printing the offending input)
 
 from __future__ import annotations
 
+import base64
+import binascii
 import difflib
 import ipaddress
 import logging
@@ -247,14 +249,37 @@ class Settings(BaseSettings):
 
     # --- synthetic demo data --------------------------------------------------------------
     demo_seed: int = 42
-    demo_n_deals: int = Field(default=200, ge=50, le=20_000)
+    demo_n_deals: int = Field(default=350, ge=50, le=20_000)  # 350 decided 2026-10-17
 
-    # --- TamTam connector / enrichment (M3 wires it; paid lookups only on explicit click) --
+    # --- TamTam connector / enrichment (paid lookups only on explicit click) ----------------
     enrichment_provider: Literal["tamtam_mcp", "fake", "none"] = "none"
     tamtam_mcp_url: str = "https://api.tamtam.ai/mcp"
+    # Legacy / headless path: a pasted access token. The UI's "Connect TamTam" (OAuth, stored
+    # sealed in the database per workspace) is the normal way and takes precedence.
     tamtam_mcp_token: SecretStr | None = None
     # Hard ceiling per enrichment call; anything above (estimated or server-reported) is refused.
     enrichment_max_credits_per_call: float = Field(default=10.0, gt=0, le=1000, allow_inf_nan=False)
+    # OAuth authorization servers we accept for the TamTam MCP resource (exact origins). The
+    # discovered server must be one of these, so a tampered metadata document cannot send the
+    # browser, or the authorization code, anywhere else.
+    tamtam_oauth_allowed_issuers: list[str] = ["https://api.tamtam.ai"]
+
+    # --- local web UI (M1b: loopback only, no login until M3) -------------------------------
+    # Fernet key (urlsafe base64, 32 bytes) that seals connector tokens and enriched contact
+    # values at rest. `dataforce secrets init` writes one into backend/.env (chmod 600).
+    dataforce_secret_key: SecretStr | None = None
+    ui_host: str = "127.0.0.1"
+    ui_port: int = Field(default=8800, ge=1024, le=65535)
+    # Origins allowed to send state-changing requests (POST/PATCH/PUT/DELETE). The Vite dev
+    # server (5173) is included for `make ui-dev`.
+    ui_allowed_origins: list[str] = [
+        "http://127.0.0.1:8800",
+        "http://localhost:8800",
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    ]
+    # Built frontend served at / (empty or missing = API only).
+    ui_dist_dir: Path = BACKEND_DIR.parent / "frontend" / "dist"
 
     # --- validators -----------------------------------------------------------------------
     # Field validators (not a model validator) on purpose: they see the already-wrapped
@@ -284,6 +309,49 @@ class Settings(BaseSettings):
         return check_endpoint_url(
             (info.field_name or "url").upper(), value, info.data.get("environment", "dev")
         )
+
+    @field_validator("dataforce_secret_key", mode="after")
+    @classmethod
+    def _check_secret_key(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None or not value.get_secret_value().strip():
+            return None
+        try:
+            raw = base64.urlsafe_b64decode(value.get_secret_value().strip().encode("ascii"))
+        except (binascii.Error, UnicodeEncodeError, ValueError):
+            raw = b""
+        if len(raw) != 32:
+            raise ValueError(
+                "DATAFORCE_SECRET_KEY must be a Fernet key (urlsafe base64 of 32 bytes); "
+                "generate one with: dataforce secrets init"
+            )
+        return value
+
+    @field_validator("ui_host", mode="after")
+    @classmethod
+    def _check_ui_host(cls, value: str) -> str:
+        # No login before M3: the UI must never listen on a network interface.
+        if not is_loopback_host(value) or value.startswith("/"):
+            raise ValueError("UI_HOST must be a loopback address (127.0.0.1, ::1 or localhost)")
+        return value
+
+    @field_validator("tamtam_oauth_allowed_issuers", "ui_allowed_origins", mode="after")
+    @classmethod
+    def _check_origins(cls, value: list[str], info: ValidationInfo) -> list[str]:
+        name = (info.field_name or "origins").upper()
+        out: list[str] = []
+        for origin in value:
+            parts = urlsplit(origin.strip())
+            if parts.path not in ("", "/") or parts.query or parts.fragment or parts.username:
+                raise ValueError(f"{name}: each entry must be a bare origin (scheme://host[:port])")
+            local_ui = (
+                info.field_name == "ui_allowed_origins"
+                and parts.scheme == "http"
+                and is_loopback_host(parts.hostname or "")
+            )
+            if not local_ui:  # a local UI origin is http by nature; anything else is https
+                check_endpoint_url(name, origin.strip(), info.data.get("environment", "dev"))
+            out.append(f"{parts.scheme}://{parts.netloc}".lower())
+        return out
 
     @property
     def database_target(self) -> str:

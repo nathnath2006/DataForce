@@ -30,8 +30,11 @@ __pycache__/
 reports/
 data/demo/*.json
 
-# node (future frontend)
+# node / frontend (built by `make ui`; never committed)
 node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
 
 # os / editor
 .DS_Store
