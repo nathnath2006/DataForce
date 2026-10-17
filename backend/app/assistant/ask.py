@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 
 from app.assistant.context import AssistantContext
-from app.assistant.numbers import unverified_numbers
+from app.assistant.numbers import classify_numbers
 from app.domain.ports import ChatMessage, ChatProvider
 from app.llm.quotes import MIN_QUOTE_CHARS, MIN_QUOTE_WORDS, verify_quotes
 
@@ -30,7 +30,10 @@ cite the reference right after.
 
 _REF_RE = re.compile(r"\b([FDCNM]\d{1,4})\b")
 _BRACKET_REFS = re.compile(r"\[\s*([FDCNM]\d{1,4}(?:\s*[,;]\s*[FDCNM]\d{1,4})*)\s*\]")
-_QUOTE_RE = re.compile(r"\"([^\"]{10,600})\"|“([^”]{10,600})”|«\s*([^»]{10,600}?)\s*»")
+_QUOTE_RE = re.compile(
+    r"\"([^\"]{10,600})\"|“([^”]{10,600})”|«\s*([^»]{10,600}?)\s*»"
+    r"|‘([^’]{10,600})’|(?<!\w)'([^']{10,600}?)'(?!\w)"
+)
 
 
 @dataclass
@@ -38,6 +41,7 @@ class Checked:
     citations: list[dict[str, str]] = field(default_factory=list)
     quotes: list[dict[str, object]] = field(default_factory=list)
     unverified_numbers: list[str] = field(default_factory=list)
+    numbers_from_notes: list[str] = field(default_factory=list)
     answer: str = ""
 
 
@@ -81,11 +85,15 @@ def check_answer(answer: str, ctx: AssistantContext) -> Checked:
     verified = verify_quotes(quotes_in, ctx.sources)
     quotes = [{"text": v.quote, "ref": v.source_id, "verified": v.verified} for v in verified]
     citations = [{"ref": r, "kind": known[r].kind, "label": known[r].label[:120]} for r in seen]
+    bad, from_notes = classify_numbers(cleaned, ctx.numbers(), ctx.note_numbers())
+    if from_notes:
+        cleaned += "\n\n(Numbers as written in a note, not verified: " + ", ".join(from_notes) + ")"
     return Checked(
         answer=cleaned,
+        numbers_from_notes=from_notes,
         citations=citations,
         quotes=quotes,
-        unverified_numbers=unverified_numbers(cleaned, ctx.numbers()),
+        unverified_numbers=bad,
     )
 
 

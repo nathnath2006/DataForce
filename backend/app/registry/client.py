@@ -44,6 +44,7 @@ class RegistryCompany(BaseModel):
     created_on: date | None = None
     active: bool = False
     sole_trader: bool = False
+    protected: bool = False  # non-diffusible: cannot be added to the CRM
 
 
 def new_client() -> httpx.AsyncClient:
@@ -79,7 +80,7 @@ def parse_record(raw: object) -> RegistryCompany | None:
     if not isinstance(raw, dict):
         return None
     siren = _str(raw.get("siren"), 9)
-    if siren is None or not re.fullmatch(r"\d{9}", siren):
+    if siren is None or not re.fullmatch(r"[0-9]{9}", siren):
         return None
     name = _str(raw.get("nom_raison_sociale")) or _str(raw.get("nom_complet"))
     if name is None:
@@ -111,6 +112,7 @@ def parse_record(raw: object) -> RegistryCompany | None:
         created_on=created,
         active=raw.get("etat_administratif") == "A",
         sole_trader=complements.get("est_entrepreneur_individuel") is True,
+        protected=protected,
     )
 
 
@@ -176,7 +178,7 @@ async def search(
 async def fetch_by_siren(
     settings: Settings, siren: str, *, client: httpx.AsyncClient | None = None
 ) -> RegistryCompany | None:
-    if not re.fullmatch(r"\d{9}", siren):
+    if not re.fullmatch(r"[0-9]{9}", siren):
         raise EnrichmentError("a SIREN has 9 digits")
     found = await search(settings, siren, per_page=5, client=client)
     return next((c for c in found if c.siren == siren), None)

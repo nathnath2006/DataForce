@@ -23,6 +23,7 @@ from app.api.schemas_ai import (
 )
 from app.assistant.ask import run_turn
 from app.assistant.context import build_context
+from app.assistant.ratelimit import check_and_count
 from app.config import Settings
 from app.db.models import LlmCredential
 from app.domain.ports import ChatMessage, ChatProvider
@@ -125,6 +126,7 @@ def delete_ai(db: Db, ws: CurrentWorkspace) -> Response:
 @router.post("/w/{ws}/ai/test", response_model=AiSettingsOut)
 def test_ai(db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory) -> AiSettingsOut:
     cred = llm_settings.require_credential(db, ws.id)
+    check_and_count(ws.id, settings.assistant_max_asks_per_hour)
     provider, key = _provider(db, ws.id, cred, settings, factory)
     try:
         asyncio.run(
@@ -150,6 +152,7 @@ def test_ai(db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factor
 def ask(
     body: AskIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory
 ) -> AskOut:
+    check_and_count(ws.id, settings.assistant_max_asks_per_hour)
     ctx, _title = build_context(
         db,
         ws.id,
@@ -179,6 +182,7 @@ def ask(
         citations=[Citation(**c) for c in checked.citations],  # type: ignore[arg-type]
         quotes=[QuoteCheck(**q) for q in checked.quotes],  # type: ignore[arg-type]
         unverified_numbers=checked.unverified_numbers,
+        numbers_from_notes=checked.numbers_from_notes,
         provider=provider.name,
         model=provider.model,
         input_tokens=result.input_tokens,

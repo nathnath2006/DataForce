@@ -60,6 +60,12 @@ export function AskPanel({ scope }: { scope: AskScope }) {
                 Numbers not found in the data: {t.out.unverified_numbers.join(", ")}. Treat them as unverified.
               </div>
             )}
+            {(t.out.numbers_from_notes ?? []).length > 0 && (
+              <div className="note" role="note">
+                Numbers taken from notes or comments (as written there, not verified):{" "}
+                {(t.out.numbers_from_notes ?? []).join(", ")}.
+              </div>
+            )}
             {t.out.quotes.length > 0 && (
               <ul className="plain">{t.out.quotes.map((qt, j) => (
                 <li key={j}>

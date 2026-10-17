@@ -7,6 +7,7 @@ message. `sanitize_error` masks it anyway in anything that comes back from a pro
 from __future__ import annotations
 
 import re
+import unicodedata
 import uuid
 from datetime import UTC, datetime
 
@@ -43,6 +44,7 @@ def sanitize_error(message: str, *secrets: str | None) -> str:
             text = text.replace(secret, "***")
     for pattern in _TOKEN_RES:
         text = pattern.sub("***", text)
+    text = "".join(" " if unicodedata.category(ch) == "Cc" else ch for ch in text)
     text = " ".join(text.split())
     return text[:ERROR_MAX_CHARS]
 

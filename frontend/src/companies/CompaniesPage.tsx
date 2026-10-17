@@ -70,12 +70,15 @@ export function CompaniesPage() {
             <div key={r.siren} className="hit">
               <div>
                 <strong>{r.name}</strong> {r.sole_trader && <Tag kind="mute">sole trader</Tag>}{" "}
-                {!r.active && <Tag kind="bad">closed</Tag>}
+                {!r.active && <Tag kind="bad">closed</Tag>}{" "}
+                {r.protected && <Tag kind="warn">protected record</Tag>}
                 <div className="muted small">{registrySummary(r)}</div>
               </div>
               {r.in_crm_company_id
                 ? <Link to={`${base}/companies/${r.in_crm_company_id}`}>Already in your CRM</Link>
-                : <button onClick={() => setAddFor(r)}>Add to CRM</button>}
+                : r.protected
+                  ? <span className="muted small" title="The company asked the registry not to publish its details">Cannot be added</span>
+                  : <button onClick={() => setAddFor(r)}>Add to CRM</button>}
             </div>
           ))}
         </div>

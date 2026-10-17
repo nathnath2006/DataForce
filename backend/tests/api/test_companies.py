@@ -194,21 +194,21 @@ def test_registry_search_flags_in_crm(client, ws):
     c = mk_company(client, ws, "Dataiku", siren="791012081")
     sole = copy.deepcopy(SAMPLE) | {"siren": "222222222", "dirigeants": [{"nom": "LEAK"}]}
     route = respx.get(REG).mock(return_value=httpx.Response(200, json={"results": [SAMPLE, sole]}))
-    r = client.get(f"{ws}/registry/search", params={"q": "dataiku"})
+    r = client.post(f"{ws}/registry/search", json={"q": "dataiku"})
     assert r.status_code == 200
     rows = r.json()
     assert [x["siren"] for x in rows] == ["791012081", "222222222"]
     assert rows[0]["in_crm_company_id"] == c["id"] and rows[1]["in_crm_company_id"] is None
     assert "LEAK" not in r.text and "dirigeants" not in r.text
     assert route.call_count == 1
-    assert client.get(f"{ws}/registry/search", params={"q": "a" * 101}).status_code == 422
-    assert client.get(f"{ws}/registry/search").status_code == 422
+    assert client.post(f"{ws}/registry/search", json={"q": "a" * 101}).status_code == 422
+    assert client.post(f"{ws}/registry/search", json={}).status_code == 422
 
 
 @respx.mock
 def test_registry_errors_are_502(client, ws):
     respx.get(REG).mock(side_effect=httpx.ConnectTimeout("t"))
-    r = client.get(f"{ws}/registry/search", params={"q": "x"})
+    r = client.post(f"{ws}/registry/search", json={"q": "x"})
     assert r.status_code == 502 and r.json()["error"]["code"] == "connector_error"
 
 
@@ -241,14 +241,48 @@ def test_from_registry_and_duplicate(client, ws):
 
 
 @respx.mock
-def test_from_registry_protected_has_no_address(client, ws):
+def test_protected_record_listed_but_not_addable(client, ws):
     prot = copy.deepcopy(SAMPLE)
     prot["statut_diffusion"] = "P"
     respx.get(REG).mock(return_value=httpx.Response(200, json={"results": [prot]}))
-    co = client.post(
+    rows = client.post(f"{ws}/registry/search", json={"q": "dataiku"}).json()
+    assert rows[0]["name"] == "DATAIKU" and rows[0]["protected"] is True
+    assert rows[0]["address_line"] is None
+    r = client.post(
         f"{ws}/companies/from-registry", json={"siren": "791012081", "create_account": False}
-    ).json()
-    assert co["address_line"] is None and co["city"] is None and co["name"] == "DATAIKU"
+    )
+    assert r.status_code == 409 and "protected (non-diffusible)" in r.json()["error"]["message"]
+    assert client.get(f"{ws}/companies").json()["total"] == 0
+    # refresh refuses it too
+    co = mk_company(client, ws, "Old", siren="791012081")
+    r = client.post(f"{ws}/companies/{co['id']}/refresh-registry")
+    assert r.status_code == 409
+
+
+@respx.mock
+def test_protected_head_office_refused(client, ws):
+    prot = copy.deepcopy(SAMPLE)
+    prot["siege"]["statut_diffusion_etablissement"] = "P"
+    respx.get(REG).mock(return_value=httpx.Response(200, json={"results": [prot]}))
+    r = client.post(
+        f"{ws}/companies/from-registry", json={"siren": "791012081", "create_account": False}
+    )
+    assert r.status_code == 409
+
+
+def test_registry_search_is_post_only(client, ws):
+    assert client.get(f"{ws}/registry/search", params={"q": "x"}).status_code == 405
+
+
+def test_siren_must_be_ascii_digits(client, ws):
+    arabic = "\u0667\u0669\u0661\u0660\u0661\u0662\u0660\u0668\u0661"
+    assert client.post(f"{ws}/companies", json={"name": "X", "siren": arabic}).status_code == 422
+    assert (
+        client.post(
+            f"{ws}/companies/from-registry", json={"siren": arabic, "create_account": False}
+        ).status_code
+        == 422
+    )
 
 
 @respx.mock
@@ -286,7 +320,7 @@ def test_cross_workspace_404(client, ws, other):
     assert client.get(f"{other}/companies").json()["total"] == 0
     assert client.get(f"{other}/lookup", params={"q": "acme"}).json()["companies"] == []
     respx.get(REG).mock(return_value=httpx.Response(200, json={"results": [SAMPLE]}))
-    flagged = client.get(f"{other}/registry/search", params={"q": "d"}).json()
+    flagged = client.post(f"{other}/registry/search", json={"q": "d"}).json()
     assert flagged[0]["in_crm_company_id"] is None
     # same SIREN may exist in another workspace
     ok = client.post(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Response
 
 from app.api.deps import AppSettings, CurrentWorkspace, Db
 from app.api.routes.crm import Limit, Offset, SearchQ, _accounts_out, _contacts_out, _deals_out
@@ -19,6 +19,7 @@ from app.api.schemas_companies import (
     FromRegistry,
     LookupOut,
     RegistryCompanyOut,
+    RegistrySearchIn,
 )
 from app.db.models import Company
 from app.domain.schemas import AccountIn
@@ -29,12 +30,15 @@ from app.services.errors import AlreadyExistsError, InvalidInputError, NotFoundE
 
 router = APIRouter(tags=["companies"])
 
-RegistryQ = Query(min_length=1, max_length=registry.MAX_QUERY_CHARS)
-
 
 def _companies_out(db: Db, ws_id: uuid.UUID, rows: list[Company]) -> list[CompanyOut]:
     stats = svc.company_stats(db, ws_id, [c.id for c in rows])
     return [CompanyOut.model_validate(c).model_copy(update=stats[c.id]) for c in rows]
+
+
+def _refuse_protected(record: registry.RegistryCompany) -> None:
+    if record.protected:
+        raise AlreadyExistsError("this registry record is protected (non-diffusible)")
 
 
 @router.get("/w/{ws}/lookup", response_model=LookupOut)
@@ -107,11 +111,11 @@ def link_account(
 
 
 # --- public registry (explicit user action only) --------------------------------------------
-@router.get("/w/{ws}/registry/search", response_model=list[RegistryCompanyOut])
+@router.post("/w/{ws}/registry/search", response_model=list[RegistryCompanyOut])
 async def registry_search(
-    db: Db, ws: CurrentWorkspace, settings: AppSettings, q: str = RegistryQ
+    body: RegistrySearchIn, db: Db, ws: CurrentWorkspace, settings: AppSettings
 ) -> list[RegistryCompanyOut]:
-    found = await registry.search(settings, q)
+    found = await registry.search(settings, body.q)
     in_crm = svc.find_by_sirens(db, ws.id, [c.siren for c in found])
     return [
         RegistryCompanyOut(**c.model_dump(), in_crm_company_id=in_crm.get(c.siren)) for c in found
@@ -127,6 +131,7 @@ async def from_registry(
     record = await registry.fetch_by_siren(settings, body.siren)
     if record is None:
         raise NotFoundError("this SIREN was not found in the company registry")
+    _refuse_protected(record)
     company = svc.create_from_registry(db, ws.id, record)
     if body.create_account:
         account = accounts.create_account(db, ws.id, AccountIn(name=company.name, country="FR"))
@@ -146,6 +151,7 @@ async def refresh_registry(
     record = await registry.fetch_by_siren(settings, company.siren)
     if record is None:
         raise NotFoundError("this SIREN was not found in the company registry")
+    _refuse_protected(record)
     svc.apply_registry(db, company, record)
     db.commit()
     return _companies_out(db, ws.id, [company])[0]

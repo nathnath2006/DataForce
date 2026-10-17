@@ -163,6 +163,7 @@ export interface RegistryCompanyOut {
   city: string | null; naf_code: string | null; legal_category: string | null;
   size_bracket: string | null; category: string | null; created_on: string | null;
   active: boolean; sole_trader: boolean; in_crm_company_id: string | null;
+  protected?: boolean; // non-diffusible registry record: shown, never stored
 }
 
 export type AiProvider = "gemini" | "anthropic";
@@ -178,6 +179,7 @@ export interface AskCitation { ref: string; kind: string; label: string }
 export interface AskQuote { text: string; ref: string; verified: boolean }
 export interface AskOut {
   answer: string; citations: AskCitation[]; quotes: AskQuote[]; unverified_numbers: string[];
+  numbers_from_notes?: string[]; // only found inside a note or comment: as written there, not verified
   provider: string; model: string; input_tokens: number; output_tokens: number;
   context_chars: number; truncated: boolean;
 }

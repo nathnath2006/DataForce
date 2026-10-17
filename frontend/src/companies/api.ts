@@ -13,7 +13,7 @@ export const companiesApi = {
   setAccountCompany: (ws: string, accountId: string, companyId: string | null) =>
     request<T.AccountOut>("PUT", `${w(ws)}/accounts/${e(accountId)}/company`, { company_id: companyId }),
   registrySearch: (ws: string, text: string) =>
-    request<T.RegistryCompanyOut[]>("GET", `${w(ws)}/registry/search${q({ q: text })}`),
+    request<T.RegistryCompanyOut[]>("POST", `${w(ws)}/registry/search`, { q: text }),
   fromRegistry: (ws: string, siren: string, createAccount: boolean) =>
     request<T.CompanyOut>("POST", `${w(ws)}/companies/from-registry`, { siren, create_account: createAccount }),
   refresh: (ws: string, id: string) =>

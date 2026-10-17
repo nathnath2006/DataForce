@@ -80,6 +80,7 @@ class AskOut(BaseModel):
     citations: list[Citation]
     quotes: list[QuoteCheck]
     unverified_numbers: list[str]
+    numbers_from_notes: list[str] = []
     provider: str
     model: str
     input_tokens: int | None = None

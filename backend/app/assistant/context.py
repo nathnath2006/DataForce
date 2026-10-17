@@ -83,19 +83,37 @@ class AssistantContext:
         return {i.ref: i for i in self.items}
 
     def numbers(self) -> set[Decimal]:
+        """Verified values: only code-computed items (F, D, C) plus the dates of note headers."""
         out: set[Decimal] = set()
         for i in self.items:
-            out |= number_values(i.text)
-            out |= number_values(i.header)
+            if i.untrusted:
+                out |= number_values(" ".join(_DATE_RE.findall(i.header)))
+            else:
+                out |= number_values(i.text)
+        return out
+
+    def note_numbers(self) -> set[Decimal]:
+        """Values written inside untrusted notes / comments: never verified."""
+        out: set[Decimal] = set()
+        for i in self.items:
+            if i.untrusted:
+                out |= number_values(i.text)
         return out
 
 
 _WS = re.compile(r"\s+")
+_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _neutral(text: str) -> str:
+    """Sanitise (NFKC, control chars, source-tag look-alikes), then escape every < and > so no
+    tag of any kind can survive in CRM text (SR10-03)."""
+    return sanitize_text(text).replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _line(value: object, limit: int = 200) -> str:
     """Short single-line text for names / titles: sanitised, whitespace collapsed."""
-    return _WS.sub(" ", sanitize_text(str(value))).strip()[:limit]
+    return _WS.sub(" ", _neutral(str(value))).strip()[:limit]
 
 
 def _d(value: date | datetime | None) -> str:
@@ -317,7 +335,7 @@ def build_context(
                     f"M{i}",
                     "comment",
                     f"Comment of {_d(cm.created_at)}",
-                    sanitize_text(cm.body)[:NOTE_BODY_CHARS],
+                    _neutral(cm.body)[:NOTE_BODY_CHARS],
                     header=f"comment on account {_line(acc_name.get(cm.account_id, ''))}, "
                     f"{_d(cm.created_at)}:",
                     untrusted=True,
@@ -332,7 +350,7 @@ def build_context(
                         f"N{i}",
                         "note",
                         f"Note on {who}, {_d(n.created_at)}",
-                        sanitize_text(n.body)[:NOTE_BODY_CHARS],
+                        _neutral(n.body)[:NOTE_BODY_CHARS],
                         header=f"note on contact {who}, {_d(n.created_at)}:",
                         untrusted=True,
                     )

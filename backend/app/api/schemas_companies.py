@@ -41,7 +41,7 @@ class CompanyOut(BaseModel):
 
 class CompanyCreate(_In):
     name: str = Field(min_length=1, max_length=300)
-    siren: str | None = Field(default=None, pattern=r"^\d{9}$")
+    siren: str | None = Field(default=None, pattern=r"^[0-9]{9}$")
     domain: str | None = Field(default=None, max_length=253)
     address_line: str | None = Field(default=None, max_length=500)
     postal_code: str | None = Field(default=None, max_length=16)
@@ -83,11 +83,16 @@ class RegistryCompanyOut(BaseModel):
     created_on: date | None
     active: bool
     sole_trader: bool
+    protected: bool = False
     in_crm_company_id: UUID | None
 
 
+class RegistrySearchIn(_In):
+    q: str = Field(min_length=1, max_length=100)  # registry.MAX_QUERY_CHARS
+
+
 class FromRegistry(_In):
-    siren: str = Field(pattern=r"^\d{9}$")
+    siren: str = Field(pattern=r"^[0-9]{9}$")
     create_account: bool = False
 
 

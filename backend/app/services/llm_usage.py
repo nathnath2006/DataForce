@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import unicodedata
 import uuid
 from typing import Any
 
@@ -12,11 +13,20 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.models import LlmCall
 from app.db.session import session_scope
 from app.domain.schemas import LLMCallRecord
+from app.services.llm_settings import sanitize_error
 from app.services.textclean import scrub_text
 
 log = logging.getLogger(__name__)
 
-_ERROR_MAX_CHARS = 500
+_ERROR_MAX_CHARS = 300
+
+
+def _clean_error(error: str | None) -> str | None:
+    """Mask keys, drop control characters, at most 300 characters (SR10-06)."""
+    if not error:
+        return None
+    text = "".join(" " if unicodedata.category(ch) == "Cc" else ch for ch in scrub_text(error))
+    return sanitize_error(text)[:_ERROR_MAX_CHARS]
 
 
 class DbUsageRecorder:
@@ -49,7 +59,7 @@ class DbUsageRecorder:
             latency_ms=call.latency_ms,
             success=call.success,
             # Provider error messages can echo request fragments: keep only a short head.
-            error=scrub_text(call.error)[:_ERROR_MAX_CHARS] if call.error else None,
+            error=_clean_error(call.error),
         )
         try:
             with session_scope(self._session_factory) as session:

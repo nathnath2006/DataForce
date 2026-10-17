@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -65,6 +66,8 @@ def create_company(
     name = scrub_text(name).strip()
     if not name:
         raise InvalidInputError("name cannot be empty")
+    if siren is not None and not re.fullmatch(r"[0-9]{9}", siren):
+        raise InvalidInputError("a SIREN has exactly 9 digits")
     if siren is not None and _siren_taken(session, ws_id, siren):
         raise AlreadyExistsError("a company with this SIREN already exists in this workspace")
     company = Company(
