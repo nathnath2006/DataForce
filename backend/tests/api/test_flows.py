@@ -30,6 +30,13 @@ GRAPH = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _fresh_slots():
+    flow_service._slots = None
+    yield
+    flow_service._slots = None
+
+
 @pytest.fixture
 def ws(client, app, session_factory):
     app.dependency_overrides[get_loader_session_factory] = lambda: session_factory
@@ -107,7 +114,7 @@ def test_run_timeout_is_504(client, ws, monkeypatch, api_settings):
     monkeypatch.setattr(
         flow_service,
         "run_in_thread",
-        lambda fn, t: (
+        lambda fn, t, slot=None: (
             flow_service.RunTimeout and (_ for _ in ()).throw(flow_service.RunTimeout("t"))
         ),
     )
@@ -120,3 +127,39 @@ def test_run_in_thread_timeout():
 
     with pytest.raises(flow_service.RunTimeout):
         flow_service.run_in_thread(lambda: time.sleep(1) or {}, 0.05)
+
+
+def test_concurrent_runs_limited_409(client, ws, monkeypatch, api_settings):
+    import threading
+
+    sem = threading.BoundedSemaphore(1)
+    monkeypatch.setattr(flow_service, "_semaphore", lambda size: sem)
+    assert sem.acquire(blocking=False)  # another run holds the only slot
+    r = client.post(f"{ws}/flows/run", json={"graph": GRAPH})
+    assert r.status_code == 409 and r.json()["error"]["code"] == "conflict"
+    assert "still running" in r.json()["error"]["message"]
+
+
+def test_slot_released_only_when_thread_ends():
+    import threading
+    import time
+
+    sem = threading.BoundedSemaphore(1)
+    gate = threading.Event()
+    assert sem.acquire(blocking=False)
+    with pytest.raises(flow_service.RunTimeout):
+        flow_service.run_in_thread(lambda: gate.wait(5) and {}, 0.05, sem)
+    assert not sem.acquire(blocking=False)  # 504 returned, thread still alive: slot kept
+    gate.set()
+    for _ in range(100):
+        if sem.acquire(blocking=False):
+            break
+        time.sleep(0.02)
+    else:
+        raise AssertionError("slot never released")
+    sem.release()
+
+
+def test_slot_released_after_normal_run(client, ws, api_settings):
+    for _ in range(4):  # more runs than flow_max_concurrent_runs: no leak
+        assert client.post(f"{ws}/flows/run", json={"graph": GRAPH}).status_code == 200

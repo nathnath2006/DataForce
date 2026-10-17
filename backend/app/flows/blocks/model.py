@@ -37,9 +37,15 @@ MAX_RESAMPLES = 1000
 _CELLS = 4_000_000
 
 
-def _resample_idx(n: int, b: int, rng: np.random.Generator):
+MAX_ENCODED = 500
+LEAK = "test rows may overlap the training rows: connect train and test from the same split block"
+MULTIPLIED = "rows were duplicated by an upstream join, so n is inflated"
+
+
+def _resample_idx(n: int, b: int, rng: np.random.Generator, ctx: Ctx):
     step = max(1, _CELLS // max(n, 1))
     for s in range(0, b, step):
+        ctx.check()
         yield rng.integers(0, n, size=(min(step, b - s), n))
 
 
@@ -53,10 +59,10 @@ def _ci(vals: np.ndarray, conf: float) -> tuple[float | None, float | None]:
 
 
 def _boot_regression(
-    y: np.ndarray, pred: np.ndarray, b: int, conf: float, rng: np.random.Generator
+    y: np.ndarray, pred: np.ndarray, b: int, conf: float, rng: np.random.Generator, ctx: Ctx
 ) -> dict[str, tuple[float | None, float | None]]:
     r2s, maes = [], []
-    for idx in _resample_idx(len(y), b, rng):
+    for idx in _resample_idx(len(y), b, rng, ctx):
         yt, pr = y[idx], pred[idx]
         ss_res = ((yt - pr) ** 2).sum(axis=1)
         ss_tot = ((yt - yt.mean(axis=1, keepdims=True)) ** 2).sum(axis=1)
@@ -67,10 +73,10 @@ def _boot_regression(
 
 
 def _boot_auc(
-    y: np.ndarray, score: np.ndarray, b: int, conf: float, rng: np.random.Generator
+    y: np.ndarray, score: np.ndarray, b: int, conf: float, rng: np.random.Generator, ctx: Ctx
 ) -> tuple[float | None, float | None]:
     out = []
-    for idx in _resample_idx(len(y), b, rng):
+    for idx in _resample_idx(len(y), b, rng, ctx):
         yt, sc = y[idx], score[idx]
         ranks = rankdata(sc, axis=1)
         npos = yt.sum(axis=1)
@@ -129,6 +135,12 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
             out[f] = s.where(s.isin(top[f]), "other")
         return out
 
+    width = len(num) + sum(min(len(top[f]) + 1, train[f].nunique() + 1) for f in cat)
+    if width > MAX_ENCODED:
+        raise BlockError(
+            f"too many encoded features ({width} > {MAX_ENCODED}): use fewer categorical columns"
+        )
+    ctx.check()
     xtr, xte = design(train), design(test)
     ct = ColumnTransformer(
         [
@@ -166,7 +178,7 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
             r2 = 1 - ss_res / ss_tot if ss_tot > 0 else math.nan
             mae = float(np.abs(yte - pred).mean())
             rmse = float(np.sqrt(((yte - pred) ** 2).mean()))
-            ci = _boot_regression(yte, pred, b, gc.confidence, rng)
+            ci = _boot_regression(yte, pred, b, gc.confidence, rng, ctx)
             base_mae = float(np.abs(yte - mean).mean())
             base_rmse = float(np.sqrt(((yte - mean) ** 2).mean()))
         else:
@@ -216,7 +228,7 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
             confusion = [[tn, fp], [fn, tp]]
             if npos and nneg:
                 auc = float(roc_auc_score(yte, prob))
-                auc_ci = _boot_auc(yte, prob, b, gc.confidence, rng)
+                auc_ci = _boot_auc(yte, prob, b, gc.confidence, rng, ctx)
             else:
                 auc, auc_ci = math.nan, (None, None)
             metrics = [
@@ -242,6 +254,10 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
         else:
             metrics = [Metric(name="accuracy", value=None), Metric(name="auc", value=None)]
             reasons.append(f"test set too small (n = 0 < {gc.min_n})")
+    if not ctx.split_verified:
+        reasons.append(LEAK)
+    if ctx.rows_multiplied:
+        reasons.append(MULTIPLIED)
     view = ModelView(
         model=cfg.kind,
         n_train=len(train),

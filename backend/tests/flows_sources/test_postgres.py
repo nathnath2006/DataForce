@@ -101,3 +101,51 @@ def test_tls_policy_and_identifier():
 def test_sanitize():
     m = pg.sanitize_message("fail postgresql://u:pw@h/db password=abc", "pw")
     assert "pw" not in m and "abc" not in m
+
+
+ESCAPE = ") AS q; COMMIT; BEGIN READ WRITE; DELETE FROM {t}; COMMIT; SELECT * FROM (SELECT "
+QUOTINGS = ["$$'$$", "$x$'$x$", "1 /* ' */", "E'\\''", "1"]
+
+
+@pytest.mark.parametrize("lit", QUOTINGS)
+def test_protocol_level_single_statement(table, lit):
+    """The scanner is bypassed on purpose: the server itself must refuse a second command."""
+    q = f"SELECT {lit} AS a" + ESCAPE + f"{lit} AS a"
+    stmt = pg.sql.SQL("SELECT * FROM ({}\n) AS q LIMIT 11").format(pg.sql.SQL(q.format(t=TABLE)))
+    with pytest.raises(SourceError, match="only one statement"):
+        pg.fetch_frame(_target(), stmt, 10)
+    assert len(pg.load_table(_target(), TABLE, 10)) == 5
+
+
+def test_error_messages_are_generic():
+    with pytest.raises(SourceError) as e:
+        pg.load_query(_target(), "SELECT 'topsecretrow'::int", 10)
+    assert "topsecretrow" not in str(e.value)
+    with pytest.raises(SourceError) as e:
+        pg.check_connection(_target(port=1))
+    assert str(e.value) == "could not connect to 127.0.0.1:1"
+    with pytest.raises(SourceError) as e:
+        pg.check_connection(_target(password="wrong"))
+    assert str(e.value) == f"could not connect to 127.0.0.1:{_target().port}"
+
+
+def test_watchdog_cancels_when_statement_timeout_reset(table, monkeypatch):
+    import time
+
+    monkeypatch.setattr(pg, "WATCHDOG_GRACE_S", 0.3)
+    t0 = time.perf_counter()
+    with pytest.raises(SourceError, match="cancelled"):
+        pg.load_query(
+            _target(timeout_s=1),
+            "SELECT set_config('statement_timeout','0',false), pg_sleep(20)",
+            10,
+        )
+    assert time.perf_counter() - t0 < 6
+
+
+def test_byte_cap(table, monkeypatch):
+    monkeypatch.setattr(pg, "MAX_RESULT_BYTES", 5_000)
+    df = pg.load_query(
+        _target(), "SELECT repeat('x', 1000) AS v FROM generate_series(1, 1000)", 1000
+    )
+    assert df.attrs.get("capped") is True and len(df) < 1000

@@ -94,3 +94,25 @@ def test_loader_reads_postgres_through_connection(client, ws, app, session_facto
 
     with pytest.raises(SourceError):
         loader.load(PostgresSource(connection_id=uuid.uuid4(), query="SELECT 1"), 10)
+
+
+def test_moving_the_server_requires_the_password_again(client, ws, monkeypatch):
+    from app.flows.sources import postgres
+
+    cid = client.post(f"{ws}/connections", json=body()).json()["id"]
+    sent = []
+    monkeypatch.setattr(postgres, "check_connection", lambda t: sent.append(t))
+    for change in ({"port": 1}, {"host": "localhost"}, {"database": "other"}, {"username": "x"}):
+        r = client.patch(f"{ws}/connections/{cid}", json=change)
+        assert r.status_code == 422, change
+        assert "re-enter the password" in r.json()["error"]["message"]
+    client.post(f"{ws}/connections/{cid}/test")
+    assert [t.host for t in sent] == ["127.0.0.1"]  # nothing moved: the old password stays here
+    # a new password in the same request is accepted, and a harmless rename needs none
+    assert (
+        client.patch(f"{ws}/connections/{cid}", json={"port": 1, "password": "new"}).status_code
+        == 200
+    )
+    assert client.patch(f"{ws}/connections/{cid}", json={"name": "renamed"}).status_code == 200
+    client.post(f"{ws}/connections/{cid}/test")
+    assert sent[-1].password == "new" and sent[-1].port == 1

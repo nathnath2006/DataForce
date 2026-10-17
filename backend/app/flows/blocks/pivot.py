@@ -18,6 +18,9 @@ from app.flows.schemas import PivotConfig, PivotView
 
 _ZERO_FNS = ("count", "count_distinct", "sum")
 MISSING = "(missing)"
+VIEW_ROWS = 1000
+VIEW_CELLS = 50_000
+MAX_CELLS = 5_000_000
 
 
 def _norm(v: Any) -> Any:
@@ -46,7 +49,13 @@ def run(cfg: PivotConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
     empty = 0 if cfg.fn in _ZERO_FNS else None
     warnings: list[str] = []
 
+    ctx.check()
     row_tot = aggregate_by(df, rows, spec)
+    if len(row_tot) > ctx.limits.max_rows:
+        warnings.append(f"pivot rows capped at {ctx.limits.max_rows}")
+        row_tot = row_tot.head(ctx.limits.max_rows)
+    if cfg.columns is not None and len(row_tot) * (cfg.max_columns + 1) > MAX_CELLS:
+        raise BlockError("pivot too large: filter first or choose fewer row dimensions")
     keys = [tuple(_norm(v) for v in r) for r in row_tot[rows].itertuples(index=False)]
     row_total_vals = row_tot["__v"].tolist()
     grand = aggregate_by(df, [], spec)["__v"].iloc[0]
@@ -104,10 +113,15 @@ def run(cfg: PivotConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
 
     flat_rows: list[list[Any]] = []
     view_rows: list[dict[str, Any]] = []
+    ncols = len(labels) + (1 if has_total_col else 0)
+    view_cap = min(VIEW_ROWS, VIEW_CELLS // max(ncols, 1))
     for k, rc, rt in zip(keys, cells, row_total_vals, strict=True):
         cs = rc + ([rt] if has_total_col else [])
         flat_rows.append([*k, *cs])
-        view_rows.append({"keys": [jsonable(x) for x in k], "cells": [jsonable(x) for x in cs]})
+        if len(view_rows) < view_cap:
+            view_rows.append({"keys": [jsonable(x) for x in k], "cells": [jsonable(x) for x in cs]})
+    if len(flat_rows) > view_cap:
+        warnings.append(f"pivot view shows the first {view_cap} of {len(flat_rows)} rows")
     if cfg.totals:
         k = ("Total", *([""] * (len(rows) - 1)))
         cs = (

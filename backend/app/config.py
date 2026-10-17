@@ -289,9 +289,12 @@ class Settings(BaseSettings):
     data_connection_timeout_s: float = Field(default=30.0, gt=0, le=300, allow_inf_nan=False)
     # Public French company registry (no key). Searched only when the user asks.
     registry_url: str = "https://recherche-entreprises.api.gouv.fr"
-    # AI assistant: answer length and how much account context is sent.
+    # Flow runs executing at the same time (a timed-out run cannot be killed, only told to stop).
+    flow_max_concurrent_runs: int = Field(default=2, ge=1, le=16)
+    # AI assistant: answer length, how much account context is sent, and a cost guard.
     assistant_max_output_tokens: int = Field(default=800, ge=64, le=4096)
     assistant_max_context_chars: int = Field(default=40_000, ge=2_000, le=400_000)
+    assistant_max_asks_per_hour: int = Field(default=60, ge=1, le=10_000)  # per workspace
 
     # --- validators -----------------------------------------------------------------------
     # Field validators (not a model validator) on purpose: they see the already-wrapped

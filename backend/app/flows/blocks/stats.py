@@ -12,13 +12,17 @@ import numpy as np
 import pandas as pd
 
 from app.domain.enums import Metric
+from app.flows.blocks._boot import boot_medians, interval
 from app.flows.blocks._common import BlockError, BlockOutput, Ctx, fnum, matches, require, to_float
 from app.flows.schemas import StatsConfig, StatsRow, StatsView
 from app.stats import gates as G
-from app.stats.intervals import bootstrap_median, bootstrap_median_diff, newcombe_diff, wilson
+from app.stats.intervals import newcombe_diff, wilson
 from app.stats.significance import benjamini_hochberg, fisher_2x2, mann_whitney
 
-MAX_GROUPS = 100
+MAX_GROUPS = 50
+BOOT_BUDGET = 2e8  # element draws: rows x resamples x (groups + 1)
+MIN_RESAMPLES = 200
+MULTIPLIED = "rows were duplicated by an upstream join, so n is inflated"
 
 
 def _unit_free(reasons: list[str]) -> list[str]:
@@ -49,10 +53,30 @@ def run(cfg: StatsConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
     rate = cfg.outcome_kind == "rate"
     metric = Metric.WIN_RATE if rate else Metric.DEAL_AMOUNT
 
+    warnings: list[str] = []
+    resamples = gc.bootstrap_resamples
+    if not rate and len(v):
+        cost = len(v) * (len(names) + 1)
+        if cost * resamples > BOOT_BUDGET:
+            lowered = max(MIN_RESAMPLES, int(BOOT_BUDGET // cost))
+            if lowered < resamples:
+                warnings.append(
+                    f"bootstrap resamples lowered from {resamples} to {lowered} to bound the work"
+                )
+                resamples = lowered
+            if cost * resamples > BOOT_BUDGET * 1.25:
+                raise BlockError("too many rows for a median comparison: filter or sample first")
+
+    def bmed(vals: np.ndarray) -> tuple[np.ndarray, float, float, float]:
+        boot = boot_medians(vals, resamples, rng, ctx)
+        lo_, hi_ = interval(boot, gc.confidence)
+        return boot, float(np.median(vals)), lo_, hi_
+
     def one(vals: np.ndarray) -> tuple[float, float, float]:
         if rate:
             return wilson(int(vals.sum()), len(vals), gc.confidence)
-        return bootstrap_median(vals, gc.confidence, gc.bootstrap_resamples, rng)
+        _, m, lo_, hi_ = bmed(vals)
+        return m, lo_, hi_
 
     def own_gate(n: int, est: float, lo: float, hi: float) -> list[str]:
         if rate:
@@ -63,6 +87,8 @@ def run(cfg: StatsConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
     n_all = len(v)
     est, lo, hi = one(v) if n_all else (math.nan,) * 3
     all_reasons = own_gate(n_all, est, lo, hi) if n_all else ["no rows"]
+    if ctx.rows_multiplied:
+        all_reasons = [*all_reasons, MULTIPLIED]
     overall = StatsRow(
         group="(all)",
         n=n_all,
@@ -82,6 +108,7 @@ def run(cfg: StatsConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
     pending = []
     gv = g.to_numpy()
     for name in names:
+        ctx.check()
         m = gv == name
         a, b = v[m], v[~m]
         n1, n2 = len(a), len(b)
@@ -99,13 +126,15 @@ def run(cfg: StatsConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
                 side += G.ci_width_rate(*wilson(k2, n2, gc.confidence)[1:], gc, "rest")
         else:
             p = mann_whitney(a, b)
-            e1, l1, h1 = bootstrap_median(a, gc.confidence, gc.bootstrap_resamples, rng)
+            if n1:
+                boot_a, e1, l1, h1 = bmed(a)
+            else:
+                boot_a, e1, l1, h1 = np.empty(0), math.nan, math.nan, math.nan
             rv = float(np.median(b)) if n2 else math.nan
             if n1 >= gc.min_n and n2 >= gc.min_n:
-                d, dlo, dhi = bootstrap_median_diff(
-                    a, b, gc.confidence, gc.bootstrap_resamples, rng
-                )
-                est2, l2, h2 = bootstrap_median(b, gc.confidence, gc.bootstrap_resamples, rng)
+                boot_b, est2, l2, h2 = bmed(b)
+                dlo, dhi = interval(boot_a - boot_b, gc.confidence)
+                d = e1 - rv
                 side += G.ci_width_median(e1, l1, h1, gc, "group")
                 side += G.ci_width_median(est2, l2, h2, gc, "rest")
             else:
@@ -122,6 +151,8 @@ def run(cfg: StatsConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
         reasons = _unit_free(
             G.gate_finding(metric, n1, k1, n2, k2, qv, fnum(dlo), fnum(dhi), gc, side)
         )
+        if ctx.rows_multiplied:
+            reasons.append(MULTIPLIED)
         rows.append(
             StatsRow(
                 group=name,
@@ -145,7 +176,8 @@ def run(cfg: StatsConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
     else:
         table["reasons"] = table["reasons"].map("; ".join)
     method = "wilson + newcombe + fisher, BH" if rate else "bootstrap median + mann-whitney, BH"
-    warnings = [f"{excluded} rows with a missing group or outcome excluded"] if excluded else []
+    if excluded:
+        warnings.append(f"{excluded} rows with a missing group or outcome excluded")
     view = StatsView(
         outcome=cfg.outcome,
         outcome_kind=cfg.outcome_kind,

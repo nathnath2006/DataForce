@@ -25,6 +25,23 @@ class RunTimeout(Exception):
     """The engine did not answer within the run timeout."""
 
 
+class TooManyRuns(Exception):
+    """Every run slot of this process is taken."""
+
+
+_slots_lock = threading.Lock()
+_slots: threading.BoundedSemaphore | None = None
+_slots_size = 0
+
+
+def _semaphore(size: int) -> threading.BoundedSemaphore:
+    global _slots, _slots_size
+    with _slots_lock:
+        if _slots is None or _slots_size != size:
+            _slots, _slots_size = threading.BoundedSemaphore(size), size
+        return _slots
+
+
 def dump_graph(graph: FlowGraph) -> dict[str, Any]:
     return graph.model_dump(mode="json", by_alias=True)  # by_alias: Aggregation.alias is "as"
 
@@ -93,7 +110,9 @@ def _engine_run(
 
 
 def run_in_thread(
-    fn: Callable[[], dict[str, NodeResult]], timeout_s: float
+    fn: Callable[[], dict[str, NodeResult]],
+    timeout_s: float,
+    slot: threading.BoundedSemaphore | None = None,
 ) -> dict[str, NodeResult]:
     """Run `fn` in a daemon worker thread and wait at most `timeout_s`. A thread cannot be killed:
     on timeout it is abandoned (the engine also checks its own deadline between nodes)."""
@@ -104,9 +123,17 @@ def run_in_thread(
             box["value"] = fn()
         except BaseException as exc:  # noqa: BLE001 - reported to the caller
             box["error"] = exc
+        finally:
+            if slot is not None:  # released when the thread really ends, even after a 504
+                slot.release()
 
     thread = threading.Thread(target=work, name="flow-run", daemon=True)
-    thread.start()
+    try:
+        thread.start()
+    except BaseException:
+        if slot is not None:
+            slot.release()
+        raise
     thread.join(timeout_s)
     if thread.is_alive():
         raise RunTimeout(f"the flow did not finish within {timeout_s:g} s")
@@ -147,15 +174,23 @@ def execute(
     started_at, results)."""
     if target is not None and target not in {n.id for n in graph.nodes}:
         raise InvalidInputError("target is not a node of the graph")
-    run = runs.start_run(
-        db, RunKind.FLOW_RUN, ws_id, {"target": target, "n_nodes": len(graph.nodes)}
-    )
-    db.commit()  # the row exists even if the request dies; the worker uses other sessions
+    slot = _semaphore(settings.flow_max_concurrent_runs)
+    if not slot.acquire(blocking=False):
+        raise TooManyRuns("another analysis is still running, try again in a moment")
+    try:
+        run = runs.start_run(
+            db, RunKind.FLOW_RUN, ws_id, {"target": target, "n_nodes": len(graph.nodes)}
+        )
+        db.commit()  # the row exists even if the request dies; the worker uses other sessions
+    except BaseException:
+        slot.release()
+        raise
     limits = FlowLimits(max_rows=settings.flow_max_rows, timeout_s=settings.flow_run_timeout_s)
     try:
         results = run_in_thread(
             lambda: _engine_run(graph, loader, gates, limits, target),
             settings.flow_run_timeout_s + 5,
+            slot,
         )
     except RunTimeout as exc:
         runs.finish_run(db, run, RunStatus.FAILED, error=str(exc))

@@ -16,6 +16,8 @@ from app.flows.sources import postgres
 from app.services._common import get_scoped
 from app.services.errors import AlreadyExistsError, InvalidInputError, NotFoundError
 
+_TARGET_FIELDS = ("host", "port", "database", "username", "sslmode")
+
 
 def _check_tls(host: str, sslmode: str) -> None:
     try:
@@ -74,6 +76,10 @@ def update_connection(
     host = changes.get("host", row.host)
     sslmode = changes.get("sslmode", row.sslmode)
     _check_tls(host, sslmode)
+    moved = any(k in changes and changes[k] != getattr(row, k) for k in _TARGET_FIELDS)
+    if moved and not password and row.password_enc:
+        # the stored password must never be sent to another server or as another user
+        raise InvalidInputError("re-enter the password when changing the server or user")
     if "name" in changes and _name_taken(db, ws_id, changes["name"], row.id):
         raise AlreadyExistsError("a connection with this name already exists")
     for key, value in changes.items():

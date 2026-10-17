@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -24,6 +25,14 @@ class Ctx:
     gates: GateConfig
     limits: FlowLimits
     loader: SourceLoader
+    deadline: float | None = None  # time.monotonic() value after which blocks must stop
+    rows_multiplied: bool = False  # an upstream join produced more rows than its left input
+    split_verified: bool = False  # model only: train/test come from the same split block
+
+    def check(self) -> None:
+        """Cooperative cancellation: long loops call this and stop with a clean error."""
+        if self.deadline is not None and time.monotonic() >= self.deadline:
+            raise BlockError("time limit reached; filter or sample the data first")
 
 
 @dataclass
@@ -32,6 +41,7 @@ class BlockOutput:
     view: Any = None
     warnings: list[str] = field(default_factory=list)
     n_rows: int | None = None  # only for blocks with no output table (chart)
+    rows_multiplied: bool = False  # set by a join whose output has more rows than its left input
 
 
 def dtype_of(s: pd.Series) -> str:

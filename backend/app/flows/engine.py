@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 
 import pandas as pd
 
@@ -78,8 +79,24 @@ def run_graph(
         done.add(ready[0])
         pending.remove(ready[0])
 
-    ctx = Ctx(gates=gates, limits=limits, loader=loader)
     deadline = time.monotonic() + limits.timeout_s
+    ctx = Ctx(gates=gates, limits=limits, loader=loader, deadline=deadline)
+    row_preserving = ("filter", "sort", "columns")
+    multiplied: dict[str, bool] = {}
+
+    def origin(nid: str, port: str) -> tuple[str, str] | None:
+        """Trace an input back to a split port through row-preserving blocks only."""
+        edge = next((x for x in incoming[nid] if x[0] == port), None)
+        while edge is not None:
+            _, src, src_port = edge
+            kind = nodes[src].config.type
+            if kind == "split":
+                return src, src_port
+            if kind not in row_preserving:
+                return None
+            edge = next((x for x in incoming[src] if x[0] == "in"), None)
+        return None
+
     results: dict[str, NodeResult] = {}
     frames: dict[tuple[str, str], pd.DataFrame] = {}
     for nid in order:
@@ -100,7 +117,15 @@ def run_graph(
                 if edge is None:
                     raise BlockError(f"input '{port}' is not connected")
                 inputs[port] = frames[(edge[1], edge[2])]
-            out = REGISTRY[node.config.type](node.config, inputs, ctx)
+            upstream = any(multiplied.get(s, False) for _, s, _ in incoming[nid])
+            node_ctx = replace(ctx, rows_multiplied=upstream)
+            if node.config.type == "model":
+                tr, te = origin(nid, "train"), origin(nid, "test")
+                node_ctx.split_verified = (
+                    tr is not None and te is not None and tr[0] == te[0] and tr[1] != te[1]
+                )
+            out = REGISTRY[node.config.type](node.config, inputs, node_ctx)
+            multiplied[nid] = upstream or out.rows_multiplied
             for port, df in out.frames.items():
                 frames[(nid, port)] = df
             results[nid] = _result(nid, out, limits, int((time.monotonic() - start) * 1000))

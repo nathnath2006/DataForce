@@ -46,4 +46,14 @@ def run(cfg: JoinConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOutp
         right_on=rk,
         suffixes=("", cfg.suffix),
     )
-    return BlockOutput(frames={"out": out.head(max_rows).reset_index(drop=True)}, warnings=warnings)
+    multiplied = len(out) > len(inputs["left"])
+    if multiplied:
+        warnings.append(
+            "rows multiplied by the join (more output rows than the left input); "
+            "counts downstream are inflated"
+        )
+    return BlockOutput(
+        frames={"out": out.head(max_rows).reset_index(drop=True)},
+        warnings=warnings,
+        rows_multiplied=multiplied,
+    )

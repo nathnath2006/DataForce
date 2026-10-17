@@ -103,6 +103,8 @@ def run_flow(
             gate_config_from_settings(settings),
             settings,
         )
+    except flows.TooManyRuns as exc:
+        return error_response(409, "conflict", str(exc))
     except flows.RunTimeout as exc:
         return error_response(504, "timeout", str(exc))
     return RunResponse(run_id=run_id, started_at=started_at, results=results)

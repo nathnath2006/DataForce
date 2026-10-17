@@ -117,7 +117,11 @@ class ConnectionPatch(_In):
 
 
 class ConnectionOut(BaseModel):
-    """Never carries the password (nor whether it is sealed beyond `has_password`)."""
+    """Never carries the password (nor whether it is sealed beyond `has_password`).
+
+    `sslmode=require` encrypts but does not verify the server certificate; for a remote host use
+    `verify-full` (needs a CA known to the server running DataForce). Use a read-only,
+    non-superuser database role: it is the real boundary."""
 
     model_config = ConfigDict(from_attributes=True)
 

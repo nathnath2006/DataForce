@@ -12,6 +12,8 @@ from app.flows.blocks._common import BlockError, BlockOutput, Ctx, fnum, require
 from app.flows.schemas import ClusterConfig, ClusterView, Metric
 
 SILHOUETTE_ROWS = 5_000
+_CHUNK = 20
+MAX_ITER = 300
 
 
 def run(cfg: ClusterConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOutput:
@@ -25,7 +27,13 @@ def run(cfg: ClusterConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockO
         raise BlockError(f"need at least k = {cfg.k} complete rows, got {len(data)}")
     scaler = StandardScaler()
     z = scaler.fit_transform(data.to_numpy())
-    km = KMeans(n_clusters=cfg.k, n_init="auto", random_state=cfg.seed).fit(z)
+    ctx.check()
+    km = KMeans(n_clusters=cfg.k, n_init=1, max_iter=_CHUNK, random_state=cfg.seed).fit(z)
+    done = _CHUNK
+    while km.n_iter_ >= _CHUNK and done < MAX_ITER:  # warm-started chunks, deadline between
+        ctx.check()
+        km = KMeans(n_clusters=cfg.k, init=km.cluster_centers_, n_init=1, max_iter=_CHUNK).fit(z)
+        done += _CHUNK
     labels = km.labels_
     centres = scaler.inverse_transform(km.cluster_centers_)
     sil = None

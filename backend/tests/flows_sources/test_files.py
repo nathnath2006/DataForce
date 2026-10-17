@@ -80,3 +80,39 @@ def test_macro_workbook_refused():
 def test_sanitize_name():
     assert f.sanitize_name("../../etc/pass\x00wd.csv") == "passwd.csv"
     assert f.sanitize_name(None) == "upload"
+
+
+def test_wide_csv_header_refused_fast():
+    import time
+
+    data = (",".join(["a"] * 80_000) + "\n" + ",".join(["1"] * 80_000) + "\n").encode()
+    t0 = time.perf_counter()
+    with pytest.raises(f.UploadRefused, match="more than 500 columns"):
+        f.parse_file("w.csv", data, cap_bytes=20_000_000, max_rows=1000)
+    assert time.perf_counter() - t0 < 1.0
+
+
+def test_csv_huge_header_line_and_field_refused():
+    with pytest.raises(f.UploadRefused):
+        f.parse_file("w.csv", b"a" * 1_100_000, cap_bytes=20_000_000, max_rows=10)
+    data = b"a,b\n" + b"x" * 1_100_000 + b",1\n"
+    with pytest.raises(f.UploadRefused, match="1 MB"):
+        f.parse_file("w.csv", data, cap_bytes=20_000_000, max_rows=10)
+
+
+def test_xlsx_streaming_limits():
+    def book(rows):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        for r in rows:
+            ws.append(r)
+        out = io.BytesIO()
+        wb.save(out)
+        return out.getvalue()
+
+    wide = book([list(range(600)), list(range(600))])
+    with pytest.raises(f.UploadRefused, match="more than 500 columns"):
+        f.parse_file("w.xlsx", wide, cap_bytes=20_000_000, max_rows=100)
+    tall = book([["a", "b"]] + [[i, "x"] for i in range(300)])
+    p = f.parse_file("t.xlsx", tall, cap_bytes=20_000_000, max_rows=100)
+    assert len(p.frame) == 100 and p.frame.attrs.get("capped") is True
