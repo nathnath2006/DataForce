@@ -27,7 +27,7 @@ from app.api.schemas import (
 from app.db.models import Account, Contact, Deal
 from app.domain.enums import CLOSED_STAGES, DealStage, LeadSource, Segment
 from app.domain.schemas import AccountIn, AccountRead, ContactIn, ContactRead, DealIn, DealRead
-from app.services import accounts, contacts, deals
+from app.services import accounts, contacts, deals, org_proposals
 from app.services._common import require_account, require_contact, require_deal
 from app.services.companies import company_names
 
@@ -129,6 +129,7 @@ def erase_account(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Respon
 @router.get("/w/{ws}/accounts/{account_id}/org-chart", response_model=OrgChartOut)
 def org_chart(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> OrgChartOut:
     account = require_account(db, ws.id, account_id)
+    origins, signals = org_proposals.chart_annotations(db, ws.id, account_id)
     nodes = [
         OrgChartNode(
             id=c.id,
@@ -136,6 +137,11 @@ def org_chart(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> OrgChartOu
             title=c.title,
             reports_to_id=boss,
             source=c.source,
+            title_function=c.title_function,
+            title_seniority=c.title_seniority,
+            link_origin=(origins[c.id][0] if c.id in origins else "manual") if boss else None,
+            link_proposal_id=origins[c.id][1] if c.id in origins and boss else None,
+            signals=signals.get(c.id, []),
         )
         for c, boss in contacts.org_chart(db, ws.id, account_id)
     ]
