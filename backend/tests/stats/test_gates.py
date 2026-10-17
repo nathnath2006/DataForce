@@ -75,3 +75,10 @@ def test_gate_config_refuses_values_that_would_open_every_gate(field, value):
     # SR5-06: a NaN threshold made every comparison False, so every gate passed.
     with pytest.raises(ValidationError):
         GateConfig(**{field: value})
+
+
+def test_difference_ci_reasons_use_readable_units():
+    amount = gate_finding(Metric.DEAL_AMOUNT, 40, None, 40, None, 0.5, -190.0, 9921.4, CFG)
+    assert "difference CI [-190, +9,921] EUR includes 0" in amount
+    days = gate_finding(Metric.CYCLE_DAYS, 40, None, 40, None, 0.5, -3.46, 2.0, CFG)
+    assert "difference CI [-3.5, +2.0] days includes 0" in days

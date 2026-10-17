@@ -114,7 +114,9 @@ def gate_finding(
         if diff_low <= 0 <= diff_high:
             if metric == Metric.WIN_RATE:  # rates are fractions; reasons speak in points
                 ci = f"[{diff_low * 100:+.1f}, {diff_high * 100:+.1f}] pts"
-            else:
-                ci = f"[{diff_low:.3g}, {diff_high:.3g}]"
+            elif metric == Metric.CYCLE_DAYS:
+                ci = f"[{diff_low:+.1f}, {diff_high:+.1f}] days"
+            else:  # amounts: whole euros, never scientific notation ("9.92e+03")
+                ci = f"[{diff_low:+,.0f}, {diff_high:+,.0f}] EUR"
             reasons.append(f"difference CI {ci} includes 0")
     return reasons
