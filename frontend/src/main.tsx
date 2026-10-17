@@ -2,7 +2,10 @@ import { Component, StrictMode, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { App } from "./App";
+import { initTheme } from "./theme";
 import "./styles.css";
+
+initTheme();
 
 /** Last line of defence: a render error shows a message instead of a blank page (SR8-01). */
 class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {

@@ -1,6 +1,9 @@
 import { useSearchParams } from "react-router";
 import { useState } from "react";
 import { api } from "../api";
+import { aiApi } from "../assistant/api";
+import { ConnectionsPanel } from "../flows/ConnectionsPanel";
+import type { AiProvider } from "../types";
 import { useWs } from "../context";
 import { formatDateTime, isSafeAuthorizeUrl, tamtamReason } from "../lib";
 import { Confirm, ErrorNote, Loading, Tag, useAction, useLoad } from "../ui";
@@ -87,6 +90,9 @@ export function SettingsPage() {
           )}
         </>
       )}
+      <AiSection />
+      <h2>Data connections</h2>
+      <ConnectionsPanel />
       {disc && (
         <Confirm title="Disconnect TamTam" confirmLabel="Disconnect" danger onClose={() => setDisc(false)}
           onConfirm={async () => { await api.disconnectTamtam(ws.slug); setChecked(null); c.reload(); }}>
@@ -94,5 +100,79 @@ export function SettingsPage() {
         </Confirm>
       )}
     </section>
+  );
+}
+
+const OTHER = "__other__";
+
+function AiSection() {
+  const { ws } = useWs();
+  const s = useLoad(() => aiApi.get(ws.slug), [ws.slug]);
+  const act = useAction();
+  const [provider, setProvider] = useState<AiProvider | "">("");
+  const [model, setModel] = useState("");
+  const [custom, setCustom] = useState(false);
+  const [key, setKey] = useState("");
+  const [replace, setReplace] = useState(false);
+  const [state, setState] = useState<typeof s.data>(null);
+  const d = state ?? s.data;
+  if (s.loading && !d) return <Loading />;
+  if (!d) return <ErrorNote error={s.error} />;
+  const prov: AiProvider = provider || d.provider || "gemini";
+  const suggestions = d.suggested_models[prov] ?? [];
+  const mdl = model || (d.provider === prov ? d.model ?? "" : suggestions[0] ?? "");
+  const showCustom = custom || (mdl !== "" && !suggestions.includes(mdl));
+  const keyStored = d.configured && d.provider === prov;
+  const needKey = !keyStored || replace;
+
+  const save = () => act.run(async () => {
+    setState(await aiApi.put(ws.slug, { provider: prov, model: mdl.trim(), ...(key ? { api_key: key } : {}) }));
+    setKey(""); setReplace(false);
+  });
+  return (
+    <>
+      <h2>AI model</h2>
+      <ErrorNote error={act.error} />
+      <div className="note" role="note">{d.data_notice}</div>
+      <div className="card stack">
+        <div className="grid2">
+          <label>Provider
+            <select value={prov} onChange={(e) => { setProvider(e.target.value as AiProvider); setModel(""); setCustom(false); }}>
+              <option value="gemini">Gemini</option><option value="anthropic">Anthropic</option>
+            </select>
+          </label>
+          <label>Model
+            <select value={showCustom ? OTHER : mdl}
+              onChange={(e) => { if (e.target.value === OTHER) { setCustom(true); setModel(""); } else { setCustom(false); setModel(e.target.value); } }}>
+              {suggestions.map((m) => <option key={m} value={m}>{m}</option>)}
+              <option value={OTHER}>other…</option>
+            </select>
+          </label>
+        </div>
+        {showCustom && (
+          <label>Model name
+            <input value={mdl} pattern="[a-z0-9][a-z0-9.\-]{0,63}" onChange={(e) => setModel(e.target.value)} autoComplete="off" />
+          </label>
+        )}
+        {keyStored && !replace ? (
+          <div className="row"><Tag kind="ok">A key is stored</Tag>
+            <button className="link" onClick={() => setReplace(true)}>Replace key</button></div>
+        ) : (
+          <label>API key (write-only, never shown again)
+            <input type="password" value={key} autoComplete="off" spellCheck={false} onChange={(e) => setKey(e.target.value)} />
+          </label>
+        )}
+        <div className="row wrap">
+          <button className="primary" disabled={act.busy || !mdl.trim() || (needKey && key.length < 20)} onClick={() => void save()}>Save</button>
+          <button disabled={act.busy || !d.configured} onClick={() => void act.run(async () => { setState(await aiApi.test(ws.slug)); })}>Test</button>
+          <button className="danger" disabled={act.busy || !d.configured}
+            onClick={() => void act.run(async () => { await aiApi.remove(ws.slug); setState(null); setKey(""); setReplace(false); s.reload(); })}>Remove</button>
+        </div>
+        {d.last_test_at && (
+          <p className="small">Last test {formatDateTime(d.last_test_at)}: {d.last_test_ok
+            ? <Tag kind="ok">worked</Tag> : <Tag kind="bad">failed</Tag>}{d.last_error ? <span className="pre"> {d.last_error}</span> : null}</p>
+        )}
+      </div>
+    </>
   );
 }

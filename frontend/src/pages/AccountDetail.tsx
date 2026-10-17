@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api";
+import { AskPanel } from "../assistant/AskPanel";
+import { companiesApi } from "../companies/api";
 import { useWs } from "../context";
 import { formatEur, formatDateTime, label, segmentLabel } from "../lib";
-import { Confirm, Empty, ErrorNote, Loading, Tag, useLoad } from "../ui";
+import { Confirm, Empty, ErrorNote, Loading, Modal, Tag, useAction, useLoad } from "../ui";
 import { AccountForm } from "./Accounts";
 import { ContactForm } from "./Contacts";
 import { NoteThread } from "./Notes";
@@ -20,6 +22,7 @@ export function AccountDetailPage() {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [erasing, setErasing] = useState(false);
+  const [picking, setPicking] = useState(false);
   const a = acc.data;
   const base = `/w/${ws.slug}`;
   const refreshAll = () => { acc.reload(); contacts.reload(); chart.reload(); };
@@ -36,6 +39,9 @@ export function AccountDetailPage() {
         </div>
       </div>
       <dl className="facts">
+        <dt>Company</dt>
+        <dd>{a.company_id ? <Link to={`${base}/companies/${a.company_id}`}>{a.company_name ?? "Company"}</Link> : "—"}{" "}
+          <button className="link" onClick={() => setPicking(true)}>{a.company_id ? "Change company" : "Set company"}</button></dd>
         <dt>Domain</dt><dd>{a.domain ?? "—"}</dd>
         <dt>Industry</dt><dd>{a.industry ?? "—"}</dd>
         <dt>Segment</dt><dd>{segmentLabel(a.segment)}</dd>
@@ -82,6 +88,9 @@ export function AccountDetailPage() {
         <NoteThread kind="comment" parentId={a.id} />
       </div>
 
+      <AskPanel scope={{ kind: "account", id: a.id }} />
+
+      {picking && <CompanyPicker accountId={a.id} current={a.company_id ?? null} onClose={() => setPicking(false)} onSaved={refreshAll} />}
       {editing && <AccountForm account={a} onClose={() => setEditing(false)} onSaved={refreshAll} />}
       {adding && <ContactForm accountId={a.id} onClose={() => setAdding(false)} onSaved={refreshAll} />}
       {erasing && (
@@ -95,5 +104,32 @@ export function AccountDetailPage() {
         </Confirm>
       )}
     </section>
+  );
+}
+
+function CompanyPicker(props: { accountId: string; current: string | null; onClose: () => void; onSaved: () => void }) {
+  const { ws } = useWs();
+  const list = useLoad(() => companiesApi.list(ws.slug, { limit: 200 }), [ws.slug]);
+  const [sel, setSel] = useState(props.current ?? "");
+  const act = useAction();
+  return (
+    <Modal title="Set company" onClose={props.onClose}>
+      <div className="stack">
+        <ErrorNote error={list.error} /><ErrorNote error={act.error} />
+        <label>Company
+          <select value={sel} onChange={(e) => setSel(e.target.value)}>
+            <option value="">(none)</option>
+            {list.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+        <div className="row end">
+          <button onClick={props.onClose}>Cancel</button>
+          <button className="primary" disabled={act.busy} onClick={() => void act.run(async () => {
+            await companiesApi.setAccountCompany(ws.slug, props.accountId, sel || null);
+            props.onSaved(); props.onClose();
+          })}>Save</button>
+        </div>
+      </div>
+    </Modal>
   );
 }

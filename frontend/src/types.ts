@@ -32,6 +32,7 @@ export interface AccountOut {
   industry: string | null; segment: Segment | null; employee_count: number | null;
   region: string | null; country: string | null; source: RecordSource; external_ref: string | null;
   n_contacts: number; n_deals: number; n_open_deals: number;
+  company_id?: string | null; company_name?: string | null;
 }
 export interface AccountCreate {
   name: string; domain?: string | null; industry?: string | null; segment?: Segment | null;
@@ -131,4 +132,52 @@ export interface ChannelOut {
 export interface EnrichResponse {
   mode: "fake" | "tamtam"; channels: ChannelOut[]; credits_used: number; anomalous: boolean;
   notes: string[];
+}
+
+// ---- M2a: companies, registry, AI (docs/M2A-CONTRACT.md sections 5 and 6) ----
+export interface CompanyOut {
+  id: string; workspace_id: string; created_at: string; name: string; siren: string | null;
+  domain: string | null; address_line: string | null; postal_code: string | null; city: string | null;
+  country: string | null; naf_code: string | null; legal_category: string | null;
+  size_bracket: string | null; category: string | null; source: string;
+  registry_checked_at?: string | null;
+  n_accounts: number; n_contacts: number; n_deals: number; n_open_deals: number;
+  won_amount_eur: string | number | null; last_interaction: string | null; interacted: boolean;
+}
+export interface CompanyCreate {
+  name: string; siren?: string | null; domain?: string | null; address_line?: string | null;
+  postal_code?: string | null; city?: string | null; country?: string | null;
+}
+export type CompanyUpdate = Partial<CompanyCreate>;
+export interface ActivityItem {
+  kind: "note" | "comment" | "deal_created" | "deal_closed"; at: string; account_id: string;
+  contact_id?: string | null; deal_id?: string | null; title: string; excerpt: string;
+}
+export interface Company360 {
+  company: CompanyOut; accounts: AccountOut[]; contacts: ContactOut[]; deals: DealOut[];
+  activity: ActivityItem[];
+}
+export interface LookupOut { companies: CompanyOut[]; accounts: AccountOut[]; interacted: boolean }
+export interface RegistryCompanyOut {
+  siren: string; name: string; address_line: string | null; postal_code: string | null;
+  city: string | null; naf_code: string | null; legal_category: string | null;
+  size_bracket: string | null; category: string | null; created_on: string | null;
+  active: boolean; sole_trader: boolean; in_crm_company_id: string | null;
+}
+
+export type AiProvider = "gemini" | "anthropic";
+export interface AiSettingsOut {
+  configured: boolean; provider: AiProvider | null; model: string | null;
+  updated_at: string | null; last_test_at: string | null; last_test_ok: boolean | null;
+  last_error: string | null; suggested_models: Record<string, string[]>; data_notice: string;
+}
+export interface AiSettingsIn { provider: AiProvider; model: string; api_key?: string }
+export interface AskScope { kind: "account" | "company"; id: string }
+export interface AskTurn { role: "user" | "assistant"; content: string }
+export interface AskCitation { ref: string; kind: string; label: string }
+export interface AskQuote { text: string; ref: string; verified: boolean }
+export interface AskOut {
+  answer: string; citations: AskCitation[]; quotes: AskQuote[]; unverified_numbers: string[];
+  provider: string; model: string; input_tokens: number; output_tokens: number;
+  context_chars: number; truncated: boolean;
 }
