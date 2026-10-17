@@ -50,6 +50,7 @@ class RecordSource(StrEnum):
     DEMO = "demo"  # synthetic generator, announced as such
     IMPORT = "import"  # imported document (M2)
     TAMTAM = "tamtam"  # TamTam connector (M3)
+    REGISTRY = "registry"  # public company registry (recherche-entreprises.api.gouv.fr, M2a)
 
 
 class UserRole(StrEnum):
@@ -105,6 +106,7 @@ class Dimension(StrEnum):
 class RunKind(StrEnum):
     DEMO_GENERATE = "demo_generate"
     STATS_SCAN = "stats_scan"
+    FLOW_RUN = "flow_run"  # M2a: an analysis flow was run (params: flow id, node; result: summary)
 
 
 class RunStatus(StrEnum):

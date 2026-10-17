@@ -28,6 +28,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
@@ -102,6 +103,11 @@ class Account(Base):
     country: Mapped[str | None] = mapped_column(String(2))
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
     external_ref: Mapped[str | None] = mapped_column(String(200))
+    # M2a: the company (legal entity / group) this account belongs to; several accounts
+    # (subsidiaries, branches, business units) can share one company.
+    company_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("company.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _updated()
 
@@ -345,3 +351,119 @@ class ContactChannel(Base):
     credits_used: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False, default=0)
     raw_tool: Mapped[str | None] = mapped_column(String(200))
     fetched_at: Mapped[datetime] = _created()
+
+
+# --- M2a: companies, analysis flows and their data, AI model credentials -------------------------
+class Company(Base):
+    """A company (legal entity or group) one or more accounts belong to. Registry data (SIREN,
+    head-office address, activity code, size bracket) is business data; the registry's list of
+    managers (personal data) is never stored."""
+
+    __tablename__ = "company"
+    __table_args__ = (
+        Index("ix_company_ws_name", "workspace_id", "name"),
+        Index(
+            "uq_company_ws_siren",
+            "workspace_id",
+            "siren",
+            unique=True,
+            postgresql_where=text("siren IS NOT NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    siren: Mapped[str | None] = mapped_column(String(9))  # French company id (9 digits)
+    domain: Mapped[str | None] = mapped_column(String(253))
+    address_line: Mapped[str | None] = mapped_column(Text)
+    postal_code: Mapped[str | None] = mapped_column(String(16))
+    city: Mapped[str | None] = mapped_column(String(100))
+    country: Mapped[str | None] = mapped_column(String(2))
+    naf_code: Mapped[str | None] = mapped_column(String(10))  # activity code (APE/NAF)
+    legal_category: Mapped[str | None] = mapped_column(String(10))  # registry nature_juridique
+    size_bracket: Mapped[str | None] = mapped_column(String(8))  # registry tranche_effectif code
+    category: Mapped[str | None] = mapped_column(String(8))  # PME / ETI / GE
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
+    registry_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _updated()
+
+
+class UploadedFile(Base):
+    """A CSV / Excel file uploaded for analysis flows. Stored in the database (bytea) so it is
+    backed up and erased with its workspace; size is capped by settings.upload_max_bytes."""
+
+    __tablename__ = "uploaded_file"
+    __table_args__ = (Index("ix_uploaded_file_ws", "workspace_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    name: Mapped[str] = mapped_column(Text, nullable=False)  # sanitised original file name
+    media_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    sheet: Mapped[str | None] = mapped_column(Text)  # Excel: the sheet that was read
+    n_rows: Mapped[int | None] = mapped_column(Integer)
+    columns: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)  # [{name, dtype}]
+    created_at: Mapped[datetime] = _created()
+
+
+class DataConnection(Base):
+    """A read-only connection to an external PostgreSQL database for analysis flows. The
+    password is sealed (Fernet); queries run in READ ONLY transactions with a timeout."""
+
+    __tablename__ = "data_connection"
+    __table_args__ = (UniqueConstraint("workspace_id", "name", name="uq_data_connection_ws_name"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="postgres")
+    host: Mapped[str] = mapped_column(String(253), nullable=False)
+    port: Mapped[int] = mapped_column(Integer, nullable=False, default=5432)
+    database: Mapped[str] = mapped_column(String(128), nullable=False)
+    username: Mapped[str] = mapped_column(String(128), nullable=False)
+    password_enc: Mapped[str | None] = mapped_column(Text)
+    sslmode: Mapped[str] = mapped_column(String(16), nullable=False, default="require")
+    last_test_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_test_ok: Mapped[bool | None] = mapped_column(Boolean)
+    last_error: Mapped[str | None] = mapped_column(Text)  # sanitised, never holds the password
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _updated()
+
+
+class Flow(Base):
+    """An analysis flow: a graph of blocks (docs/M2A-CONTRACT.md section 3). Results are computed
+    on demand and not stored here (a run is recorded in `run`)."""
+
+    __tablename__ = "flow"
+    __table_args__ = (Index("ix_flow_ws_name", "workspace_id", "name"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    graph: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _updated()
+
+
+class LlmCredential(Base):
+    """The workspace's AI model (Gemini or Anthropic) and its API key, entered in Settings. The
+    key is sealed (Fernet), never returned to the browser, never logged."""
+
+    __tablename__ = "llm_credential"
+    __table_args__ = (UniqueConstraint("workspace_id", name="uq_llm_credential_ws"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)  # "gemini" | "anthropic"
+    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    api_key_enc: Mapped[str] = mapped_column(Text, nullable=False)
+    last_test_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_test_ok: Mapped[bool | None] = mapped_column(Boolean)
+    last_error: Mapped[str | None] = mapped_column(Text)  # sanitised, never holds the key
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _updated()

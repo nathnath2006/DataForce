@@ -77,6 +77,7 @@ class AccountRead(AccountIn):
 
     id: UUID
     workspace_id: UUID
+    company_id: UUID | None = None  # M2a: the company this account belongs to
     created_at: datetime
 
 
@@ -218,7 +219,14 @@ class GroundTruth(BaseModel):
 
 
 # --- LLM usage + enrichment (kept from v1) -------------------------------------------------------
-LLMPurpose = Literal["title_classification", "theme_naming", "explanation", "embedding"]
+LLMPurpose = Literal[
+    "title_classification",
+    "theme_naming",
+    "explanation",
+    "embedding",
+    "assistant",
+    "connection_test",
+]
 
 
 class LLMCallRecord(BaseModel):

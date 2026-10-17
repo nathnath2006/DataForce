@@ -101,6 +101,7 @@ class AccountOut(AccountRead):
     n_contacts: int
     n_deals: int
     n_open_deals: int
+    company_name: str | None = None  # M2a
 
 
 class AccountCreate(_In):

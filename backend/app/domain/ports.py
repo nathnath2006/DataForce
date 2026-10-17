@@ -3,6 +3,7 @@ behind one of these, with a fake implementation, so the tool runs and is tested 
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Literal, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel
@@ -35,6 +36,37 @@ class LLMProvider(Protocol):
         purpose: Literal["title_classification", "theme_naming", "explanation"],
         max_output_tokens: int = 4096,
     ) -> T: ...
+
+
+@dataclass(frozen=True)
+class ChatMessage:
+    role: Literal["user", "assistant"]
+    content: str
+
+
+@dataclass(frozen=True)
+class TextResult:
+    text: str
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+
+
+class ChatProvider(Protocol):
+    """'Conversation in, text out' (M2a assistant). Implemented by the Gemini, Anthropic and fake
+    providers. The text is checked after the call: numbers not present in the context and
+    quotes not found in the source are flagged (app/assistant)."""
+
+    name: str
+    model: str
+
+    async def generate_text(
+        self,
+        *,
+        system: str,
+        messages: list[ChatMessage],
+        purpose: Literal["assistant", "connection_test"],
+        max_output_tokens: int = 800,
+    ) -> TextResult: ...
 
 
 @runtime_checkable

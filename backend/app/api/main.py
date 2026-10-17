@@ -6,7 +6,18 @@ from fastapi import FastAPI
 
 from app import __version__
 from app.api.errors import install_error_handlers
-from app.api.routes import connectors, crm, enrichment, notes, stats, workspaces
+from app.api.routes import (
+    ai,
+    companies,
+    connectors,
+    crm,
+    data,
+    enrichment,
+    flows,
+    notes,
+    stats,
+    workspaces,
+)
 from app.api.schemas import Health
 from app.api.security import install_security
 from app.api.static import install_static
@@ -31,7 +42,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def health() -> Health:
         return Health(ok=True, version=__version__, environment=settings.environment)
 
-    for module in (workspaces, crm, notes, stats, connectors, enrichment):
+    routers = (workspaces, crm, notes, stats, connectors, enrichment, companies, data, flows, ai)
+    for module in routers:
         app.include_router(module.router, prefix="/api")
     install_security(app, settings)  # last added = outermost middleware
     install_static(app, settings)  # SPA at /, after the API routes

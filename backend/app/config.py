@@ -281,6 +281,18 @@ class Settings(BaseSettings):
     # Built frontend served at / (empty or missing = API only).
     ui_dist_dir: Path = BACKEND_DIR.parent / "frontend" / "dist"
 
+    # --- M2a: analysis flows, company registry, AI assistant --------------------------------
+    upload_max_bytes: int = Field(default=20 * 1024 * 1024, ge=1024, le=100 * 1024 * 1024)
+    flow_max_rows: int = Field(default=200_000, ge=1_000, le=5_000_000)  # per dataset / block
+    flow_run_timeout_s: float = Field(default=60.0, gt=0, le=600, allow_inf_nan=False)
+    # External database connections: query timeout (also sent as statement_timeout).
+    data_connection_timeout_s: float = Field(default=30.0, gt=0, le=300, allow_inf_nan=False)
+    # Public French company registry (no key). Searched only when the user asks.
+    registry_url: str = "https://recherche-entreprises.api.gouv.fr"
+    # AI assistant: answer length and how much account context is sent.
+    assistant_max_output_tokens: int = Field(default=800, ge=64, le=4096)
+    assistant_max_context_chars: int = Field(default=40_000, ge=2_000, le=400_000)
+
     # --- validators -----------------------------------------------------------------------
     # Field validators (not a model validator) on purpose: they see the already-wrapped
     # SecretStr, and `environment` is declared first so `info.data` has it.
@@ -303,7 +315,7 @@ class Settings(BaseSettings):
         check_database_tls(url, setting="TEST_DATABASE_URL")
         return value
 
-    @field_validator("tamtam_mcp_url", mode="after")
+    @field_validator("tamtam_mcp_url", "registry_url", mode="after")
     @classmethod
     def _check_endpoint(cls, value: str, info: ValidationInfo) -> str:
         return check_endpoint_url(

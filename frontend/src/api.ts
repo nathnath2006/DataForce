@@ -3,7 +3,8 @@ import type * as T from "./types";
 
 const BASE = "/api";
 
-async function request<R>(method: string, path: string, body?: unknown): Promise<R> {
+/** JSON request to the local API (shared by every feature module). */
+export async function request<R>(method: string, path: string, body?: unknown): Promise<R> {
   const mutating = method !== "GET";
   const headers: Record<string, string> = { Accept: "application/json" };
   if (mutating) {
@@ -30,14 +31,14 @@ async function request<R>(method: string, path: string, body?: unknown): Promise
   return data as R;
 }
 
-const q = (params: Record<string, string | number | undefined | null>): string => {
+export const q = (params: Record<string, string | number | undefined | null>): string => {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== "") sp.set(k, String(v));
   const s = sp.toString();
   return s ? `?${s}` : "";
 };
-const e = encodeURIComponent;
-const w = (ws: string) => `/w/${e(ws)}`;
+export const e = encodeURIComponent;
+export const w = (ws: string) => `/w/${e(ws)}`;
 
 export const api = {
   // workspaces and users

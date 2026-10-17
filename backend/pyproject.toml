@@ -34,6 +34,11 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn>=0.30",
     "cryptography>=43",
+    "python-multipart>=0.0.9",  # file upload (M2a)
+    # analysis flows (M2a): tables, Excel import, regression / clustering blocks
+    "pandas>=2.2",
+    "openpyxl>=3.1",
+    "scikit-learn>=1.5",
 ]
 
 [project.optional-dependencies]

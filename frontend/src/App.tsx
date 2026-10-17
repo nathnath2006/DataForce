@@ -10,19 +10,28 @@ import { ContactDetailPage } from "./pages/ContactDetail";
 import { DealsPage } from "./pages/Deals";
 import { AnalysisPage } from "./pages/Analysis";
 import { SettingsPage } from "./pages/Settings";
+import { CompaniesPage } from "./companies/CompaniesPage";
+import { CompanyDetailPage } from "./companies/CompanyDetail";
+import { FlowEditorPage } from "./flows/FlowEditor";
+import { FlowsPage } from "./flows/FlowsPage";
+import { ThemeToggle } from "./theme";
 
 export function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/w/:ws" element={<Shell />}>
-        <Route index element={<Navigate to="accounts" replace />} />
+        <Route index element={<Navigate to="companies" replace />} />
+        <Route path="companies" element={<CompaniesPage />} />
+        <Route path="companies/:id" element={<CompanyDetailPage />} />
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="accounts/:id" element={<AccountDetailPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="contacts/:id" element={<ContactDetailPage />} />
         <Route path="deals" element={<DealsPage />} />
-        <Route path="analysis" element={<AnalysisPage />} />
+        <Route path="analysis" element={<FlowsPage />} />
+        <Route path="analysis/scan" element={<AnalysisPage />} />
+        <Route path="analysis/:flowId" element={<FlowEditorPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<p className="muted">Page not found.</p>} />
       </Route>
@@ -104,6 +113,7 @@ function Shell() {
             <option value="__new">+ New workspace…</option>
           </select>
           <span className="spacer" />
+          <ThemeToggle />
           <label className="acting">
             <span>Acting as</span>
             <select aria-label="Acting as" value={actingValid ?? ""} onChange={(e) => pick(e.target.value)}>
@@ -118,7 +128,7 @@ function Shell() {
         )}
         <div className="body">
           <nav className={`side ${navOpen ? "open" : ""}`} onClick={() => setNavOpen(false)}>
-            {["accounts", "contacts", "deals", "analysis", "settings"].map((p) => (
+            {["companies", "accounts", "contacts", "deals", "analysis", "settings"].map((p) => (
               <NavLink key={p} to={`/w/${slug}/${p}`}>{p.charAt(0).toUpperCase() + p.slice(1)}</NavLink>
             ))}
             <p className="muted small">Acting as is a label only: there is no login before M3.</p>
