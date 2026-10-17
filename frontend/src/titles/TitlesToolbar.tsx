@@ -63,7 +63,7 @@ export function ReviewTitles({ onChanged }: { onChanged: () => void }) {
           <thead><tr><th>Name</th><th>Title</th><th>Account</th><th>Class</th><th>Why</th></tr></thead>
           <tbody>{r.data.map((it) => (
             <tr key={it.contact_id}>
-              <td><Link to={it.contact_id}>{it.full_name}</Link></td>
+              <td><Link to={`/w/${encodeURIComponent(ws.slug)}/contacts/${encodeURIComponent(it.contact_id)}`}>{it.full_name}</Link></td>
               <td>{it.title ?? "—"}</td>
               <td><Link to={`/w/${ws.slug}/accounts/${it.account_id}`}>{it.account_name}</Link></td>
               <td>{editId === it.contact_id ? (

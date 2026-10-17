@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useWs } from "../context";
 import { Confirm, Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, useAction, useLoad } from "../ui";
@@ -73,11 +73,17 @@ export function DeleteMeeting(props: { doc: DocumentOut; onClose: () => void; on
   );
 }
 
+const TURNS_PAGE = 200;
+// The server refuses larger files (TRANSCRIPT_MAX_BYTES); checking here avoids a pointless upload.
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
 export function TranscriptDialog({ id, onClose }: { id: string; onClose: () => void }) {
   const { ws } = useWs();
   const doc = useLoad(() => meetingsApi.get(ws.slug, id), [ws.slug, id]);
   const d = doc.data;
-  const turns = d ? buildTurns(d.text, d.chunks, d.chunk_themes) : [];
+  // Built once per document; long transcripts are shown in pages of turns (SR13-01).
+  const turns = useMemo(() => (d ? buildTurns(d.text, d.chunks, d.chunk_themes) : []), [d]);
+  const [shown, setShown] = useState(TURNS_PAGE);
   const leg = d ? legend(d.chunk_themes) : [];
   const cls = new Map(leg.map((l) => [l.id, l.cls]));
   return (
@@ -94,7 +100,7 @@ export function TranscriptDialog({ id, onClose }: { id: string; onClose: () => v
               </div>
             )}
             <div className="transcript">
-              {turns.map((t, i) => (
+              {turns.slice(0, shown).map((t, i) => (
                 <div className="turn" key={i}>
                   {t.speaker && <span className="who">{t.speaker}</span>}
                   <p className="says">{t.segs.map((s, j) => (
@@ -104,6 +110,11 @@ export function TranscriptDialog({ id, onClose }: { id: string; onClose: () => v
                 </div>
               ))}
             </div>
+            {turns.length > shown && (
+              <button onClick={() => setShown((n) => n + TURNS_PAGE)}>
+                Show more ({turns.length - shown} more turns)
+              </button>
+            )}
           </>
         )}
       </div>
@@ -149,6 +160,9 @@ function UploadDialog(props: { scope: Scope; onClose: () => void; onDone: () => 
         <Field label="File (.pdf, .md, .txt)">
           <input type="file" accept=".pdf,.md,.markdown,.txt" onChange={(ev) => setFile(ev.target.files?.[0] ?? null)} />
         </Field>
+        {file && file.size > MAX_UPLOAD_BYTES && (
+          <div className="note warn" role="alert">This file is larger than 5 MB: the server will refuse it.</div>
+        )}
         <Field label="Title (optional)"><input value={title} maxLength={200} onChange={(ev) => setTitle(ev.target.value)} /></Field>
         <Field label="Meeting date (optional)"><input type="date" value={date} onChange={(ev) => setDate(ev.target.value)} /></Field>
         <Field label="Deal (optional)">
@@ -160,7 +174,7 @@ function UploadDialog(props: { scope: Scope; onClose: () => void; onDone: () => 
         <ErrorNote error={a.error} />
         <div className="row end">
           <button onClick={props.onClose}>Cancel</button>
-          <button className="primary" disabled={a.busy || !file || !accountId} onClick={submit}>Upload</button>
+          <button className="primary" disabled={a.busy || !file || !accountId || (file?.size ?? 0) > MAX_UPLOAD_BYTES} onClick={submit}>Upload</button>
         </div>
       </div>
     </Modal>

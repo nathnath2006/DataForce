@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { useWs } from "../context";
 import type { OrgChartNode } from "../types";
 import type { OrgTreeNode } from "../lib";
-import { Empty, ErrorNote, Tag, useAction, useLoad } from "../ui";
+import { Confirm, Empty, ErrorNote, Tag, useAction, useLoad } from "../ui";
 import { orgApi } from "./api";
 import {
   buildOverlay, classLabel, formatEvidence, kindLabel, originBadge, signalKind, signalLabel,
@@ -69,7 +69,7 @@ function ProposalItem({ p, onDone }: { p: ProposalOut; onDone: () => void }) {
   const [pick, setPick] = useState("");
   const ambiguous = p.manager === null && p.kind === "reports_to";
   const canAccept = !ambiguous || pick !== "";
-  const go = (fn: () => Promise<unknown>) => void act.run(async () => { await fn(); onDone(); });
+  const [confirming, setConfirming] = useState<"accept" | "reject" | null>(null);
   return (
     <li className="oc-item">
       <div>
@@ -95,9 +95,23 @@ function ProposalItem({ p, onDone }: { p: ProposalOut; onDone: () => void }) {
       <ErrorNote error={act.error} />
       <div className="row">
         <button className="primary" disabled={act.busy || !canAccept}
-          onClick={() => go(() => orgApi.accept(ws.slug, p.id, ambiguous ? pick : undefined))}>Accept</button>
-        <button disabled={act.busy} onClick={() => go(() => orgApi.reject(ws.slug, p.id))}>Reject</button>
+          onClick={() => setConfirming("accept")}>Accept</button>
+        <button disabled={act.busy} onClick={() => setConfirming("reject")}>Reject</button>
       </div>
+      {confirming && (
+        <Confirm
+          title={confirming === "accept" ? "Accept this suggestion?" : "Reject this suggestion?"}
+          confirmLabel={confirming === "accept" ? "Accept" : "Reject"} danger={confirming === "reject"}
+          onClose={() => setConfirming(null)}
+          onConfirm={() => (confirming === "accept"
+            ? orgApi.accept(ws.slug, p.id, ambiguous ? pick : undefined)
+            : orgApi.reject(ws.slug, p.id)).then(onDone)}
+        >
+          <p>{confirming === "accept"
+            ? "It becomes a fact in the org chart, keeping its evidence. You can still change the manager by hand later."
+            : "It disappears and will not be suggested again for this pair."}</p>
+        </Confirm>
+      )}
     </li>
   );
 }
