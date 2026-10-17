@@ -302,7 +302,7 @@ class Settings(BaseSettings):
     transcript_max_bytes: int = Field(default=5 * 1024 * 1024, ge=1024, le=50 * 1024 * 1024)
     transcript_max_pages: int = Field(default=300, ge=1, le=2_000)  # PDF
     transcript_max_chars: int = Field(default=1_000_000, ge=1_000, le=10_000_000)
-    themes_default_k: int = Field(default=8, ge=2, le=30)
+    themes_default_k: int = Field(default=12, ge=2, le=30)  # v2: formulas need topics too
 
     # --- validators -----------------------------------------------------------------------
     # Field validators (not a model validator) on purpose: they see the already-wrapped

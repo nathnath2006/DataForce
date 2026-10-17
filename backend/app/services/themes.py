@@ -10,12 +10,22 @@ from datetime import date
 from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Account, Document, DocumentChunk, Run, Theme, ThemeAssignment
+from app.db.models import (
+    Account,
+    AppUser,
+    Contact,
+    Document,
+    DocumentChunk,
+    Run,
+    Theme,
+    ThemeAssignment,
+)
 from app.domain.enums import RunKind, RunStatus
 from app.services.errors import InvalidInputError
 from app.services.runs import finish_run, start_run
 from app.services.textclean import scrub_text
 from app.themes import discover as disc
+from app.themes import lexicon
 from app.themes.naming import Named, keyword_name
 
 
@@ -37,6 +47,7 @@ class ThemeRunResult:
     n_chunks_used: int
     n_unassigned: int
     dropped: list[disc.Dropped]
+    known_themes: list[str]
 
 
 def latest_run(db: Session, ws_id: uuid.UUID) -> Run | None:
@@ -65,6 +76,13 @@ def _input_chunks(db: Session, ws_id: uuid.UUID, customer_only: bool):
     return list(db.execute(stmt).all())
 
 
+def _person_names(db: Session, ws_id: uuid.UUID) -> list[str]:
+    return [
+        *db.scalars(select(Contact.full_name).where(Contact.workspace_id == ws_id)),
+        *db.scalars(select(AppUser.display_name).where(AppUser.workspace_id == ws_id)),
+    ]
+
+
 def run_themes(
     db: Session,
     ws_id: uuid.UUID,
@@ -85,45 +103,68 @@ def run_themes(
         db, RunKind.THEME_ANALYSIS, ws_id, params={"k": k, "speakers": speakers, "ai": bool(namer)}
     )
     try:
-        found = disc.discover([c.text for c, _ in rows], k)
+        names = _person_names(db, ws_id)
+        texts = [c.text for c, _ in rows]
+        doc_ids = [c.document_id for c, _ in rows]
+        if len(texts) < disc.MIN_INPUT_CHUNKS:
+            raise disc.ThemeError("not enough transcript text to find themes")
+        known = lexicon.match_known(texts, names, doc_ids, max_chunks=disc.MAX_CHUNKS)
+        try:
+            found = disc.discover(texts, max(2, k // 2), names, doc_ids, skip=known.matched)
+        except disc.ThemeError:
+            if not known.found:
+                raise
+            found = disc.Discovery([], [], min(len(texts), disc.MAX_CHUNKS), 0)
+        # Excerpts are exact quotes, but person names never reach the AI namer. Only discovered
+        # topics are named by the AI; known themes keep their catalog label.
         inputs = [
-            NamingInput(
-                t.top_terms,
-                [
-                    disc.best_sentence(rows[i][0].text, t.top_terms)
-                    for i, _ in sorted(t.members, key=lambda m: (-m[1], m[0]))[: disc.N_EXCERPTS]
-                ],
-            )
+            NamingInput(t.top_terms, [disc.mask_names(sent, names) for _, sent in t.excerpts])
             for t in found.themes
         ]
-        names: list[Named | None] = namer(inputs) if namer and inputs else [None] * len(inputs)
-        for t, named in zip(found.themes, names, strict=True):
+        named_all: list[Named | None] = namer(inputs) if namer and inputs else [None] * len(inputs)
+        planned = [
+            (
+                f.label,
+                f.description,
+                f.kind,
+                "lexicon",
+                f.top_terms,
+                f.members,
+            )
+            for f in known.found
+        ]
+        for t, named in zip(found.themes, named_all, strict=True):
             named = named or keyword_name(t.top_terms)
+            planned.append(
+                (named.label, named.description, named.kind, named.named_by, t.top_terms, t.members)
+            )
+        assigned: set[int] = set()
+        for seq, (label, desc, kind, by, terms, members) in enumerate(planned, 1):
+            assigned.update(i for i, _ in members)
             theme = Theme(
                 workspace_id=ws_id,
                 run_id=run.id,
-                seq=t.seq,
-                label=scrub_text(named.label),
-                description=scrub_text(named.description) if named.description else None,
-                kind=named.kind,
-                named_by=named.named_by,
-                top_terms=t.top_terms,
-                n_chunks=len(t.members),
-                n_documents=len({rows[i][0].document_id for i, _ in t.members}),
-                n_accounts=len({rows[i][1] for i, _ in t.members}),
+                seq=seq,
+                label=scrub_text(label),
+                description=scrub_text(desc) if desc else None,
+                kind=kind,
+                named_by=by,
+                top_terms=terms,
+                n_chunks=len(members),
+                n_documents=len({rows[i][0].document_id for i, _ in members}),
+                n_accounts=len({rows[i][1] for i, _ in members}),
             )
             db.add(theme)
             db.flush()
             db.add_all(
                 ThemeAssignment(
-                    theme_id=theme.id,
-                    chunk_id=rows[i][0].id,
-                    workspace_id=ws_id,
-                    weight=w,
+                    theme_id=theme.id, chunk_id=rows[i][0].id, workspace_id=ws_id, weight=w
                 )
-                for i, w in t.members
+                for i, w in members
             )
         db.flush()
+        known_ids = [f.id for f in known.found]
+        n_unassigned = found.n_used - len({i for i in assigned if i < found.n_used})
     except disc.ThemeError as exc:
         finish_run(db, run, RunStatus.FAILED, error=str(exc))
         db.commit()
@@ -138,12 +179,13 @@ def run_themes(
         RunStatus.SUCCEEDED,
         result={
             "n_chunks_used": found.n_used,
-            "n_unassigned": found.n_unassigned,
-            "n_themes": len(found.themes),
+            "n_unassigned": n_unassigned,
+            "n_themes": len(planned),
+            "known_themes": known_ids,
             "dropped": [{"top_terms": d.top_terms, "n_chunks": d.n_chunks} for d in found.dropped],
         },
     )
-    return ThemeRunResult(run, k, found.n_used, found.n_unassigned, found.dropped)
+    return ThemeRunResult(run, k, found.n_used, n_unassigned, found.dropped, known_ids)
 
 
 # --- reading -------------------------------------------------------------------------------------
@@ -165,6 +207,16 @@ class ThemeView:
     n_documents: int
     n_accounts: int
     excerpts: list[ExcerptRow]
+
+
+def _distinct_documents(rows: list) -> list:
+    """Rows from distinct documents first, then the rest (order kept)."""
+    seen: set[uuid.UUID] = set()
+    first, rest = [], []
+    for r in rows:
+        (rest if r[1].id in seen else first).append(r)
+        seen.add(r[1].id)
+    return first + rest
 
 
 def themes_of_run(db: Session, ws_id: uuid.UUID, run_id: uuid.UUID) -> list[ThemeView]:
@@ -203,8 +255,9 @@ def themes_of_run(db: Session, ws_id: uuid.UUID, run_id: uuid.UUID) -> list[Them
             .join(Account, Account.id == Document.account_id)
             .where(ThemeAssignment.theme_id == t.id)
             .order_by(ThemeAssignment.weight.desc(), DocumentChunk.id)
-            .limit(disc.N_EXCERPTS)
+            .limit(disc.N_EXCERPTS * 10)
         ).all()
+        top = _distinct_documents(top)[: disc.N_EXCERPTS]
         n, nd, na = counts.get(t.id, (0, 0, 0))
         views.append(
             ThemeView(
@@ -220,7 +273,9 @@ def themes_of_run(db: Session, ws_id: uuid.UUID, run_id: uuid.UUID) -> list[Them
                         name,
                         d.meeting_date,
                         c.speaker,
-                        disc.best_sentence(c.text, t.top_terms),
+                        lexicon.best_known_sentence(t.label, c.text)
+                        if t.named_by == "lexicon"
+                        else disc.best_sentence(c.text, t.top_terms),
                     )
                     for c, d, name in top
                 ],

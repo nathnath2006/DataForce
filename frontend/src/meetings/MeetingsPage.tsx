@@ -102,7 +102,13 @@ function ThemeCard({ theme: t }: { theme: ThemeOut }) {
     <article className="card stack">
       <div className="row between wrap">
         <h3>{t.label}</h3>
-        <span className="row"><Tag>{t.kind}</Tag><Tag kind={t.named_by === "llm" ? "warn" : "mute"}>{t.named_by === "llm" ? "named by AI" : "named by keywords"}</Tag></span>
+        <span className="row">
+          <Tag>{t.kind}</Tag>
+          {t.origin === "known" || t.named_by === "lexicon"
+            ? <Tag kind="ok">known theme · found by keywords</Tag>
+            : <Tag kind="mute">discovered topic</Tag>}
+          {t.named_by === "llm" && <Tag kind="warn">named by AI</Tag>}
+        </span>
       </div>
       {t.description && <p>{t.description}</p>}
       <p className="small">
@@ -116,7 +122,11 @@ function ThemeCard({ theme: t }: { theme: ThemeOut }) {
           <div className="muted small">{x.speaker ? `${x.speaker}, ` : ""}{x.account_name}, {formatDate(x.meeting_date)}</div>
         </blockquote>
       ))}
-      <p className="muted small">Exploratory: themes describe, they do not prove</p>
+      <p className="muted small">
+        {t.origin === "known" || t.named_by === "lexicon"
+          ? "Found by matching sales keywords (French and English) in what customers said. A mention is not a cause: test it before drawing conclusions."
+          : "Exploratory: a recurring topic in the remaining sentences. Topics describe, they do not prove."}
+      </p>
       <ErrorNote error={a.error} />
       <div><button disabled={a.busy} onClick={test}>Test against win rate</button></div>
     </article>

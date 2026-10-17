@@ -33,6 +33,7 @@ class ThemeOut(BaseModel):
     description: str | None
     kind: str
     named_by: str
+    origin: Literal["known", "discovered"]
     top_terms: list[str]
     n_chunks: int
     n_documents: int
@@ -53,4 +54,5 @@ class ThemeRunOut(BaseModel):
     n_chunks_used: int
     n_unassigned: int
     dropped_themes: list[DroppedOut]
+    known_themes: list[str] = []
     themes: list[ThemeOut]

@@ -19,11 +19,15 @@ export interface ThemeExcerpt {
 }
 export interface ThemeOut {
   id: string; seq: number; label: string; description: string | null; kind: ThemeKind;
-  named_by: "llm" | "keywords"; top_terms: string[]; n_chunks: number; n_documents: number;
+  named_by: "llm" | "keywords" | "lexicon"; top_terms: string[]; n_chunks: number; n_documents: number;
   n_accounts: number; excerpts: ThemeExcerpt[]; status: "exploratory";
+  // known: a catalog sales theme detected by keywords (by code); discovered: a recurring topic
+  // found in the remaining sentences.
+  origin?: "known" | "discovered";
 }
 export interface ThemeRunOut {
   run_id: string; created_at: string; k: number; n_chunks_used: number; n_unassigned: number;
   dropped_themes: number; themes: ThemeOut[];
+  known_themes?: string[];
 }
 export interface ThemeRunIn { k?: number; speakers?: "customer" | "all"; use_ai?: boolean }

@@ -60,7 +60,7 @@ def _make_namer(db: Session, ws_id, settings, factory: ChatFactory) -> svc.Namer
     return namer
 
 
-def _run_out(db: Db, ws_id, run, k, n_used, n_unassigned, dropped) -> ThemeRunOut:
+def _run_out(db: Db, ws_id, run, k, n_used, n_unassigned, dropped, known=()) -> ThemeRunOut:
     views = svc.themes_of_run(db, ws_id, run.id)
     return ThemeRunOut(
         run_id=run.id,
@@ -71,6 +71,7 @@ def _run_out(db: Db, ws_id, run, k, n_used, n_unassigned, dropped) -> ThemeRunOu
         dropped_themes=[
             DroppedOut(top_terms=d["top_terms"], n_chunks=d["n_chunks"]) for d in dropped
         ],
+        known_themes=list(known),
         themes=[
             ThemeOut(
                 id=v.theme.id,
@@ -79,6 +80,7 @@ def _run_out(db: Db, ws_id, run, k, n_used, n_unassigned, dropped) -> ThemeRunOu
                 description=v.theme.description,
                 kind=v.theme.kind,
                 named_by=v.theme.named_by,
+                origin="known" if v.theme.named_by == "lexicon" else "discovered",
                 top_terms=list(v.theme.top_terms),
                 n_chunks=v.n_chunks,
                 n_documents=v.n_documents,
@@ -99,7 +101,9 @@ def run_themes(
     res = svc.run_themes(db, ws.id, k=k, speakers=body.speakers, namer=namer)
     db.commit()
     dropped = [{"top_terms": d.top_terms, "n_chunks": d.n_chunks} for d in res.dropped]
-    return _run_out(db, ws.id, res.run, k, res.n_chunks_used, res.n_unassigned, dropped)
+    return _run_out(
+        db, ws.id, res.run, k, res.n_chunks_used, res.n_unassigned, dropped, res.known_themes
+    )
 
 
 @router.get("/w/{ws}/themes/latest", response_model=ThemeRunOut)
@@ -116,4 +120,5 @@ def latest(db: Db, ws: CurrentWorkspace):
         int(result.get("n_chunks_used", 0)),
         int(result.get("n_unassigned", 0)),
         result.get("dropped", []),
+        result.get("known_themes", []),
     )

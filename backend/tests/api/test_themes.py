@@ -27,10 +27,10 @@ def other(client):
 
 
 KEY = "AIzaSyTESTKEY-0123456789abcdefghij"
-VOCABS = {
-    "price": "prix budget cher remise tarif devis facture".split(),
-    "integration": "salesforce hubspot connecteur api synchronisation webhook".split(),
-    "security": "rgpd securite hebergement chiffrement conformite audit".split(),
+VOCABS = {  # neutral words: none belongs to the known-theme lexicon
+    "garden": "orchid lantern marble velvet cobalt meadow harvest".split(),
+    "travel": "harbor compass voyage glacier lagoon summit canyon".split(),
+    "music": "violin cadence chorus melody tempo octave rhythm".split(),
 }
 
 
@@ -48,7 +48,7 @@ def world(client, ws):
     for name, words in VOCABS.items():
         deal = mk_deal(client, ws, acc["id"], f"Deal {name}")
         deals[name] = deal
-        for _ in range(2):
+        for _ in range(3):
             n += 1
             r = client.post(
                 f"{ws}/accounts/{acc['id']}/documents",
@@ -73,17 +73,18 @@ def fake(app):
 
 def test_run_keywords_and_latest(client, ws, world):
     assert client.get(f"{ws}/themes/latest").status_code == 404
-    r = client.post(f"{ws}/themes/run", json={"k": 3, "use_ai": False})
+    r = client.post(f"{ws}/themes/run", json={"k": 6, "use_ai": False})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["k"] == 3 and body["n_chunks_used"] == 48 and len(body["themes"]) == 3
+    assert body["k"] == 6 and body["n_chunks_used"] == 72 and len(body["themes"]) == 3
     t = body["themes"][0]
+    assert body["known_themes"] == [] and t["origin"] == "discovered"
     assert t["named_by"] == "keywords" and t["status"] == "exploratory" and len(t["excerpts"]) == 3
     assert t["n_chunks"] >= 3 and t["n_accounts"] == 1
     assert client.get(f"{ws}/themes/latest").json()["themes"][0]["label"] == t["label"]
     docs = client.get(f"{ws}/documents").json()["items"]
     assert all(d["theme_labels"] for d in docs)
-    again = client.post(f"{ws}/themes/run", json={"k": 3, "use_ai": False}).json()
+    again = client.post(f"{ws}/themes/run", json={"k": 6, "use_ai": False}).json()
     assert [x["top_terms"] for x in again["themes"]] == [x["top_terms"] for x in body["themes"]]
     assert client.post(f"{ws}/themes/run", json={"k": 1}).status_code == 422
     assert client.post(f"{ws}/themes/run", json={"zzz": 1}).status_code == 422
@@ -91,7 +92,7 @@ def test_run_keywords_and_latest(client, ws, world):
 
 def test_run_with_ai_fake_and_isolation(client, ws, other, world, fake):
     client.put(f"{ws}/ai", json={"provider": "gemini", "model": "m", "api_key": KEY})
-    r = client.post(f"{ws}/themes/run", json={"k": 3})
+    r = client.post(f"{ws}/themes/run", json={"k": 6})
     assert r.status_code == 200, r.text
     assert {t["named_by"] for t in r.json()["themes"]} == {"llm"}
     assert client.get("/api/w/t2/themes/latest").status_code == 404
@@ -111,11 +112,11 @@ def test_flows_tables(client, ws, world, db_session):
     for table in ("meetings", "meeting_themes", "deal_theme_flags"):
         df = load_crm_table(db_session, ws_id, table, 1000)
         assert list(df.columns) == [c for c, _ in CRM_COLUMNS[table]]
-    assert len(load_crm_table(db_session, ws_id, "meetings", 1000)) == 6
+    assert len(load_crm_table(db_session, ws_id, "meetings", 1000)) == 9
     assert load_crm_table(db_session, ws_id, "deal_theme_flags", 1000).empty
-    client.post(f"{ws}/themes/run", json={"k": 3, "use_ai": False})
+    client.post(f"{ws}/themes/run", json={"k": 6, "use_ai": False})
     mt = load_crm_table(db_session, ws_id, "meeting_themes", 1000)
-    assert len(mt) >= 6 and (mt["n_chunks"] > 0).all()
+    assert len(mt) >= 9 and (mt["n_chunks"] > 0).all()
     flags = load_crm_table(db_session, ws_id, "deal_theme_flags", 1000)
     assert len(flags) == 9 and flags["has_meeting"].all()
     assert flags["mentioned"].isin([True, False]).all()
@@ -137,3 +138,31 @@ def test_flows_tables(client, ws, world, db_session):
     assert lonely["mentioned"].isna().all()
     contacts = load_crm_table(db_session, ws_id, "contacts", 1000)
     assert {"title_function", "title_seniority"} <= set(contacts.columns)
+
+
+def test_known_themes_labels_and_naming_only_for_other_topics(client, ws, world, fake):
+    acc, _ = world
+    deal = mk_deal(client, ws, acc["id"], "Deal mixed")
+    for i in range(3):
+        text = (
+            "Marie Dupont: Le prix est trop cher, nous voulons une remise.\n"
+            f"Marie Dupont: Notre RGPD et la sécurité comptent. Variation {i}.\n"
+        )
+        r = client.post(
+            f"{ws}/accounts/{acc['id']}/documents",
+            files={"file": (f"mixed{i}.txt", text.encode())},
+            data={"deal_id": deal["id"]},
+        )
+        assert r.status_code == 201, r.text
+    client.put(f"{ws}/ai", json={"provider": "gemini", "model": "m", "api_key": KEY})
+    body = client.post(f"{ws}/themes/run", json={"k": 6}).json()
+    assert set(body["known_themes"]) == {"price", "security"}
+    by_origin = {}
+    for t in body["themes"]:
+        by_origin.setdefault(t["origin"], []).append(t)
+    assert {t["label"] for t in by_origin["known"]} == {"Price", "Security and compliance"}
+    assert {t["named_by"] for t in by_origin["known"]} == {"lexicon"}
+    assert {t["named_by"] for t in by_origin["discovered"]} == {"llm"}
+    assert {t["kind"] for t in by_origin["known"]} == {"objection"}
+    latest = client.get(f"{ws}/themes/latest").json()
+    assert set(latest["known_themes"]) == {"price", "security"}
