@@ -71,7 +71,4 @@ ui:
 
 ui-dev:
 	$(VENV)/dataforce secrets init --if-missing
-	@trap 'kill 0' INT TERM EXIT; \
-	$(VENV)/dataforce ui --no-build-check & \
-	cd frontend && npm run dev -- --host 127.0.0.1 --port 5173 & \
-	wait
+	@sh scripts/ui-dev.sh

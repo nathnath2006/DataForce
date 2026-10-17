@@ -18,7 +18,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="DataForce local API",
         version=__version__,
-        docs_url="/api/docs",
+        # No Swagger page: it loads from a CDN, which the CSP blocks (SR6-04). The machine-readable
+        # contract stays at /api/openapi.json.
+        docs_url=None,
         redoc_url=None,
         openapi_url="/api/openapi.json",
     )

@@ -331,3 +331,19 @@ def test_create_validation_errors(client, ws):
         "closed_on": "2026-01-01",
     }
     assert client.post(f"{ws}/deals", json=bad).status_code == 422
+
+
+@pytest.mark.parametrize("path", ["accounts", "contacts", "deals"])
+def test_list_params_are_bounded_422_never_500(client, ws, path):
+    assert client.get(f"{ws}/{path}?offset=99999999999999999999").status_code == 422
+    assert client.get(f"{ws}/{path}?offset=1000001").status_code == 422
+    assert client.get(f"{ws}/{path}?offset=1000000").status_code == 200
+    assert client.get(f"{ws}/{path}", params={"q": "a\x00b"}).status_code == 422
+    assert client.get(f"{ws}/{path}", params={"q": "a\x07b"}).status_code == 422
+    assert client.get(f"{ws}/{path}", params={"q": "x" * 201}).status_code == 422
+    assert client.get(f"{ws}/{path}", params={"q": "x" * 200}).status_code == 200
+
+
+def test_employee_count_too_big_is_422(client, ws):
+    r = client.post(f"{ws}/accounts", json={"name": "E", "employee_count": 10**12})
+    assert r.status_code == 422

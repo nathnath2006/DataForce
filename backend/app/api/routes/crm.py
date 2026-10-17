@@ -33,7 +33,9 @@ from app.services._common import require_account, require_contact, require_deal
 router = APIRouter(tags=["crm"])
 
 Limit = Annotated[int, Query(ge=1, le=1000)]
-Offset = Annotated[int, Query(ge=0)]
+Offset = Annotated[int, Query(ge=0, le=1_000_000)]
+# Search text: at most 200 characters and no control characters (NUL makes Postgres fail).
+SearchQ = Annotated[str | None, Query(max_length=200, pattern=r"^[^\x00-\x1f\x7f]*$")]
 
 
 # --- output builders (counts and names come from grouped queries, never per row) -------------
@@ -81,7 +83,7 @@ def _deals_out(db: Db, ws_id: uuid.UUID, rows: list[Deal]) -> list[DealOut]:
 def list_accounts(
     db: Db,
     ws: CurrentWorkspace,
-    q: Annotated[str | None, Query(max_length=200)] = None,
+    q: SearchQ = None,
     segment: Segment | None = None,
     limit: Limit = 200,
     offset: Offset = 0,
@@ -143,7 +145,7 @@ def list_contacts(
     db: Db,
     ws: CurrentWorkspace,
     account_id: uuid.UUID | None = None,
-    q: Annotated[str | None, Query(max_length=200)] = None,
+    q: SearchQ = None,
     limit: Limit = 200,
     offset: Offset = 0,
 ) -> Page[ContactOut]:
@@ -199,7 +201,7 @@ def list_deals(
     stage: DealStage | None = None,
     lead_source: LeadSource | None = None,
     owner_id: uuid.UUID | None = None,
-    q: Annotated[str | None, Query(max_length=200)] = None,
+    q: SearchQ = None,
     limit: Limit = 200,
     offset: Offset = 0,
 ) -> Page[DealOut]:

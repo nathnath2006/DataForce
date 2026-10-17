@@ -108,7 +108,7 @@ class AccountCreate(_In):
     domain: str | None = Field(default=None, max_length=253)
     industry: str | None = Field(default=None, max_length=100)
     segment: Segment | None = None
-    employee_count: int | None = Field(default=None, ge=0)
+    employee_count: int | None = Field(default=None, ge=0, le=10_000_000)
     region: str | None = Field(default=None, max_length=100)
     country: str | None = Field(default=None, min_length=2, max_length=2)
 
@@ -120,7 +120,7 @@ class AccountUpdate(_In):
     domain: str | None = Field(default=None, max_length=253)
     industry: str | None = Field(default=None, max_length=100)
     segment: Segment | None = None
-    employee_count: int | None = Field(default=None, ge=0)
+    employee_count: int | None = Field(default=None, ge=0, le=10_000_000)
     region: str | None = Field(default=None, max_length=100)
     country: str | None = Field(default=None, min_length=2, max_length=2)
 

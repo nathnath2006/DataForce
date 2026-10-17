@@ -12,11 +12,14 @@ A pure ASGI middleware, so it also sees the requests that never reach a route:
 from __future__ import annotations
 
 import json
+import logging
 
 from fastapi import FastAPI
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import Settings
+
+log = logging.getLogger(__name__)
 
 MAX_BODY_BYTES = 256 * 1024
 VITE_PORT = 5173
@@ -92,12 +95,33 @@ class SecurityMiddleware:
                     return {"type": "http.disconnect"}
             return message
 
-        await self.app(scope, limited_receive, guarded_send)
+        started = False
+
+        async def tracking_send(message: Message) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start" and not too_large:
+                started = True
+            await guarded_send(message)
+
+        try:
+            await self.app(scope, limited_receive, tracking_send)
+        except Exception as exc:  # swallow: Starlette / uvicorn would log message + traceback
+            log.error("unhandled %s", type(exc).__name__)  # type only: the message may quote data
+            if started:
+                return  # too late to answer; the connection ends with what was sent
+            if not too_large:
+                await self._respond(send_with_headers, 500, "internal", "internal error")
+                return
         if too_large:
             await self._respond(send_with_headers, 413, "invalid_input", "request body too large")
 
     def _refusal(self, scope: Scope) -> tuple[int, str, str] | None:
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        names = [k.lower() for k, _ in scope["headers"]]
+        if names.count(b"host") > 1:
+            return 400, "invalid_input", "duplicate Host header"
+        if names.count(b"origin") > 1 or names.count(CSRF_HEADER.encode()) > 1:
+            return 403, "forbidden", "duplicate Origin / X-DataForce header"
         if headers.get("host", "").lower() not in self.hosts:
             return 400, "invalid_input", "unexpected Host header"
         method = scope["method"]

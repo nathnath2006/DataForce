@@ -114,3 +114,40 @@ def test_post_without_body_needs_no_content_type(client: TestClient):
     # POST scan has no body; the guard must not demand a content type for it
     client.post("/api/workspaces", json={"slug": "nobody", "name": "N"})
     assert client.post("/api/w/nobody/stats/scan").status_code == 200
+
+
+def test_unhandled_exception_is_json_500_with_headers_and_no_message(app, caplog):
+    @app.get("/api/boom")
+    def boom():
+        raise ValueError("secret contact Jane Doe")
+
+    with TestClient(app, base_url=UI, raise_server_exceptions=True) as c:
+        with caplog.at_level("ERROR"):
+            r = c.get("/api/boom")
+    assert r.status_code == 500
+    assert r.json() == {"error": {"code": "internal", "message": "internal error"}}
+    assert r.headers["x-frame-options"] == "DENY"
+    assert r.headers["cache-control"] == "no-store"
+    assert "content-security-policy" in r.headers
+    assert "Jane Doe" not in caplog.text and "Traceback" not in caplog.text
+    assert "ValueError" in caplog.text
+
+
+def test_duplicate_host_is_400(client: TestClient):
+    r = client.get("/api/health", headers=[("host", "evil.com"), ("host", "127.0.0.1:8800")])
+    assert r.status_code == 400
+
+
+def test_duplicate_origin_or_csrf_header_is_403(client: TestClient):
+    r = client.post(
+        "/api/workspaces",
+        json={"name": "X", "slug": "x-dup"},
+        headers=[("origin", "https://evil.com"), ("origin", UI), ("x-dataforce", "1")],
+    )
+    assert r.status_code == 403
+    r = client.post(
+        "/api/workspaces",
+        json={"name": "X", "slug": "x-dup"},
+        headers=[("origin", UI), ("x-dataforce", "1"), ("x-dataforce", "1")],
+    )
+    assert r.status_code == 403
