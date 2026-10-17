@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from fastapi import FastAPI
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -25,6 +26,8 @@ MAX_BODY_BYTES = 256 * 1024
 VITE_PORT = 5173
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 CSRF_HEADER = "x-dataforce"
+UPLOAD_PATH = re.compile(r"^/api/w/[a-z0-9][a-z0-9-]{0,63}/files$")
+MULTIPART_OVERHEAD = 64 * 1024  # form framing around the file
 
 SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
     (
@@ -50,6 +53,7 @@ class SecurityMiddleware:
         self.app = app
         self.hosts = allowed_hosts(settings)
         self.origins = frozenset(o.lower() for o in settings.ui_allowed_origins)
+        self.upload_limit = settings.upload_max_bytes + MULTIPART_OVERHEAD
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -79,6 +83,7 @@ class SecurityMiddleware:
 
         too_large = False
         received = 0
+        body_limit = self._body_limit(scope)
 
         async def guarded_send(message: Message) -> None:
             if too_large:  # the app saw a cut-off body: its answer is replaced by the 413
@@ -90,7 +95,7 @@ class SecurityMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > MAX_BODY_BYTES:
+                if received > body_limit:
                     too_large = True
                     return {"type": "http.disconnect"}
             return message
@@ -115,6 +120,12 @@ class SecurityMiddleware:
         if too_large:
             await self._respond(send_with_headers, 413, "invalid_input", "request body too large")
 
+    def _is_upload(self, scope: Scope) -> bool:
+        return scope["method"] == "POST" and UPLOAD_PATH.match(scope["path"]) is not None
+
+    def _body_limit(self, scope: Scope) -> int:
+        return self.upload_limit if self._is_upload(scope) else MAX_BODY_BYTES
+
     def _refusal(self, scope: Scope) -> tuple[int, str, str] | None:
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
         names = [k.lower() for k, _ in scope["headers"]]
@@ -134,13 +145,15 @@ class SecurityMiddleware:
         ).strip() not in ("", "0")
         if has_body:
             media = headers.get("content-type", "").split(";")[0].strip().lower()
-            if media != "application/json":
-                return 415, "invalid_input", "the body must be application/json"
+            upload = self._is_upload(scope)
+            want = "multipart/form-data" if upload else "application/json"
+            if media != want:
+                return 415, "invalid_input", f"the body must be {want}"
             try:
                 length = int(headers.get("content-length", "0") or 0)
             except ValueError:
                 return 400, "invalid_input", "invalid Content-Length"
-            if length > MAX_BODY_BYTES:
+            if length > self._body_limit(scope):
                 return 413, "invalid_input", "request body too large"
         return None
 
