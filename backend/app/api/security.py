@@ -26,7 +26,9 @@ MAX_BODY_BYTES = 256 * 1024
 VITE_PORT = 5173
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 CSRF_HEADER = "x-dataforce"
-UPLOAD_PATH = re.compile(r"^/api/w/[a-z0-9][a-z0-9-]{0,63}/files$")
+UPLOAD_PATH = re.compile(
+    r"^/api/w/[a-z0-9][a-z0-9-]{0,63}/(?:files|accounts/[0-9a-fA-F-]{36}/documents)$"
+)
 MULTIPART_OVERHEAD = 64 * 1024  # form framing around the file
 
 SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
@@ -54,6 +56,7 @@ class SecurityMiddleware:
         self.hosts = allowed_hosts(settings)
         self.origins = frozenset(o.lower() for o in settings.ui_allowed_origins)
         self.upload_limit = settings.upload_max_bytes + MULTIPART_OVERHEAD
+        self.transcript_limit = settings.transcript_max_bytes + MULTIPART_OVERHEAD
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -124,7 +127,11 @@ class SecurityMiddleware:
         return scope["method"] == "POST" and UPLOAD_PATH.match(scope["path"]) is not None
 
     def _body_limit(self, scope: Scope) -> int:
-        return self.upload_limit if self._is_upload(scope) else MAX_BODY_BYTES
+        if not self._is_upload(scope):
+            return MAX_BODY_BYTES
+        if scope["path"].endswith("/documents"):
+            return self.transcript_limit
+        return self.upload_limit
 
     def _refusal(self, scope: Scope) -> tuple[int, str, str] | None:
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}

@@ -12,8 +12,21 @@ import pandas as pd
 from sqlalchemy import DateTime, Float, Select, Text, case, cast, exists, func, literal, select
 from sqlalchemy.orm import Session, aliased
 
-from app.db.models import Account, AppUser, Comment, Company, Contact, Deal, Note
-from app.domain.enums import DealStage
+from app.db.models import (
+    Account,
+    AppUser,
+    Comment,
+    Company,
+    Contact,
+    Deal,
+    Document,
+    DocumentChunk,
+    Note,
+    Run,
+    Theme,
+    ThemeAssignment,
+)
+from app.domain.enums import DealStage, RunKind, RunStatus
 from app.flows.sources.frame import frame_from_rows
 
 CLOSED = (DealStage.CLOSED_WON.value, DealStage.CLOSED_LOST.value)
@@ -60,6 +73,8 @@ CRM_COLUMNS: dict[str, list[tuple[str, str]]] = {
         ("contact_id", "text"),
         ("full_name", "text"),
         ("title", "text"),
+        ("title_function", "text"),
+        ("title_seniority", "text"),
         ("account_name", "text"),
         ("company_name", "text"),
         ("reports_to_name", "text"),
@@ -78,6 +93,45 @@ CRM_COLUMNS: dict[str, list[tuple[str, str]]] = {
         ("n_accounts", "integer"),
         ("n_deals", "integer"),
         ("last_interaction", "datetime"),
+    ],
+    "meetings": [
+        ("document_id", "text"),
+        ("account_id", "text"),
+        ("account_name", "text"),
+        ("company_name", "text"),
+        ("deal_id", "text"),
+        ("meeting_date", "date"),
+        ("title", "text"),
+        ("n_chunks", "integer"),
+        ("language", "text"),
+    ],
+    "meeting_themes": [
+        ("document_id", "text"),
+        ("account_id", "text"),
+        ("account_name", "text"),
+        ("company_name", "text"),
+        ("deal_id", "text"),
+        ("meeting_date", "date"),
+        ("theme", "text"),
+        ("theme_kind", "text"),
+        ("n_chunks", "integer"),
+    ],
+    "deal_theme_flags": [
+        ("deal_id", "text"),
+        ("deal_name", "text"),
+        ("account_name", "text"),
+        ("segment", "text"),
+        ("lead_source", "text"),
+        ("stage", "text"),
+        ("is_closed", "boolean"),
+        ("is_won", "boolean"),
+        ("amount_eur", "number"),
+        ("theme", "text"),
+        ("theme_kind", "text"),
+        ("has_meeting", "boolean"),
+        # null when the deal has no meeting: "not mentioned" would wrongly put deals nobody
+        # talked about in the comparison group (the stats block excludes missing groups).
+        ("mentioned", "boolean"),
     ],
 }
 
@@ -196,6 +250,8 @@ def _contacts_query(ws_id: uuid.UUID) -> Select:
             _text(Contact.id).label("contact_id"),
             Contact.full_name.label("full_name"),
             Contact.title.label("title"),
+            Contact.title_function.label("title_function"),
+            Contact.title_seniority.label("title_seniority"),
             Account.name.label("account_name"),
             Company.name.label("company_name"),
             boss.full_name.label("reports_to_name"),
@@ -274,7 +330,113 @@ def _companies_query(ws_id: uuid.UUID) -> Select:
     )
 
 
+def _latest_run_id(ws_id: uuid.UUID):
+    return (
+        select(Run.id)
+        .where(
+            Run.workspace_id == ws_id,
+            Run.kind == RunKind.THEME_ANALYSIS.value,
+            Run.status == RunStatus.SUCCEEDED.value,
+        )
+        .order_by(Run.started_at.desc(), Run.id)
+        .limit(1)
+        .scalar_subquery()
+    )
+
+
+def _meetings_query(ws_id: uuid.UUID) -> Select:
+    n_chunks = (
+        select(DocumentChunk.document_id, func.count().label("n"))
+        .where(DocumentChunk.workspace_id == ws_id)
+        .group_by(DocumentChunk.document_id)
+        .subquery()
+    )
+    return (
+        select(
+            _text(Document.id).label("document_id"),
+            _text(Document.account_id).label("account_id"),
+            Account.name.label("account_name"),
+            Company.name.label("company_name"),
+            _text(Document.deal_id).label("deal_id"),
+            Document.meeting_date.label("meeting_date"),
+            Document.title.label("title"),
+            func.coalesce(n_chunks.c.n, 0).label("n_chunks"),
+            Document.language.label("language"),
+        )
+        .join(Account, Account.id == Document.account_id)
+        .outerjoin(Company, Company.id == Account.company_id)
+        .outerjoin(n_chunks, n_chunks.c.document_id == Document.id)
+        .where(Document.workspace_id == ws_id)
+        .order_by(Document.meeting_date, Document.title, Document.id)
+    )
+
+
+def _meeting_themes_query(ws_id: uuid.UUID) -> Select:
+    return (
+        select(
+            _text(Document.id).label("document_id"),
+            _text(Document.account_id).label("account_id"),
+            Account.name.label("account_name"),
+            Company.name.label("company_name"),
+            _text(Document.deal_id).label("deal_id"),
+            Document.meeting_date.label("meeting_date"),
+            Theme.label.label("theme"),
+            Theme.kind.label("theme_kind"),
+            func.count().label("n_chunks"),
+        )
+        .select_from(ThemeAssignment)
+        .join(Theme, Theme.id == ThemeAssignment.theme_id)
+        .join(DocumentChunk, DocumentChunk.id == ThemeAssignment.chunk_id)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .join(Account, Account.id == Document.account_id)
+        .outerjoin(Company, Company.id == Account.company_id)
+        .where(Theme.workspace_id == ws_id, Theme.run_id == _latest_run_id(ws_id))
+        .group_by(Document.id, Account.id, Company.id, Theme.id)
+        .order_by(Document.meeting_date, Document.id, Theme.seq)
+    )
+
+
+def _deal_theme_flags_query(ws_id: uuid.UUID) -> Select:
+    has_meeting = exists().where(Document.deal_id == Deal.id, Document.workspace_id == ws_id)
+    assigned = exists().where(
+        ThemeAssignment.theme_id == Theme.id,
+        DocumentChunk.id == ThemeAssignment.chunk_id,
+        Document.id == DocumentChunk.document_id,
+        Document.deal_id == Deal.id,
+    )
+    mentioned = case((has_meeting, assigned), else_=None)
+    return (
+        select(
+            _text(Deal.id).label("deal_id"),
+            Deal.name.label("deal_name"),
+            Account.name.label("account_name"),
+            Account.segment.label("segment"),
+            Deal.lead_source.label("lead_source"),
+            Deal.stage.label("stage"),
+            Deal.stage.in_(CLOSED).label("is_closed"),
+            case(
+                (Deal.stage == DealStage.CLOSED_WON.value, literal(True)),
+                (Deal.stage == DealStage.CLOSED_LOST.value, literal(False)),
+                else_=None,
+            ).label("is_won"),
+            cast(Deal.amount_eur, Float).label("amount_eur"),
+            Theme.label.label("theme"),
+            Theme.kind.label("theme_kind"),
+            has_meeting.label("has_meeting"),
+            mentioned.label("mentioned"),
+        )
+        .select_from(Deal)
+        .join(Account, Account.id == Deal.account_id)
+        .join(Theme, Theme.run_id == _latest_run_id(ws_id))
+        .where(Deal.workspace_id == ws_id, Theme.workspace_id == ws_id)
+        .order_by(Deal.created_on, Deal.id, Theme.seq)
+    )
+
+
 _QUERIES = {
+    "meetings": _meetings_query,
+    "meeting_themes": _meeting_themes_query,
+    "deal_theme_flags": _deal_theme_flags_query,
     "deals": _deals_query,
     "accounts": _accounts_query,
     "contacts": _contacts_query,
@@ -289,14 +451,17 @@ def load_crm_table(session: Session, ws_id: uuid.UUID, table: str, max_rows: int
     rows = [tuple(r) for r in session.execute(stmt)]
     capped = len(rows) > max_rows
     df = frame_from_rows(rows[:max_rows], names)
-    if "is_closed" in df:
-        df["is_closed"] = df["is_closed"].astype(bool)
+    for name in ("is_closed", "has_meeting"):
+        if name in df:
+            df[name] = df[name].astype(bool)
+    if "mentioned" in df:  # True / False / None (no meeting): keep the missing values
+        df["mentioned"] = df["mentioned"].astype(object).where(df["mentioned"].notna(), None)
     for name in ("cycle_days", "employee_count"):
         if name in df:  # integers, or floats with NaN when a value is missing (no pd.NA)
             df[name] = pd.to_numeric(df[name])
             if not df[name].isna().any():
                 df[name] = df[name].astype("int64")
-    for name in ("created_on", "closed_on"):
+    for name in ("created_on", "closed_on", "meeting_date"):
         if name in df:
             df[name] = pd.to_datetime(df[name])
     if capped:

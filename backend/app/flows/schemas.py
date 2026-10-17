@@ -34,7 +34,9 @@ class _Cfg(BaseModel):
 
 
 # --- dataset sources ------------------------------------------------------------------------------
-CrmTable = Literal["deals", "accounts", "contacts", "companies"]
+CrmTable = Literal[
+    "deals", "accounts", "contacts", "companies", "meetings", "meeting_themes", "deal_theme_flags"
+]
 
 
 class CrmSource(_Cfg):
