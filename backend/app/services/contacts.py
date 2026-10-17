@@ -21,6 +21,7 @@ from app.services._common import (
 )
 from app.services.errors import InvalidInputError
 from app.services.textclean import scrub_optional, scrub_text
+from app.services.titles import classify_contact_title
 
 
 def _check_manager(
@@ -60,6 +61,7 @@ def create_contact(session: Session, ws_id: uuid.UUID, data: ContactIn) -> Conta
         source=data.source.value,
         source_ref=scrub_optional(data.source_ref),
     )
+    classify_contact_title(contact)
     session.add(contact)
     session.flush()
     return contact
@@ -94,6 +96,8 @@ def set_reports_to(
             seen.add(current)
             current = parents.get(current)
     contact.reports_to_id = manager_id
+    # A manual change clears the proposal link; accepting a proposal sets it again afterwards.
+    contact.reports_to_proposal_id = None
     session.flush()
     return contact
 
@@ -142,6 +146,7 @@ def update_contact(
         contact.full_name = name
     if "title" in changes:
         contact.title = scrub_optional(changes["title"])
+        classify_contact_title(contact)
     session.flush()
     return contact
 
