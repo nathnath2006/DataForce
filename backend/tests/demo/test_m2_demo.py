@@ -124,7 +124,7 @@ def test_org_statements_signals_and_decoys():
             )
         for who, kind in m.signals:
             assert kind in {"champion", "blocker", "decision_maker"}
-    assert n_stmt >= 0.25 * len(m2.links_removed)
+    assert n_stmt >= 0.38 * len(m2.links_removed)
     kinds = [k for m in m2.meetings for _, k in m.signals]
     assert kinds.count("champion") > kinds.count("blocker")
     assert any("decoy" in n for n in ds.ground_truth.notes)
@@ -132,3 +132,60 @@ def test_org_statements_signals_and_decoys():
         len(re.findall(r"board|conseil d'administration", " ".join(d.text for d in ds.documents)))
         == 5
     )
+
+
+_THEME_WORDS = {
+    "price_objection": r"prix|tarif|co[uû]t|cher|chère|remise|r[ée]duction|budget|pricing|expensive"
+    r"|discount|cost|price|cheaper|licences",
+    "integration_need": r"int[ée]gration|Salesforce|HubSpot|API|connecteur|connector|sync",
+    "security_gdpr": r"RGPD|GDPR|s[ée]curit|security|SOC 2|h[ée]bergement|hosted|hosting",
+    "competitor_vendara": r"Vendara",
+    "timing_freeze": r"gel des budgets|budget freeze|trimestre|quarter",
+}
+
+
+def _sentences(text: str) -> list[str]:
+    return re.split(r"(?<=[.?!]) ", text)
+
+
+def _customer_sentences(ds) -> list[str]:
+    names = {c.full_name for c in ds.contacts}
+    out = []
+    for d in ds.documents:
+        for ln in d.text.strip().split("\n"):
+            who, text = ln.split(": ", 1)
+            if who in names:
+                out += _sentences(text)
+    return out
+
+
+def test_transcripts_are_not_repetitive():
+    ds = generate("planted", 42)
+    sents = _customer_sentences(ds)
+    assert len(set(sents)) / len(sents) >= 0.70
+    top = max(sents.count(s) for s in set(sents))
+    assert top <= 15  # fixed signal sentences are the most repeated (was 78)
+
+
+def test_theme_phrasing_variety_and_one_theme_per_sentence():
+    from app.demo.transcripts import THEME_TEXT
+
+    for theme, by_lang in THEME_TEXT.items():
+        for lang, phrases in by_lang.items():
+            assert len(set(phrases)) >= 8, (theme, lang)
+            for p in phrases:
+                assert re.search(_THEME_WORDS[theme], p), p
+                for other, rx in _THEME_WORDS.items():
+                    if other == theme or {theme, other} == {"price_objection", "timing_freeze"}:
+                        continue  # "budget" is shared vocabulary of the contract
+                    assert not re.search(rx, p), (theme, other, p)
+    ds = generate("planted", 42)
+    docs = {d.key: d for d in ds.documents}
+    used: dict[str, set[str]] = defaultdict(set)
+    for m in ds.ground_truth.m2.meetings:
+        for s in _sentences(" ".join(docs[m.document_key].text.split("\n"))):
+            for theme in m.themes:
+                if re.search(_THEME_WORDS[theme], s):
+                    used[theme].add(s)
+    for theme in ("price_objection", "integration_need", "security_gdpr"):
+        assert len(used[theme]) >= 8, theme
