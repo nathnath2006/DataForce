@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api";
 import { useWs } from "../context";
-import { formatEur, formatDateTime, label } from "../lib";
+import { formatEur, formatDateTime, label, segmentLabel } from "../lib";
 import { Confirm, Empty, ErrorNote, Loading, Tag, useLoad } from "../ui";
 import { AccountForm } from "./Accounts";
 import { ContactForm } from "./Contacts";
@@ -38,7 +38,7 @@ export function AccountDetailPage() {
       <dl className="facts">
         <dt>Domain</dt><dd>{a.domain ?? "—"}</dd>
         <dt>Industry</dt><dd>{a.industry ?? "—"}</dd>
-        <dt>Segment</dt><dd>{label(a.segment)}</dd>
+        <dt>Segment</dt><dd>{segmentLabel(a.segment)}</dd>
         <dt>Employees</dt><dd>{a.employee_count ?? "—"}</dd>
         <dt>Region</dt><dd>{a.region ?? "—"}{a.country ? ` (${a.country})` : ""}</dd>
         <dt>Source</dt><dd><Tag kind="mute">{a.source}</Tag></dd>

@@ -97,7 +97,9 @@ function Shell() {
             onChange={(e) => (e.target.value === "__new" ? setCreating(true) : nav(`/w/${e.target.value}/accounts`))}
           >
             {(wss.data ?? []).map((w) => (
-              <option key={w.slug} value={w.slug}>{w.name}{w.is_demo ? " (synthetic)" : ""}</option>
+              <option key={w.slug} value={w.slug}>
+                {w.name}{w.is_demo && !/synthetic/i.test(w.name) ? " (synthetic)" : ""}
+              </option>
             ))}
             <option value="__new">+ New workspace…</option>
           </select>

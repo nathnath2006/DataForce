@@ -97,3 +97,4 @@ dialog::backdrop { background: rgba(0, 0, 0, .5); }
   .top select { max-width: 45vw; }
   .acting span { display: none; }
 }
+.page-error { margin: 2rem; }

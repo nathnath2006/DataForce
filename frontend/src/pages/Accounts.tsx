@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { api } from "../api";
 import { useWs } from "../context";
-import { label } from "../lib";
+import { segmentLabel } from "../lib";
 import { SEGMENTS, type AccountCreate, type AccountOut, type Segment } from "../types";
 import { Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, useAction, useDebounced, useLoad } from "../ui";
 
@@ -25,7 +25,7 @@ export function AccountsPage() {
         <input type="search" placeholder="Search name or domain" aria-label="Search" value={q} onChange={(e) => setQ(e.target.value)} />
         <select aria-label="Segment" value={segment} onChange={(e) => setSegment(e.target.value)}>
           <option value="">All segments</option>
-          {SEGMENTS.map((s) => <option key={s} value={s}>{label(s)}</option>)}
+          {SEGMENTS.map((s) => <option key={s} value={s}>{segmentLabel(s)}</option>)}
         </select>
         {data && <span className="muted">{data.items.length} of {data.total}</span>}
       </div>
@@ -39,7 +39,7 @@ export function AccountsPage() {
                 <tr key={a.id}>
                   <td><Link to={a.id}>{a.name}</Link>{a.domain && <div className="muted small">{a.domain}</div>}</td>
                   <td>{a.industry ?? "—"}</td>
-                  <td>{a.segment ? <Tag>{label(a.segment)}</Tag> : "—"}</td>
+                  <td>{a.segment ? <Tag>{segmentLabel(a.segment)}</Tag> : "—"}</td>
                   <td>{a.region ?? "—"}</td>
                   <td className="num">{a.n_contacts}</td>
                   <td className="num">{a.n_open_deals}</td>
@@ -84,7 +84,7 @@ export function AccountForm(props: { account?: AccountOut; onClose: () => void; 
           <Field label="Segment">
             <select value={f.segment} onChange={set("segment")}>
               <option value="">—</option>
-              {SEGMENTS.map((s) => <option key={s} value={s}>{label(s)}</option>)}
+              {SEGMENTS.map((s) => <option key={s} value={s}>{segmentLabel(s)}</option>)}
             </select>
           </Field>
           <Field label="Employees"><input type="number" min={0} value={f.employee_count} onChange={set("employee_count")} /></Field>

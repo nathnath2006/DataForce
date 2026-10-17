@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ApiError, buildOrgTree, formatDiffWithCi, formatEur, formatPct, formatPts, formatStat,
-  formatWithCi, isSafeAuthorizeUrl, parseApiError,
+  formatWithCi, isSafeAuthorizeUrl, parseApiError, segmentLabel, tamtamReason,
 } from "./lib";
 import type { OrgChartNode, StatValue } from "./types";
 
@@ -88,5 +88,24 @@ describe("parseApiError", () => {
       expect(e.code).toBe("http_error");
       expect(e.message).toContain("500");
     }
+  });
+});
+
+describe("review fixes", () => {
+  it("refuses userinfo in the authorize URL or the issuer (SR8-02)", () => {
+    expect(isSafeAuthorizeUrl("https://user:pw@api.tamtam.ai/authorize", "https://api.tamtam.ai")).toBe(false);
+    expect(isSafeAuthorizeUrl("https://api.tamtam.ai/authorize", "https://u@api.tamtam.ai")).toBe(false);
+    expect(isSafeAuthorizeUrl("https://api.tamtam.ai/authorize?x=1", "https://api.tamtam.ai")).toBe(true);
+  });
+  it("maps callback reasons from a fixed list only (SR8-01)", () => {
+    expect(tamtamReason("denied")).toMatch(/denied/);
+    for (const r of ["__proto__", "constructor", "toString", "<b>x</b>", null]) {
+      expect(tamtamReason(r)).toBe("Try again.");
+    }
+  });
+  it("labels segments", () => {
+    expect(segmentLabel("smb")).toBe("SMB");
+    expect(segmentLabel("midmarket")).toBe("Mid-market");
+    expect(segmentLabel(null)).toBe("—");
   });
 });

@@ -33,10 +33,27 @@ export function isSafeAuthorizeUrl(authorizeUrl: string, issuer: string | null |
   try {
     const u = new URL(authorizeUrl);
     const i = new URL(issuer);
+    // Userinfo ("https://user:pw@host") is never legitimate here and hides the real host from
+    // the reader of the address bar.
+    if (u.username || u.password || i.username || i.password) return false;
     return u.protocol === "https:" && i.protocol === "https:" && u.origin === i.origin;
   } catch {
     return false;
   }
+}
+
+// ---- TamTam callback result (?tamtam=error&reason=...) ----
+const TAMTAM_REASONS = new Map<string, string>([
+  ["denied", "You denied access on the TamTam page."],
+  ["expired", "The sign-in took too long (10 minutes). Try again."],
+  ["invalid_state", "The sign-in could not be matched to this browser. Open DataForce at the address `dataforce ui` printed, then try again."],
+  ["exchange_failed", "TamTam refused to issue a token. Try again."],
+  ["server_error", "Something went wrong on the way back. Try again."],
+]);
+
+/** A fixed message for a callback reason code; unknown values (incl. "__proto__") get a default. */
+export function tamtamReason(reason: string | null): string {
+  return (reason !== null && TAMTAM_REASONS.get(reason)) || "Try again.";
 }
 
 // ---- org chart ----
@@ -157,6 +174,12 @@ export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+}
+
+const SEGMENTS = new Map([["smb", "SMB"], ["midmarket", "Mid-market"], ["enterprise", "Enterprise"]]);
+
+export function segmentLabel(s: string | null | undefined): string {
+  return (s && SEGMENTS.get(s)) || label(s);
 }
 
 export function label(s: string | null | undefined): string {

@@ -2,16 +2,8 @@ import { useSearchParams } from "react-router";
 import { useState } from "react";
 import { api } from "../api";
 import { useWs } from "../context";
-import { formatDateTime, isSafeAuthorizeUrl } from "../lib";
+import { formatDateTime, isSafeAuthorizeUrl, tamtamReason } from "../lib";
 import { Confirm, ErrorNote, Loading, Tag, useAction, useLoad } from "../ui";
-
-const REASONS: Record<string, string> = {
-  denied: "You denied access on the TamTam page.",
-  expired: "The sign-in took too long (10 minutes). Try again.",
-  invalid_state: "The sign-in could not be matched to this browser. Try again.",
-  exchange_failed: "TamTam refused to issue a token. Try again.",
-  server_error: "Something went wrong on the way back. Try again.",
-};
 
 export function SettingsPage() {
   const { ws } = useWs();
@@ -38,7 +30,7 @@ export function SettingsPage() {
       <h1>Settings</h1>
       <h2>TamTam</h2>
       {result === "connected" && <div className="note ok" role="status">TamTam is connected.</div>}
-      {result === "error" && <div className="note err" role="alert">TamTam connection failed. {REASONS[reason ?? ""] ?? "Try again."}</div>}
+      {result === "error" && <div className="note err" role="alert">TamTam connection failed. {tamtamReason(reason)}</div>}
       <ErrorNote error={c.error} /><ErrorNote error={act.error} />
       {c.loading && !d ? <Loading /> : d && (
         <>
@@ -47,7 +39,14 @@ export function SettingsPage() {
               No secret key is configured, so connecting is impossible. Run <code>make ui</code> (it creates the key) or <code>dataforce secrets init</code>.
             </div>
           )}
-          {ws.is_demo && <p className="muted">This is a demo workspace: lookups always use the fake provider, never TamTam.</p>}
+          {ws.is_demo && (
+            <div className="note warn" role="note">
+              <p><strong>TamTam is connected per workspace, and demo workspaces never use it</strong>: their people are
+                fictional, so lookups here always use the fake provider and spend no credits.</p>
+              <p>To connect TamTam, create a real workspace with the workspace menu (top left, <em>+ New workspace…</em>),
+                then open its Settings.</p>
+            </div>
+          )}
           <dl className="facts">
             <dt>Status</dt><dd><Tag kind={d.status === "connected" ? "ok" : d.status === "not_connected" ? "mute" : "warn"}>{d.status.replace("_", " ")}</Tag></dd>
             <dt>Lookups use</dt><dd>{d.enrichment_mode}</dd>
