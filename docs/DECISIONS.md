@@ -68,7 +68,7 @@ something that still needs confirming.
 
 ## E. Synthetic demo data [PO]
 - **Synthetic with a known ground truth, announced as such in the README and the notebook:**
-  - about 200 deals with planted effects;
+  - 350 deals with planted effects (decided by the PO; the first build used 200);
   - companies with full org charts;
   - realistic noise and missing values;
   - FR and EN titles.
@@ -89,15 +89,20 @@ something that still needs confirming.
   - A verified finding is a false positive if it sits in a null cell, on a small group, or on a planted group in the wrong direction.
   - Other verified findings are real side effects of the planted ones. Examples: the outbound win rate is lower because inbound is higher; small deals close faster because SMB does. They are listed apart, never counted as errors and never silently dropped.
   - The first checker only looked at the null dimensions, so it missed most false positives.
-- **Measured reliability [build, 2026-10-17, after the fix pass]:**
-  - Two independent 100-seed sweeps were run, on seeds 1000–1099 and 3000–3099, at 500 bootstrap resamples.
-  - Detection of each planted effect: inbound win rate 93–96%; enterprise and SMB cycle 99–100%; enterprise and SMB amount 97–99%.
-  - Planted datasets with a false positive: 0–1%.
-  - Planted datasets where the check fails: 8–10%. Almost all of these are a *missed* planted effect, mostly inbound, because about 55 inbound deals is close to the minimum for a verdict. They are not false alarms.
-  - Noise datasets with any verified finding: 1%.
-  - **How to read it.** The engine errs on the side of silence: about 1 run in 10 misses a real effect, and about 1 in 100 shows a spurious one. The BH correction keeps the expected *share* of false findings among the reported ones at 5% or below. It does not promise "never a false finding", so the product never says that.
-  - The committed tests assert these rates on 50 fixed seeds, so they are deterministic and never flaky.
-  - The first draft of this section claimed "about 3%". That figure came from a lenient checker and was corrected.
+- **Measured reliability at 350 deals [build, 2026-10-17, PO decision: 350 deals instead of 200]:**
+  - One 100-seed sweep per variant, seeds 1000-1099, 500 bootstrap resamples, in memory (no database). About 254 deals are closed on average.
+  - Detection of each planted effect: 100% for all five (inbound win rate, enterprise and SMB cycle, enterprise and SMB amount). No planted dataset missed an effect.
+  - Planted datasets with a false positive (null cell, wrong direction or small group): 8%. Causes: segment x win rate 4, lead source x cycle or amount 2, owner x cycle 1, region x cycle 1, inbound x amount 1 (one dataset had two).
+  - Planted datasets where the check fails: 8%. All of them are these false positives; none is a miss. The referral small group was never verified.
+  - Noise datasets with any verified finding: 4%.
+  - Every planted dataset also shows real side findings that are not required (for example outbound win rate low); they are listed, never counted as errors.
+  - **How to read it.** More data removed the misses but did not remove chance findings: with more real effects verified per scan, BH at 5% FDR lets through an occasional spurious one. The engine can still be wrong, in both directions; it never claims otherwise.
+  - Seed 42, the dev-database demo: planted passes (5 of 5 found, 4 side findings, referral not verified). Noise seed 42 is one of the 4%: it shows one spurious verified finding (owner rep4 x cycle days, q = 0.028). It is kept as an honest example; a test pins it.
+  - The committed tests assert these rates on 50 fixed seeds (1000-1049: 4 false-positive datasets, 4 failed checks, 2 noisy), so they are deterministic and never flaky.
+- **Previously, at 200 deals [build, 2026-10-17, after the fix pass]:**
+  - Two independent 100-seed sweeps (seeds 1000-1099 and 3000-3099, 500 resamples): inbound win rate 93-96%; enterprise and SMB cycle 99-100%; enterprise and SMB amount 97-99%; planted datasets with a false positive 0-1%; planted datasets where the check fails 8-10% (almost all a missed inbound effect, about 55 closed inbound deals); noise datasets with any verified finding 1%.
+  - Seed 42 had 168 closed deals; inbound 32 wins of 54 (59%), raw Fisher p about 0.0035, verified after BH.
+  - An earlier draft of this section claimed "about 3%". That came from a lenient checker and was corrected.
 - A public dataset may come later, for the stats part only.
 
 ## F. Technical choices kept from v1 [build]

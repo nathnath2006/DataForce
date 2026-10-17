@@ -2,20 +2,23 @@
 
 `generate(variant, seed, n_deals)` is deterministic: same arguments, identical output.
 
-Power check (why the planted effects are detectable with the default gates at n_deals=200, i.e.
-about 160-170 closed deals; gates: n >= 30, >= 10 wins and >= 10 losses, CI half-width <= 15 pts or
+Power check (why the planted effects are detectable with the default gates at n_deals=350, i.e.
+about 255-265 closed deals; gates: n >= 30, >= 10 wins and >= 10 losses, CI half-width <= 15 pts or
 <= 30% relative, Benjamini-Hochberg FDR 5%):
 
-* inbound win rate 70% vs rest ~27%: about 55 closed inbound deals, 38 wins; Wilson half-width
-  ~ +-12 pts (< 15); difference ~43 pts, SE ~ 7.5 pts, z ~ 5.5, p ~ 1e-7, far below any BH cut-off
-  for the ~100 comparisons of a scan. (A 45% vs 30% effect gives z ~ 1.9: NOT detectable, hence the
-  larger planted effect; the spec's "about 45%" was too weak for n = 200.)
+* inbound win rate 70% vs rest ~27%: about 90 closed inbound deals, ~63 wins; Wilson half-width
+  ~ +-9 pts (< 15); difference ~43 pts, SE ~ 5.5 pts, z ~ 7, p ~ 1e-10, far below any BH cut-off
+  for the ~100 comparisons of a scan. (A 45% vs 30% effect gives z ~ 2.4 even at 350: NOT
+  reliably detectable, hence the larger planted effect.) At the former 200 deals: ~55 closed
+  inbound, half-width +-12, z ~ 5.5.
 * segment -> cycle: medians 110 / 60 / 30 days, log-normal sigma 0.35. The smallest group
-  (enterprise, 25% of ~165 closed = ~41) has a median CI of about +-13% (< 30%); the three groups
-  are separated by factors 1.8-3.7, i.e. > 10 sigma.
-* segment -> amount: medians 60k / 20k / 8k EUR, sigma 0.5; enterprise median CI about +-19%
-  (< 30%); factors 2.5-7.5 between groups.
+  (enterprise, 25% of ~260 closed = ~65) has a median CI of about +-10% (< 30%); the three groups
+  are separated by factors 1.8-3.7, i.e. > 10 sigma. (At 200: ~41 closed, +-13%.)
+* segment -> amount: medians 60k / 20k / 8k EUR, sigma 0.5; enterprise median CI about +-15%
+  (< 30%); factors 2.5-7.5 between groups. (At 200: +-19%.)
 * referral (win rate 60%) is capped at 25 closed deals (< 30): it must come out "not verified".
+* side effect of the extra power: more real-but-not-required findings (e.g. outbound low) and
+  more chances for a chance finding in a null cell; see docs/DECISIONS.md section E.
 
 The unit tests re-check the realised numbers for seed 42.
 """
@@ -361,7 +364,7 @@ def _ground_truth(
     )
 
 
-def generate(variant: Literal["planted", "noise"], seed: int, n_deals: int = 200) -> DemoDataset:
+def generate(variant: Literal["planted", "noise"], seed: int, n_deals: int = 350) -> DemoDataset:
     if variant not in ("planted", "noise"):
         raise ValueError(f"unknown variant {variant!r}")
     if not MIN_DEALS <= n_deals <= MAX_DEALS:

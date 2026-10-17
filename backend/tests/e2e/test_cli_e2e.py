@@ -40,20 +40,30 @@ def _run(*args: str):
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("variant", ["planted", "noise"])
-def test_generate_then_check(cli_env, variant: str) -> None:
-    res = _run("demo", "generate", "--variant", variant, "--seed", "42", "--replace")
+# Noise seed 42 is one of the ~4% of noise datasets (at 350 deals) where one chance finding
+# survives the gates (docs/DECISIONS.md section E); it is pinned as a failing check below.
+@pytest.mark.parametrize(("variant", "seed"), [("planted", 42), ("noise", 1)])
+def test_generate_then_check(cli_env, variant: str, seed: int) -> None:
+    res = _run("demo", "generate", "--variant", variant, "--seed", str(seed), "--replace")
     assert res.exit_code == 0, res.output
-    assert (cli_env / f"ground_truth_{variant}_42.json").exists()
-    res = _run("demo", "check", "--variant", variant, "--seed", "42")
+    assert (cli_env / f"ground_truth_{variant}_{seed}.json").exists()
+    res = _run("demo", "check", "--variant", variant, "--seed", str(seed))
     assert res.exit_code == 0, res.output
     assert "passed=True" in res.output
 
 
 @pytest.mark.integration
-def test_noise_has_no_verified_findings_and_scan_json_parses(cli_env) -> None:
+def test_check_reports_the_known_noise_false_alarm(cli_env) -> None:
     assert _run("demo", "generate", "--variant", "noise", "--seed", "42").exit_code == 0
-    res = _run("stats", "scan", "--workspace", "demo-noise-42", "--json")
+    res = _run("demo", "check", "--variant", "noise", "--seed", "42")
+    assert res.exit_code == 1  # the check fails loudly instead of hiding it
+    assert "false positive" in res.output
+
+
+@pytest.mark.integration
+def test_noise_has_no_verified_findings_and_scan_json_parses(cli_env) -> None:
+    assert _run("demo", "generate", "--variant", "noise", "--seed", "1").exit_code == 0
+    res = _run("stats", "scan", "--workspace", "demo-noise-1", "--json")
     assert res.exit_code == 0, res.output
     report = ScanReport.model_validate(json.loads(res.stdout))
     assert report.findings
@@ -67,7 +77,7 @@ def test_planted_scan_json_and_pipeline(cli_env) -> None:
     report = ScanReport.model_validate(json.loads(res.stdout))
     assert any(f.status == StatStatus.VERIFIED for f in report.findings)
     res = _run("stats", "pipeline", "--workspace", "demo-planted-42", "--json")
-    assert json.loads(res.stdout)["n_deals"] == 200
+    assert json.loads(res.stdout)["n_deals"] == 350
     res = _run("crm", "accounts", "--workspace", "demo-planted-42", "--json")
     accounts = json.loads(res.stdout)
     assert accounts

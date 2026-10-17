@@ -49,7 +49,7 @@ NDealsOpt = Annotated[int, typer.Option("--n-deals", min=20, max=20000, help="Nu
 def generate_cmd(
     variant: VariantOpt = Variant.PLANTED,
     seed: SeedOpt = 42,
-    n_deals: NDealsOpt = 200,
+    n_deals: NDealsOpt = 350,
     replace: Annotated[
         bool, typer.Option("--replace", help="Replace an existing workspace.")
     ] = False,
@@ -93,7 +93,7 @@ def generate_cmd(
 def check_cmd(
     variant: VariantOpt = Variant.PLANTED,
     seed: SeedOpt = 42,
-    n_deals: NDealsOpt = 200,
+    n_deals: NDealsOpt = 350,
     as_json: Annotated[bool, typer.Option("--json", help="Machine output.")] = False,
 ) -> None:
     """Scan the demo workspace and compare the findings with the planted ground truth."""

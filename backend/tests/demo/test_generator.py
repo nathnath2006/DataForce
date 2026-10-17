@@ -31,11 +31,11 @@ def test_deterministic_and_seed_sensitive():
 
 def test_scale_and_ground_truth_filled():
     ds = generate("planted", 42)
-    assert len(ds.deals) == 200 and len(ds.users) == 6
-    assert 60 <= len(ds.accounts) <= 80
+    assert len(ds.deals) == 350 and len(ds.users) == 6
+    assert 105 <= len(ds.accounts) <= 140
     gt = ds.ground_truth
     assert (
-        gt.n_deals == 200
+        gt.n_deals == 350
         and gt.n_accounts == len(ds.accounts)
         and gt.n_contacts == len(ds.contacts)
     )
@@ -50,12 +50,14 @@ def test_scale_and_ground_truth_filled():
 def test_mix_and_closed_share(seed):
     ds = generate("planted", seed)
     leads = Counter(d.lead_source for d in ds.deals)
-    assert 0.28 <= leads[LeadSource.INBOUND] / 200 <= 0.35  # 35% minus ~8% masked
+    assert 0.28 <= leads[LeadSource.INBOUND] / 350 <= 0.35  # 35% minus ~8% masked
     segs = Counter(_seg(ds)(d) for d in ds.deals)
     assert (
-        segs[Segment.SMB] == 80 and segs[Segment.MIDMARKET] == 70 and segs[Segment.ENTERPRISE] == 50
+        segs[Segment.SMB] == 140
+        and segs[Segment.MIDMARKET] == 122
+        and segs[Segment.ENTERPRISE] == 88
     )
-    assert 0.72 <= len(_closed(ds)) / 200 <= 0.88
+    assert 0.72 <= len(_closed(ds)) / 350 <= 0.88
 
 
 @pytest.mark.parametrize("variant", ["planted", "noise"])
