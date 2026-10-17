@@ -2,7 +2,7 @@
 BACKEND := backend
 VENV    := $(BACKEND)/.venv/bin
 
-.PHONY: help db-up db-down migrate db-reset-test test test-integration test-all lint lock notebook
+.PHONY: help db-up db-down migrate db-reset-test test test-integration test-all lint lock notebook ui ui-dev
 
 # Used by `make lock`: pip-tools from the dev extras. UPGRADE=1 also bumps every pinned version.
 PIP_COMPILE := $(CURDIR)/$(VENV)/pip-compile --generate-hashes --strip-extras --allow-unsafe --quiet
@@ -17,6 +17,8 @@ help:
 	@echo "test-all         everything except live tests"
 	@echo "lint             ruff check"
 	@echo "lock             regenerate the three hashed locks (UPGRADE=1 to bump)"
+	@echo "ui               build the frontend if needed and serve the local UI on http://127.0.0.1:8800"
+	@echo "ui-dev           API on 8800 + Vite dev server on 127.0.0.1:5173 (hot reload)"
 	@echo "notebook         open the Milestone 1 demo notebook in JupyterLab"
 
 db-up:
@@ -58,3 +60,18 @@ lock:
 
 notebook:
 	cd $(BACKEND) && .venv/bin/jupyter lab ../notebooks/M1_engine_demo.ipynb
+
+# Local web UI. The frontend is rebuilt only when dist/index.html is missing or older than a file in src.
+ui:
+	$(VENV)/dataforce secrets init --if-missing
+	@if [ ! -f frontend/dist/index.html ] || [ -n "$$(find frontend/src -type f -newer frontend/dist/index.html 2>/dev/null | head -1)" ]; then \
+		cd frontend && npm ci && npm run build; \
+	fi
+	$(VENV)/dataforce ui
+
+ui-dev:
+	$(VENV)/dataforce secrets init --if-missing
+	@trap 'kill 0' INT TERM EXIT; \
+	$(VENV)/dataforce ui --no-build-check & \
+	cd frontend && npm run dev -- --host 127.0.0.1 --port 5173 & \
+	wait

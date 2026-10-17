@@ -14,6 +14,21 @@ from app.db.models import Account, AppUser, Contact, Deal, Workspace
 from app.services.errors import NotFoundError
 
 
+def pairs(result) -> dict:
+    """{first column: second column} of a two-column result."""
+    return dict(result.all())
+
+
+def like_contains(term: str) -> str:
+    """LIKE pattern matching `term` as a literal substring (`%`, `_` and `\\` escaped). Use with
+    `column.ilike(pattern, escape="\\")`; the pattern is always a bound parameter."""
+    escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+LIKE_ESCAPE = "\\"
+
+
 def get_scoped[T](
     session: Session, model: type[T], ws_id: uuid.UUID, row_id: uuid.UUID
 ) -> T | None:

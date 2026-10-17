@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
-from sqlalchemy import delete, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, func, or_, select
+from sqlalchemy.orm import Session, aliased
 
-from app.db.models import Contact
+from app.db.models import Account, Contact, ContactChannel, Note
 from app.domain.schemas import ContactIn
-from app.services._common import erasure, get_scoped, require_account, require_contact
+from app.services._common import (
+    LIKE_ESCAPE,
+    erasure,
+    get_scoped,
+    like_contains,
+    pairs,
+    require_account,
+    require_contact,
+)
 from app.services.errors import InvalidInputError
 from app.services.textclean import scrub_optional, scrub_text
 
@@ -116,3 +125,103 @@ def erase_contact(session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID) -> 
             .where(Contact.id == contact_id, Contact.workspace_id == ws_id)
             .execution_options(synchronize_session=False)
         )
+
+
+def update_contact(
+    session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID, changes: dict[str, Any]
+) -> Contact:
+    """Partial update of the name and the title (the manager has its own function)."""
+    contact = require_contact(session, ws_id, contact_id)
+    unknown = set(changes) - {"full_name", "title"}
+    if unknown:
+        raise InvalidInputError(f"cannot update: {', '.join(sorted(unknown))}")
+    if "full_name" in changes:
+        name = scrub_text(changes["full_name"]).strip() if changes["full_name"] else ""
+        if not name:
+            raise InvalidInputError("full_name cannot be empty")
+        contact.full_name = name
+    if "title" in changes:
+        contact.title = scrub_optional(changes["title"])
+    session.flush()
+    return contact
+
+
+def list_contacts_page(
+    session: Session,
+    ws_id: uuid.UUID,
+    *,
+    account_id: uuid.UUID | None = None,
+    q: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
+) -> tuple[list[Contact], int]:
+    cond = [Contact.workspace_id == ws_id]
+    if account_id is not None:
+        cond.append(Contact.account_id == account_id)
+    if q:
+        pattern = like_contains(q)
+        cond.append(
+            or_(
+                Contact.full_name.ilike(pattern, escape=LIKE_ESCAPE),
+                Contact.title.ilike(pattern, escape=LIKE_ESCAPE),
+            )
+        )
+    total = session.scalar(select(func.count()).select_from(Contact).where(*cond)) or 0
+    stmt = select(Contact).where(*cond).order_by(Contact.full_name, Contact.id)
+    return list(session.scalars(stmt.limit(limit).offset(offset))), total
+
+
+def contact_extras(
+    session: Session, ws_id: uuid.UUID, contact_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, dict[str, Any]]:
+    """Per contact: account_name, reports_to_name, n_direct_reports, n_notes (current, not
+    deleted: a deleted chain has its root deleted too), n_channels. Grouped queries, no N+1."""
+    if not contact_ids:
+        return {}
+    boss = aliased(Contact)
+    names = {
+        cid: (acc, bname)
+        for cid, acc, bname in session.execute(
+            select(Contact.id, Account.name, boss.full_name)
+            .join(Account, Account.id == Contact.account_id)
+            .outerjoin(boss, boss.id == Contact.reports_to_id)
+            .where(Contact.workspace_id == ws_id, Contact.id.in_(contact_ids))
+        )
+    }
+    reports = pairs(
+        session.execute(
+            select(Contact.reports_to_id, func.count(Contact.id))
+            .where(Contact.workspace_id == ws_id, Contact.reports_to_id.in_(contact_ids))
+            .group_by(Contact.reports_to_id)
+        )
+    )
+    n_notes = pairs(
+        session.execute(
+            select(Note.contact_id, func.count(Note.id))
+            .where(
+                Note.workspace_id == ws_id,
+                Note.contact_id.in_(contact_ids),
+                Note.corrects_id.is_(None),
+                Note.deleted_at.is_(None),
+            )
+            .group_by(Note.contact_id)
+        )
+    )
+    n_channels = pairs(
+        session.execute(
+            select(ContactChannel.contact_id, func.count(ContactChannel.id))
+            .where(ContactChannel.workspace_id == ws_id, ContactChannel.contact_id.in_(contact_ids))
+            .group_by(ContactChannel.contact_id)
+        )
+    )
+    return {
+        cid: {
+            "account_name": names[cid][0],
+            "reports_to_name": names[cid][1],
+            "n_direct_reports": reports.get(cid, 0),
+            "n_notes": n_notes.get(cid, 0),
+            "n_channels": n_channels.get(cid, 0),
+        }
+        for cid in contact_ids
+        if cid in names
+    }

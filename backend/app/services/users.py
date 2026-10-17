@@ -41,3 +41,17 @@ def list_users(session: Session, ws_id: uuid.UUID) -> list[AppUser]:
         .order_by(AppUser.display_name, AppUser.id)
     )
     return list(session.scalars(stmt))
+
+
+def user_names(
+    session: Session, ws_id: uuid.UUID, user_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """{user id: display name} for the ids of this workspace (one query)."""
+    if not user_ids:
+        return {}
+    rows = session.execute(
+        select(AppUser.id, AppUser.display_name).where(
+            AppUser.workspace_id == ws_id, AppUser.id.in_(user_ids)
+        )
+    )
+    return dict(rows.all())

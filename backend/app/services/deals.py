@@ -4,14 +4,22 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Deal
+from app.db.models import Account, AppUser, Deal
 from app.domain.enums import CLOSED_STAGES, DealStage
 from app.domain.schemas import DealIn
-from app.services._common import get_scoped, require_account, require_deal, require_user
+from app.services._common import (
+    LIKE_ESCAPE,
+    get_scoped,
+    like_contains,
+    require_account,
+    require_deal,
+    require_user,
+)
 from app.services.errors import InvalidInputError
 from app.services.textclean import scrub_optional, scrub_text
 
@@ -73,3 +81,85 @@ def set_stage(
     deal.stage = stage.value
     session.flush()
     return deal
+
+
+_UPDATABLE = ("owner_id", "name", "amount_eur", "lead_source", "created_on", "lost_reason")
+
+
+def update_deal(
+    session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID, changes: dict[str, Any]
+) -> Deal:
+    """Partial update (the stage has `set_stage`). The owner must belong to the workspace and
+    the dates stay consistent."""
+    deal = require_deal(session, ws_id, deal_id)
+    unknown = set(changes) - set(_UPDATABLE)
+    if unknown:
+        raise InvalidInputError(f"cannot update: {', '.join(sorted(unknown))}")
+    if "owner_id" in changes and changes["owner_id"] is not None:
+        require_user(session, ws_id, changes["owner_id"])
+    if "name" in changes:
+        name = scrub_text(changes["name"]).strip() if changes["name"] else ""
+        if not name:
+            raise InvalidInputError("name cannot be empty")
+        changes = {**changes, "name": name}
+    if "created_on" in changes:
+        if changes["created_on"] is None:
+            raise InvalidInputError("created_on cannot be cleared")
+        _check_dates(changes["created_on"], deal.closed_on)
+    for key, value in changes.items():
+        if key == "lead_source" and value is not None:
+            value = getattr(value, "value", value)
+        elif key == "lost_reason":
+            value = scrub_optional(value)
+        setattr(deal, key, value)
+    session.flush()
+    return deal
+
+
+def delete_deal(session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID) -> None:
+    session.delete(require_deal(session, ws_id, deal_id))
+    session.flush()
+
+
+def list_deals_page(
+    session: Session,
+    ws_id: uuid.UUID,
+    *,
+    account_id: uuid.UUID | None = None,
+    stage: str | None = None,
+    lead_source: str | None = None,
+    owner_id: uuid.UUID | None = None,
+    q: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
+) -> tuple[list[Deal], int]:
+    """Newest `created_on` first. `q` is a literal case-insensitive substring of the name."""
+    cond = [Deal.workspace_id == ws_id]
+    if account_id is not None:
+        cond.append(Deal.account_id == account_id)
+    if stage:
+        cond.append(Deal.stage == stage)
+    if lead_source:
+        cond.append(Deal.lead_source == lead_source)
+    if owner_id is not None:
+        cond.append(Deal.owner_id == owner_id)
+    if q:
+        cond.append(Deal.name.ilike(like_contains(q), escape=LIKE_ESCAPE))
+    total = session.scalar(select(func.count()).select_from(Deal).where(*cond)) or 0
+    stmt = select(Deal).where(*cond).order_by(Deal.created_on.desc(), Deal.id)
+    return list(session.scalars(stmt.limit(limit).offset(offset))), total
+
+
+def deal_names(
+    session: Session, ws_id: uuid.UUID, deal_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, tuple[str, str | None]]:
+    """{deal id: (account name, owner name or None)} in one query."""
+    if not deal_ids:
+        return {}
+    rows = session.execute(
+        select(Deal.id, Account.name, AppUser.display_name)
+        .join(Account, Account.id == Deal.account_id)
+        .outerjoin(AppUser, AppUser.id == Deal.owner_id)
+        .where(Deal.workspace_id == ws_id, Deal.id.in_(deal_ids))
+    )
+    return {did: (acc, owner) for did, acc, owner in rows}

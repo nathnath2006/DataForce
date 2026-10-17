@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import re
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Workspace
-from app.services._common import erasure
+from app.db.models import Account, Contact, Deal, Workspace
+from app.services._common import erasure, pairs
 from app.services.errors import AlreadyExistsError, InvalidInputError, NotFoundError
 from app.services.textclean import scrub_text
 
@@ -49,3 +49,19 @@ def delete_workspace(session: Session, slug: str) -> None:
             .where(Workspace.id == ws.id)
             .execution_options(synchronize_session=False)
         )
+
+
+def list_workspaces_with_counts(session: Session) -> list[tuple[Workspace, int, int, int]]:
+    """(workspace, n_accounts, n_contacts, n_deals), real workspaces first, then by slug.
+    Counts come from three grouped queries."""
+
+    def counts(model) -> dict:
+        return pairs(
+            session.execute(
+                select(model.workspace_id, func.count(model.id)).group_by(model.workspace_id)
+            )
+        )
+
+    na, nc, nd = counts(Account), counts(Contact), counts(Deal)
+    rows = session.scalars(select(Workspace).order_by(Workspace.is_demo, Workspace.slug))
+    return [(w, na.get(w.id, 0), nc.get(w.id, 0), nd.get(w.id, 0)) for w in rows]
