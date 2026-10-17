@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type ThemeChoice = "system" | "light" | "dark";
 export const THEME_KEY = "df-theme";
@@ -34,6 +34,21 @@ export function applyTheme(t: ThemeChoice, root: { dataset: Record<string, strin
 /** Called from main.tsx before the first render. */
 export function initTheme(): void {
   applyTheme(readTheme());
+}
+
+/** The applied theme (follows the toggle): for widgets that take an explicit mode. */
+export function useThemeChoice(): ThemeChoice {
+  const read = (): ThemeChoice => {
+    const t = document.documentElement.dataset["theme"];
+    return t === "light" || t === "dark" ? t : "system";
+  };
+  const [t, setT] = useState<ThemeChoice>(read);
+  useEffect(() => {
+    const obs = new MutationObserver(() => setT(read()));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+  return t;
 }
 
 const LABEL: Record<ThemeChoice, string> = { system: "System", light: "Light", dark: "Dark" };

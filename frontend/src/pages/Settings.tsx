@@ -91,7 +91,6 @@ export function SettingsPage() {
         </>
       )}
       <AiSection />
-      <h2>Data connections</h2>
       <ConnectionsPanel />
       {disc && (
         <Confirm title="Disconnect TamTam" confirmLabel="Disconnect" danger onClose={() => setDisc(false)}

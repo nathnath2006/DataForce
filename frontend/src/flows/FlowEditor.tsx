@@ -1,3 +1,4 @@
+import { useThemeChoice } from "../theme";
 import "@xyflow/react/dist/style.css";
 import {
   Background, Controls, Handle, MiniMap, Position, ReactFlow, ReactFlowProvider, addEdge, useEdgesState,
@@ -82,6 +83,7 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
   const [sel, setSel] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const rf = useReactFlow();
+  const colorMode = useThemeChoice();
   const wrap = useRef<HTMLDivElement>(null);
   const cat = useLoad(() => flowApi.catalog(slug), [slug]);
   const files = useLoad(() => flowApi.files(slug), [slug]);
@@ -101,9 +103,25 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
         ev.preventDefault(); ev.stopPropagation();
       }
     };
+    // Back / Forward (SR11-01): re-push this page, then leave only if the user confirms.
+    const here = window.location.href;
+    window.history.pushState({ dfGuard: true }, "", here);
+    const pop = () => {
+      if (window.confirm("You have unsaved changes. Leave this page?")) {
+        window.removeEventListener("popstate", pop);
+        window.history.back();
+      } else {
+        window.history.pushState({ dfGuard: true }, "", here);
+      }
+    };
     window.addEventListener("beforeunload", before);
+    window.addEventListener("popstate", pop);
     document.addEventListener("click", click, true);
-    return () => { window.removeEventListener("beforeunload", before); document.removeEventListener("click", click, true); };
+    return () => {
+      window.removeEventListener("beforeunload", before);
+      window.removeEventListener("popstate", pop);
+      document.removeEventListener("click", click, true);
+    };
   }, [dirty]);
 
   const shown = useMemo(() => nodes.map((n) => ({ ...n, data: { ...n.data, result: results[n.id] } })), [nodes, results]);
@@ -179,7 +197,7 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
         <div className="canvas" ref={wrap} onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }} onDrop={onDrop}>
           <ReactFlow nodes={shown} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
             onConnect={onConnect} isValidConnection={isValid} onSelectionChange={({ nodes: s }) => setSel(s[0]?.id ?? null)}
-            deleteKeyCode="Backspace" fitView colorMode="system">
+            deleteKeyCode="Backspace" fitView colorMode={colorMode}>
             <Background /><Controls /><MiniMap pannable zoomable />
           </ReactFlow>
         </div>

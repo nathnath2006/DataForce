@@ -170,6 +170,13 @@ export function formatQ(q: number | null | undefined): string {
   return q < 0.001 ? "<0.001" : q.toFixed(3);
 }
 
+/** A calendar date ("2026-08-21" or an ISO datetime) as "21 Aug 2026", without a time. */
+export function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-GB", { dateStyle: "medium" });
+}
+
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);

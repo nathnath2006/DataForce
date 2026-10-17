@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api";
 import { AskPanel } from "../assistant/AskPanel";
 import { useWs } from "../context";
-import { formatDateTime, formatEur, label } from "../lib";
+import { formatDate, formatDateTime, formatEur, label } from "../lib";
 import type { AccountOut } from "../types";
 import { Confirm, Empty, ErrorNote, Loading, Modal, Tag, useAction, useDebounced, useLoad } from "../ui";
 import { companiesApi } from "./api";
@@ -44,7 +44,7 @@ export function CompanyDetailPage() {
       </div>
       <ErrorNote error={act.error} />
       <div className="row wrap"><InteractedBadge c={c} />
-        <span className="muted small">Last interaction: {c.last_interaction ? formatDateTime(c.last_interaction) : "none"}</span></div>
+        <span className="muted small">Last interaction: {c.last_interaction ? formatDate(c.last_interaction) : "none"}</span></div>
       <dl className="facts">
         <dt>SIREN</dt><dd>{formatSiren(c.siren)}</dd>
         <dt>Address</dt><dd>{formatAddress(c)}</dd>
@@ -104,7 +104,7 @@ export function CompanyDetailPage() {
         {v.activity.length === 0 ? <Empty>No activity yet.</Empty> : (
           <ul className="timeline">{v.activity.map((x, i) => (
             <li key={i}>
-              <div className="meta">{formatDateTime(x.at)} · {label(x.kind)}</div>
+              <div className="meta">{x.kind.startsWith("deal_") ? formatDate(x.at) : formatDateTime(x.at)} · {label(x.kind)}</div>
               <strong>{x.title}</strong>
               {x.excerpt && <p className="pre">{x.excerpt}</p>}
             </li>

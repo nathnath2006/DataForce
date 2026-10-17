@@ -14,7 +14,7 @@
 .row-card { display: flex; gap: .4rem; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem; }
 
 .editor { display: flex; flex-direction: column; gap: .6rem; }
-.flowname { font-weight: 600; min-width: 14rem; }
+.flowname { font-weight: 600; min-width: 14rem; width: min(28rem, 40vw); }
 .workspace { display: grid; grid-template-columns: 11rem minmax(0, 1fr) 19rem; gap: .6rem; height: 56vh; min-height: 24rem; }
 .palette, .config { overflow: auto; }
 .palette h3, .config h3 { margin: .4rem 0 .2rem; font-size: .85rem; color: var(--muted); }
@@ -28,7 +28,7 @@
 .fnode-status { display: flex; gap: .2rem; flex-wrap: wrap; margin-top: .2rem; }
 .fnode .react-flow__handle { width: 10px; height: 10px; background: var(--accent); border: 1px solid var(--panel); }
 .plabel { position: absolute; top: -.35rem; font-size: .65rem; color: var(--muted); pointer-events: none; white-space: nowrap; }
-.plabel.in { left: 14px; } .plabel.out { right: 14px; }
+.plabel.in { right: 14px; } .plabel.out { left: 14px; }  /* outside the node: never over its text */
 .resultsbox { max-height: 50vh; overflow: auto; }
 .results { display: flex; flex-direction: column; gap: .5rem; }
 .preview { max-height: 32vh; }
