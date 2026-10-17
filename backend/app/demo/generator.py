@@ -42,6 +42,7 @@ from app.demo.models import (
     DemoNote,
     DemoUser,
 )
+from app.demo.transcripts import THEME_IDS, build_transcripts
 from app.domain.enums import (
     DealStage,
     Dimension,
@@ -51,7 +52,7 @@ from app.domain.enums import (
     Segment,
     UserRole,
 )
-from app.domain.schemas import GroundTruth, PlantedEffect
+from app.domain.schemas import GroundTruth, M2Truth, PlantedEffect
 
 # Fixed "today" so that the dataset does not depend on the wall clock (determinism).
 REFERENCE_DATE = date(2026, 10, 1)
@@ -236,6 +237,7 @@ def _build_contacts(rng: np.random.Generator, accounts: list[DemoAccount]) -> li
                     full_name=full,
                     title=_noisy_title(rng, role),
                     reports_to_key=None if parent is None else keys[parent],
+                    role=role,
                 )
             )
     return contacts
@@ -411,6 +413,24 @@ def _build_companies(seed: int, accounts: list[DemoAccount]) -> tuple[list[DemoC
     return companies, link
 
 
+def _remove_links(
+    seed: int, contacts: list[DemoContact]
+) -> tuple[dict[str, str | None], list[str]]:
+    """In 50% of accounts, drop every manual reporting link from the CRM rows. A separate RNG
+    stream. Returns the true tree (contact -> manager) and the contacts whose link was removed."""
+    rng = np.random.default_rng([seed, 103])
+    org = {c.key: c.reports_to_key for c in contacts}
+    hit: dict[str, bool] = {}
+    removed: list[str] = []
+    for c in contacts:
+        if c.account_key not in hit:
+            hit[c.account_key] = bool(rng.random() < 0.5)
+        if hit[c.account_key] and c.reports_to_key is not None:
+            c.reports_to_key = None
+            removed.append(c.key)
+    return org, removed
+
+
 def generate(variant: Literal["planted", "noise"], seed: int, n_deals: int = 350) -> DemoDataset:
     if variant not in ("planted", "noise"):
         raise ValueError(f"unknown variant {variant!r}")
@@ -504,8 +524,22 @@ def generate(variant: Literal["planted", "noise"], seed: int, n_deals: int = 350
     truth = _ground_truth(variant, seed, (len(accounts), len(contacts), len(deals)))
     companies, account_company = _build_companies(seed, accounts)
     _date_notes(seed, notes, comments)
+    org, removed = _remove_links(seed, contacts)
+    docs, meeting_truth, decoys = build_transcripts(
+        seed, users=users, accounts=accounts, contacts=contacts, deals=deals, org=org,
+        removed=set(removed), reference_date=REFERENCE_DATE,
+    )  # fmt: skip
+    truth.m2 = M2Truth(
+        roles={c.key: c.role for c in contacts if c.role},
+        org=org,
+        links_removed=removed,
+        theme_ids=list(THEME_IDS),
+        meetings=meeting_truth,
+    )
+    if decoys:
+        truth.notes.append("m2 decoy org statements (must yield no proposal): " + ", ".join(decoys))
     return DemoDataset(
         users=users, accounts=accounts, contacts=contacts, deals=deals, notes=notes,
         comments=comments, ground_truth=truth, companies=companies,
-        account_company=account_company,
+        account_company=account_company, documents=docs,
     )  # fmt: skip

@@ -14,6 +14,11 @@ from app.services import accounts, comments, contacts, deals, notes, users, work
 from app.services import companies as company_svc
 from app.services.errors import InvalidInputError
 
+try:  # TODO(M): agent M writes app/services/documents.py; transcripts are skipped until it exists
+    from app.services import documents as document_svc
+except ImportError:  # pragma: no cover
+    document_svc = None  # type: ignore[assignment]
+
 
 def load_dataset(
     session: Session,
@@ -86,6 +91,7 @@ def load_dataset(
                 session, ws_id, contact_ids[c.key], contact_ids[c.reports_to_key]
             )
 
+    deal_ids: dict[str, uuid.UUID] = {}
     for d in dataset.deals:
         data = DealIn(
             account_id=account_ids[d.account_key],
@@ -99,7 +105,7 @@ def load_dataset(
             lost_reason=d.lost_reason,
             source=RecordSource.DEMO,
         )
-        deals.create_deal(session, ws_id, data)
+        deal_ids[d.key] = deals.create_deal(session, ws_id, data).id
 
     note_ids: dict[str, uuid.UUID] = {}
     n_corrections = 0
@@ -129,6 +135,21 @@ def load_dataset(
             ).id
             c_corrections += 1
 
+    n_documents = 0
+    if document_svc is not None:
+        for doc in dataset.documents:
+            document_svc.add_document(
+                session,
+                ws_id,
+                account_id=account_ids[doc.account_key],
+                title=doc.title,
+                text=doc.text,
+                meeting_date=doc.meeting_date,
+                deal_id=deal_ids[doc.deal_key],
+                source="demo",
+            )
+            n_documents += 1
+
     return {
         "workspace_id": ws_id,
         "workspace_slug": workspace_slug,
@@ -141,4 +162,5 @@ def load_dataset(
         "note_corrections": n_corrections,
         "comments": len(dataset.comments),
         "comment_corrections": c_corrections,
+        "documents": n_documents,
     }

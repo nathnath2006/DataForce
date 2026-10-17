@@ -70,17 +70,25 @@ def test_org_charts_are_trees(variant):
     for contacts in by_acc.values():
         assert 4 <= len(contacts) <= 9
         keys = {c.key for c in contacts}
-        roots = [c for c in contacts if c.reports_to_key is None]
-        assert len(roots) == 1
+        # CRM links may be partial (50% of accounts lose them): a valid forest
         parent = {c.key: c.reports_to_key for c in contacts}
         assert all(p in keys for p in parent.values() if p)
-        for k in keys:  # every node reaches the root without a cycle
+        for k in keys:  # no cycle
             seen, cur = set(), k
             while parent[cur]:
                 assert cur not in seen
                 seen.add(cur)
                 cur = parent[cur]
-            assert cur == roots[0].key
+        # the true tree (ground truth) is complete: exactly one root, all reach it
+        org = ds.ground_truth.m2.org
+        roots = [k for k in keys if org[k] is None]
+        assert len(roots) == 1
+        for k in keys:
+            cur, steps = k, 0
+            while org[cur]:
+                cur, steps = org[cur], steps + 1
+                assert steps <= 9
+            assert cur == roots[0]
 
 
 def test_titles_missing_rates_and_names():

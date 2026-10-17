@@ -24,7 +24,8 @@ class DemoContact(BaseModel):
     account_key: str
     full_name: str
     title: str | None = None
-    reports_to_key: str | None = None
+    reports_to_key: str | None = None  # the manual link loaded in the CRM (None if removed)
+    role: str | None = None  # ROLE_TITLES key; ground truth only, never loaded
     source: RecordSource = RecordSource.DEMO
 
 
@@ -78,6 +79,18 @@ class DemoCompany(BaseModel):
     source: RecordSource = RecordSource.DEMO
 
 
+class DemoDocument(BaseModel):
+    """A synthetic meeting transcript tied to a deal (`Name: text` lines)."""
+
+    key: str
+    account_key: str
+    deal_key: str
+    title: str
+    text: str
+    meeting_date: date
+    language: str
+
+
 class DemoDataset(BaseModel):
     users: list[DemoUser] = Field(default_factory=list)
     accounts: list[DemoAccount] = Field(default_factory=list)
@@ -86,5 +99,6 @@ class DemoDataset(BaseModel):
     notes: list[DemoNote] = Field(default_factory=list)
     comments: list[DemoComment] = Field(default_factory=list)
     companies: list[DemoCompany] = Field(default_factory=list)
+    documents: list[DemoDocument] = Field(default_factory=list)
     account_company: dict[str, str] = Field(default_factory=dict)  # account key -> company key
     ground_truth: GroundTruth

@@ -35,10 +35,12 @@ def test_load_exact_counts_and_org_charts(db_session):
         for d in db_session.scalars(select(Deal).where(Deal.workspace_id == ws_id))
     )
 
-    # one root per account, and the reporting lines match the dataset
+    # partial trees are allowed: every account is a valid forest, links match the dataset
+    n_links = sum(1 for c in ds.contacts if c.reports_to_key)
+    assert n_links < len(ds.contacts) - len(ds.accounts)  # some links were removed
     for acc in db_session.scalars(select(Account).where(Account.workspace_id == ws_id)).all()[:10]:
         chart = contacts.org_chart(db_session, ws_id, acc.id)
-        assert sum(1 for _, mgr in chart if mgr is None) == 1
+        assert sum(1 for _, mgr in chart if mgr is None) >= 1
 
     # corrected notes: current_notes shows the latest version only
     n_corr = res["note_corrections"]
