@@ -1,5 +1,151 @@
-"""Owned by agent G (see docs/M2A-CONTRACT.md)."""
+"""Companies, the CRM lookup and the public company registry (M2a, agent G)."""
 
-from fastapi import APIRouter
+from __future__ import annotations
 
-router = APIRouter()
+import uuid
+
+from fastapi import APIRouter, Query, Response
+
+from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.routes.crm import Limit, Offset, SearchQ, _accounts_out, _contacts_out, _deals_out
+from app.api.schemas import AccountOut, Page
+from app.api.schemas_companies import (
+    AccountCompanyLink,
+    ActivityItem,
+    Company360,
+    CompanyCreate,
+    CompanyOut,
+    CompanyUpdate,
+    FromRegistry,
+    LookupOut,
+    RegistryCompanyOut,
+)
+from app.db.models import Company
+from app.domain.schemas import AccountIn
+from app.registry import client as registry
+from app.services import accounts
+from app.services import companies as svc
+from app.services.errors import AlreadyExistsError, InvalidInputError, NotFoundError
+
+router = APIRouter(tags=["companies"])
+
+RegistryQ = Query(min_length=1, max_length=registry.MAX_QUERY_CHARS)
+
+
+def _companies_out(db: Db, ws_id: uuid.UUID, rows: list[Company]) -> list[CompanyOut]:
+    stats = svc.company_stats(db, ws_id, [c.id for c in rows])
+    return [CompanyOut.model_validate(c).model_copy(update=stats[c.id]) for c in rows]
+
+
+@router.get("/w/{ws}/lookup", response_model=LookupOut)
+def lookup(db: Db, ws: CurrentWorkspace, q: SearchQ = None) -> LookupOut:
+    q = (q or "").strip()
+    if not q:
+        return LookupOut(companies=[], accounts=[], interacted=False)
+    rows, _ = svc.list_companies_page(db, ws.id, q=q, limit=20)
+    companies = _companies_out(db, ws.id, rows)
+    loose = svc.lookup_accounts_without_company(db, ws.id, q)
+    last = svc.account_last_interaction(db, ws.id, [a.id for a in loose])
+    return LookupOut(
+        companies=companies,
+        accounts=_accounts_out(db, ws.id, loose),
+        interacted=any(c.interacted for c in companies) or bool(last),
+    )
+
+
+@router.get("/w/{ws}/companies", response_model=Page[CompanyOut])
+def list_companies(
+    db: Db, ws: CurrentWorkspace, q: SearchQ = None, limit: Limit = 50, offset: Offset = 0
+) -> Page[CompanyOut]:
+    rows, total = svc.list_companies_page(db, ws.id, q=q, limit=limit, offset=offset)
+    return Page(items=_companies_out(db, ws.id, rows), total=total)
+
+
+@router.post("/w/{ws}/companies", response_model=CompanyOut, status_code=201)
+def create_company(body: CompanyCreate, db: Db, ws: CurrentWorkspace) -> CompanyOut:
+    company = svc.create_company(db, ws.id, **body.model_dump())
+    db.commit()
+    return _companies_out(db, ws.id, [company])[0]
+
+
+@router.get("/w/{ws}/companies/{company_id}", response_model=Company360)
+def get_company(company_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Company360:
+    company = svc.require_company(db, ws.id, company_id)
+    parts = svc.company_360_parts(db, ws.id, company_id)
+    return Company360(
+        company=_companies_out(db, ws.id, [company])[0],
+        accounts=_accounts_out(db, ws.id, parts["accounts"]),
+        contacts=_contacts_out(db, ws.id, parts["contacts"]),
+        deals=_deals_out(db, ws.id, parts["deals"]),
+        activity=[ActivityItem(**a) for a in parts["activity"]],
+    )
+
+
+@router.patch("/w/{ws}/companies/{company_id}", response_model=CompanyOut)
+def update_company(
+    company_id: uuid.UUID, body: CompanyUpdate, db: Db, ws: CurrentWorkspace
+) -> CompanyOut:
+    company = svc.update_company(db, ws.id, company_id, body.model_dump(exclude_unset=True))
+    db.commit()
+    return _companies_out(db, ws.id, [company])[0]
+
+
+@router.delete("/w/{ws}/companies/{company_id}", status_code=204)
+def delete_company(company_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
+    svc.delete_company(db, ws.id, company_id)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.put("/w/{ws}/accounts/{account_id}/company", response_model=AccountOut)
+def link_account(
+    account_id: uuid.UUID, body: AccountCompanyLink, db: Db, ws: CurrentWorkspace
+) -> AccountOut:
+    account = svc.link_account(db, ws.id, account_id, body.company_id)
+    db.commit()
+    return _accounts_out(db, ws.id, [account])[0]
+
+
+# --- public registry (explicit user action only) --------------------------------------------
+@router.get("/w/{ws}/registry/search", response_model=list[RegistryCompanyOut])
+async def registry_search(
+    db: Db, ws: CurrentWorkspace, settings: AppSettings, q: str = RegistryQ
+) -> list[RegistryCompanyOut]:
+    found = await registry.search(settings, q)
+    in_crm = svc.find_by_sirens(db, ws.id, [c.siren for c in found])
+    return [
+        RegistryCompanyOut(**c.model_dump(), in_crm_company_id=in_crm.get(c.siren)) for c in found
+    ]
+
+
+@router.post("/w/{ws}/companies/from-registry", response_model=CompanyOut, status_code=201)
+async def from_registry(
+    body: FromRegistry, db: Db, ws: CurrentWorkspace, settings: AppSettings
+) -> CompanyOut:
+    if svc.find_by_sirens(db, ws.id, [body.siren]):
+        raise AlreadyExistsError("a company with this SIREN already exists in this workspace")
+    record = await registry.fetch_by_siren(settings, body.siren)
+    if record is None:
+        raise NotFoundError("this SIREN was not found in the company registry")
+    company = svc.create_from_registry(db, ws.id, record)
+    if body.create_account:
+        account = accounts.create_account(db, ws.id, AccountIn(name=company.name, country="FR"))
+        account.company_id = company.id
+        db.flush()
+    db.commit()
+    return _companies_out(db, ws.id, [company])[0]
+
+
+@router.post("/w/{ws}/companies/{company_id}/refresh-registry", response_model=CompanyOut)
+async def refresh_registry(
+    company_id: uuid.UUID, db: Db, ws: CurrentWorkspace, settings: AppSettings
+) -> CompanyOut:
+    company = svc.require_company(db, ws.id, company_id)
+    if not company.siren:
+        raise InvalidInputError("this company has no SIREN to look up")
+    record = await registry.fetch_by_siren(settings, company.siren)
+    if record is None:
+        raise NotFoundError("this SIREN was not found in the company registry")
+    svc.apply_registry(db, company, record)
+    db.commit()
+    return _companies_out(db, ws.id, [company])[0]

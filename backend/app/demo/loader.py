@@ -11,6 +11,7 @@ from app.demo.models import DemoDataset
 from app.domain.enums import RecordSource
 from app.domain.schemas import AccountIn, ContactIn, DealIn, UserIn
 from app.services import accounts, comments, contacts, deals, notes, users, workspaces
+from app.services import companies as company_svc
 from app.services.errors import InvalidInputError
 
 
@@ -47,10 +48,26 @@ def load_dataset(
         data = UserIn(display_name=u.display_name, email=u.email, role=u.role)
         user_ids[u.key] = users.create_user(session, ws_id, data).id
 
+    company_ids: dict[str, uuid.UUID] = {}
+    for co in dataset.companies:
+        company_ids[co.key] = company_svc.create_company(
+            session,
+            ws_id,
+            name=co.name,
+            address_line=co.address_line,
+            postal_code=co.postal_code,
+            city=co.city,
+            country=co.country,
+            source=co.source.value,
+        ).id
+
     account_ids: dict[str, uuid.UUID] = {}
     for a in dataset.accounts:
         data = AccountIn(**a.model_dump(exclude={"key"}) | {"source": RecordSource.DEMO})
-        account_ids[a.key] = accounts.create_account(session, ws_id, data).id
+        account = accounts.create_account(session, ws_id, data)
+        if a.key in dataset.account_company:
+            account.company_id = company_ids[dataset.account_company[a.key]]
+        account_ids[a.key] = account.id
 
     # Pass 1: contacts without manager; pass 2: reporting lines (the service checks the tree).
     contact_ids: dict[str, uuid.UUID] = {}
@@ -90,11 +107,11 @@ def load_dataset(
         author = user_ids[n.author_key] if n.author_key else None
         if n.corrects_key is None:
             note_ids[n.key] = notes.add_note(
-                session, ws_id, contact_ids[n.contact_key], author, n.body
+                session, ws_id, contact_ids[n.contact_key], author, n.body, created_at=n.created_at
             ).id
         else:
             note_ids[n.key] = notes.correct_note(
-                session, ws_id, note_ids[n.corrects_key], author, n.body
+                session, ws_id, note_ids[n.corrects_key], author, n.body, created_at=n.created_at
             ).id
             n_corrections += 1
 
@@ -104,11 +121,11 @@ def load_dataset(
         author = user_ids[c.author_key] if c.author_key else None
         if c.corrects_key is None:
             comment_ids[c.key] = comments.add_comment(
-                session, ws_id, account_ids[c.account_key], author, c.body
+                session, ws_id, account_ids[c.account_key], author, c.body, created_at=c.created_at
             ).id
         else:
             comment_ids[c.key] = comments.correct_comment(
-                session, ws_id, comment_ids[c.corrects_key], author, c.body
+                session, ws_id, comment_ids[c.corrects_key], author, c.body, created_at=c.created_at
             ).id
             c_corrections += 1
 
@@ -116,6 +133,7 @@ def load_dataset(
         "workspace_id": ws_id,
         "workspace_slug": workspace_slug,
         "users": len(dataset.users),
+        "companies": len(dataset.companies),
         "accounts": len(dataset.accounts),
         "contacts": len(dataset.contacts),
         "deals": len(dataset.deals),

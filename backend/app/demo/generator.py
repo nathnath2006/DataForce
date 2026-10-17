@@ -25,7 +25,7 @@ The unit tests re-check the realised numbers for seed 42.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Literal
 
@@ -35,6 +35,7 @@ from app.demo import names as N
 from app.demo.models import (
     DemoAccount,
     DemoComment,
+    DemoCompany,
     DemoContact,
     DemoDataset,
     DemoDeal,
@@ -364,6 +365,52 @@ def _ground_truth(
     )
 
 
+def _date_notes(seed: int, notes: list[DemoNote], comments: list[DemoComment]) -> None:
+    """Give notes and comments realistic past dates (the year before REFERENCE_DATE), so
+    "last interaction" means something. A separate RNG stream: every other row of the dataset
+    stays identical to what the seed produced before dates existed."""
+    rng = np.random.default_rng([seed, 102])
+    end = datetime.combine(REFERENCE_DATE, time(18, 0), tzinfo=UTC)
+    for rows in (notes, comments):
+        when: dict[str, datetime] = {}
+        for row in rows:
+            if row.corrects_key is None:
+                at = end - timedelta(
+                    days=int(rng.integers(1, 365)), minutes=int(rng.integers(0, 600))
+                )
+            else:  # a correction comes a few days after the version it corrects
+                at = min(end, when[row.corrects_key] + timedelta(days=int(rng.integers(1, 15))))
+            row.created_at = at
+            when[row.key] = at
+
+
+def _build_companies(seed: int, accounts: list[DemoAccount]) -> tuple[list[DemoCompany], dict]:
+    """Group accounts by name family (first word) into companies. A separate RNG stream, so the
+    CRM data and the ground truth are identical with or without companies. No SIREN."""
+    rng = np.random.default_rng([seed, 101])
+    families: dict[str, list[DemoAccount]] = {}
+    for a in accounts:
+        families.setdefault(a.name.split()[0], []).append(a)
+    companies: list[DemoCompany] = []
+    link: dict[str, str] = {}
+    for i, (word, members) in enumerate(sorted(families.items())):
+        city, postal = _pick(rng, N.CITIES)
+        number = int(rng.integers(1, 120))
+        key = f"co{i:03d}"
+        companies.append(
+            DemoCompany(
+                key=key,
+                name=f"{word} {_pick(rng, N.LEGAL_FORMS)}",
+                address_line=f"{number} {_pick(rng, N.STREETS)}",
+                postal_code=postal,
+                city=city,
+            )
+        )
+        for a in members:
+            link[a.key] = key
+    return companies, link
+
+
 def generate(variant: Literal["planted", "noise"], seed: int, n_deals: int = 350) -> DemoDataset:
     if variant not in ("planted", "noise"):
         raise ValueError(f"unknown variant {variant!r}")
@@ -455,7 +502,10 @@ def generate(variant: Literal["planted", "noise"], seed: int, n_deals: int = 350
         )
 
     truth = _ground_truth(variant, seed, (len(accounts), len(contacts), len(deals)))
+    companies, account_company = _build_companies(seed, accounts)
+    _date_notes(seed, notes, comments)
     return DemoDataset(
         users=users, accounts=accounts, contacts=contacts, deals=deals, notes=notes,
-        comments=comments, ground_truth=truth,
+        comments=comments, ground_truth=truth, companies=companies,
+        account_company=account_company,
     )  # fmt: skip

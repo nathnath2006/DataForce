@@ -61,6 +61,19 @@ def _chains(rows: list[Any]) -> list[list[Any]]:
     return chains
 
 
+def _checked_time(at: datetime | None, not_before: datetime | None = None) -> datetime:
+    now = datetime.now(UTC)
+    if at is None:
+        return now
+    if at.tzinfo is None:
+        raise InvalidInputError("created_at must be timezone-aware")
+    if at > now:
+        raise InvalidInputError("created_at is in the future")
+    if not_before is not None and at < not_before:
+        raise InvalidInputError("a correction cannot be older than the version it corrects")
+    return at
+
+
 def add(
     session: Session,
     model: Any,
@@ -69,7 +82,11 @@ def add(
     parent_id: uuid.UUID,
     author_id: uuid.UUID | None,
     body: str,
+    *,
+    created_at: datetime | None = None,
 ) -> Any:
+    """`created_at` keeps the original date of imported history (an old CRM's notes, the
+    synthetic demo); it is checked, never in the future. Default: now."""
     if author_id is not None:
         require_user(session, ws_id, author_id)
     # created_at from Python: now() is the transaction start, identical for every row of a load.
@@ -78,7 +95,7 @@ def add(
         **{parent_col: parent_id},
         author_id=author_id,
         body=clean_body(body),
-        created_at=datetime.now(UTC),
+        created_at=_checked_time(created_at),
     )
     session.add(row)
     session.flush()
@@ -117,9 +134,12 @@ def correct(
     row_id: uuid.UUID,
     author_id: uuid.UUID | None,
     new_body: str,
+    *,
+    created_at: datetime | None = None,
 ) -> Any:
     """Insert a new version of the chain containing `row_id`. The correction attaches to the
-    latest version, so chains stay linear."""
+    latest version, so chains stay linear. An explicit `created_at` (imported history) must not
+    precede the version it corrects."""
     chain = history(session, model, parent_col, ws_id, row_id, lock=True)
     latest = chain[-1]
     if latest.deleted_at is not None:
@@ -132,7 +152,7 @@ def correct(
         author_id=author_id,
         body=clean_body(new_body),
         corrects_id=latest.id,
-        created_at=datetime.now(UTC),
+        created_at=_checked_time(created_at, not_before=latest.created_at),
     )
     try:
         with session.begin_nested():

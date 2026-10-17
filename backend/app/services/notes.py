@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -19,9 +20,11 @@ def add_note(
     contact_id: uuid.UUID,
     author_id: uuid.UUID | None,
     body: str,
+    *,
+    created_at: datetime | None = None,
 ) -> Note:
     require_contact(session, ws_id, contact_id)
-    return ao.add(session, Note, _PARENT, ws_id, contact_id, author_id, body)
+    return ao.add(session, Note, _PARENT, ws_id, contact_id, author_id, body, created_at=created_at)
 
 
 def correct_note(
@@ -30,8 +33,12 @@ def correct_note(
     note_id: uuid.UUID,
     author_id: uuid.UUID | None,
     new_body: str,
+    *,
+    created_at: datetime | None = None,
 ) -> Note:
-    return ao.correct(session, Note, _PARENT, ws_id, note_id, author_id, new_body)
+    return ao.correct(
+        session, Note, _PARENT, ws_id, note_id, author_id, new_body, created_at=created_at
+    )
 
 
 def delete_note(

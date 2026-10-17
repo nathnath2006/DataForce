@@ -103,3 +103,17 @@ LOST_REASONS = [
     "no decision",
     "went with competitor",
 ]
+
+LEGAL_FORMS = ["SAS", "SARL", "SA", "SAS", "SASU"]
+
+# Real French cities with their main postal code; the streets below are invented.
+CITIES = [
+    ("Paris", "75008"), ("Lyon", "69002"), ("Marseille", "13001"), ("Toulouse", "31000"),
+    ("Nantes", "44000"), ("Bordeaux", "33000"), ("Lille", "59000"), ("Strasbourg", "67000"),
+    ("Rennes", "35000"), ("Montpellier", "34000"), ("Grenoble", "38000"), ("Dijon", "21000"),
+]  # fmt: skip
+
+STREETS = [
+    "rue des Tilleuls Fictifs", "avenue du Test", "boulevard de l'Exemple", "rue de la Maquette",
+    "impasse des Données", "quai de l'Échantillon", "rue du Prototype", "place de la Démo",
+]  # fmt: skip

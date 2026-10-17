@@ -29,6 +29,7 @@ from app.domain.enums import CLOSED_STAGES, DealStage, LeadSource, Segment
 from app.domain.schemas import AccountIn, AccountRead, ContactIn, ContactRead, DealIn, DealRead
 from app.services import accounts, contacts, deals
 from app.services._common import require_account, require_contact, require_deal
+from app.services.companies import company_names
 
 router = APIRouter(tags=["crm"])
 
@@ -41,6 +42,7 @@ SearchQ = Annotated[str | None, Query(max_length=200, pattern=r"^[^\x00-\x1f\x7f
 # --- output builders (counts and names come from grouped queries, never per row) -------------
 def _accounts_out(db: Db, ws_id: uuid.UUID, rows: list[Account]) -> list[AccountOut]:
     counts = accounts.account_counts(db, ws_id, [a.id for a in rows])
+    cnames = company_names(db, ws_id, list({a.company_id for a in rows if a.company_id}))
     out = []
     for a in rows:
         n_contacts, n_deals, n_open = counts[a.id]
@@ -50,6 +52,7 @@ def _accounts_out(db: Db, ws_id: uuid.UUID, rows: list[Account]) -> list[Account
                 n_contacts=n_contacts,
                 n_deals=n_deals,
                 n_open_deals=n_open,
+                company_name=cnames.get(a.company_id) if a.company_id else None,
             )
         )
     return out

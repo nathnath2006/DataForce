@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -50,6 +50,8 @@ class DemoNote(BaseModel):
     author_key: str | None
     body: str
     corrects_key: str | None = None
+    # When it was written (synthetic, set by the generator); None = load time.
+    created_at: datetime | None = None
 
 
 class DemoComment(BaseModel):
@@ -60,6 +62,20 @@ class DemoComment(BaseModel):
     author_key: str | None
     body: str
     corrects_key: str | None = None
+    # When it was written (synthetic, set by the generator); None = load time.
+    created_at: datetime | None = None
+
+
+class DemoCompany(BaseModel):
+    """A company grouping demo accounts by name family. Synthetic address, never a SIREN."""
+
+    key: str
+    name: str
+    address_line: str
+    postal_code: str
+    city: str
+    country: str = "FR"
+    source: RecordSource = RecordSource.DEMO
 
 
 class DemoDataset(BaseModel):
@@ -69,4 +85,6 @@ class DemoDataset(BaseModel):
     deals: list[DemoDeal] = Field(default_factory=list)
     notes: list[DemoNote] = Field(default_factory=list)
     comments: list[DemoComment] = Field(default_factory=list)
+    companies: list[DemoCompany] = Field(default_factory=list)
+    account_company: dict[str, str] = Field(default_factory=dict)  # account key -> company key
     ground_truth: GroundTruth

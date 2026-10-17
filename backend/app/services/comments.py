@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -19,9 +20,13 @@ def add_comment(
     account_id: uuid.UUID,
     author_id: uuid.UUID | None,
     body: str,
+    *,
+    created_at: datetime | None = None,
 ) -> Comment:
     require_account(session, ws_id, account_id)
-    return ao.add(session, Comment, _PARENT, ws_id, account_id, author_id, body)
+    return ao.add(
+        session, Comment, _PARENT, ws_id, account_id, author_id, body, created_at=created_at
+    )
 
 
 def correct_comment(
@@ -30,8 +35,12 @@ def correct_comment(
     comment_id: uuid.UUID,
     author_id: uuid.UUID | None,
     new_body: str,
+    *,
+    created_at: datetime | None = None,
 ) -> Comment:
-    return ao.correct(session, Comment, _PARENT, ws_id, comment_id, author_id, new_body)
+    return ao.correct(
+        session, Comment, _PARENT, ws_id, comment_id, author_id, new_body, created_at=created_at
+    )
 
 
 def delete_comment(
