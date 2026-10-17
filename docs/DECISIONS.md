@@ -155,11 +155,64 @@ something that still needs confirming.
   the same contact is running, or for a value already stored.
 - **Demo size 350 [PO].** See section E for what changed in the measured reliability.
 
-## I. Open
-1. CRM scope: the PO is testing the minimal CRM in the UI and will say whether it is enough.
+## I. M2a: flows, Company 360, AI assistant, theme (2026-10-17) [PO + build]
+Spec and ownership: `docs/M2A-CONTRACT.md`. The original M2 items (title normalisation, inferred
+org chart, transcript themes) move to M2b.
+- **Analysis is a drag-and-drop flow editor [PO].** It works like Dataiku or Blender nodes.
+  - Dataset blocks read the CRM tables, an uploaded CSV / Excel file, or a read-only PostgreSQL
+    connection [PO choice].
+  - The blocks are filter, sort, columns, group, join, **pivot**, stats test, chart,
+    train/test split, linear and logistic regression, and k-means [PO choice, including the ML
+    blocks].
+  - The M1b scan page stays reachable as "Quick scan".
+- **Numbers still come from code [build].**
+  - Every block runs in pandas, scikit-learn or scipy, and charts are aggregated server-side.
+  - There is no expression language: computed columns are structured operations, with no
+    `eval`, no pickle and no persisted models.
+- **"Not verified" extends to models [build].**
+  - A regression is verified only if, on the test set, n ≥ the gate and the R² CI is above 0.
+  - A classifier is verified only if n ≥ the gate, each class has enough rows, the AUC CI is
+    above 0.5 and the accuracy CI is above the majority-class baseline.
+  - Coefficients are labelled "associations, not causes".
+  - Clusters are always "exploratory".
+- **External data stays read-only [build].**
+  - PostgreSQL queries run in READ ONLY transactions, one statement, with a row cap and a
+    timeout.
+  - TLS is required off-loopback, and the password is sealed.
+  - Uploads are stored in the database, so they are backed up and erased with the workspace.
+    They are capped at 20 MB, and xlsx files are checked for zip bombs.
+- **Companies group accounts [PO: Company 360 + registry].**
+  - One search box answers "have we already dealt with them?". The last interaction is the
+    latest deal, note or comment.
+  - The public French registry (recherche-entreprises.api.gouv.fr, free, no key) is searched
+    **only when the user clicks**.
+  - The managers' list (personal data) is never read, and protected addresses are dropped.
+  - Registry companies are stored only when the user adds them.
+  - Demo companies are synthetic and have no SIREN, so they cannot collide with real ones.
+- **Demo history has dates [build].** Demo notes and comments are dated over the past year, so
+  "last interaction" means something. The note services accept the original date of imported
+  history; it is checked and can never be in the future. A separate random stream generates the
+  dates, so deals and every calibration number are unchanged.
+- **AI model in Settings [PO].**
+  - The provider is Gemini or Anthropic, chosen per workspace. The key is typed into
+    DataForce's own Settings page, stored sealed, and never shown back or logged.
+  - The old rule "never paste the key" means never paste it *in a chat* with an assistant.
+- **The Ask panel answers about one account or company [PO].**
+  - The facts come from code and are cited (`[F3]`, `[D2]`, `[N5]`). Notes are wrapped as
+    untrusted text.
+  - Numbers absent from the facts are flagged "unverified", and quotes are verified.
+  - The panel says what is sent to the provider: CRM names, titles, deals and notes, never the
+    enriched emails or mobiles.
+  - Questions and answers are not stored.
+- **Theme [PO].** The user can pick System, Light or Dark; the choice is remembered in the
+  browser.
+- **Noise demo seed [PO].** The noise demo uses seed 1, which verifies nothing. Seed 42 remains
+  documented as one of the ~4% chance cases.
+
+## J. Open
+1. CRM scope: the PO is testing the CRM, Companies and flows in the UI.
 2. TamTam: connect a real account from the UI, then confirm the tool list and the real credit
    prices (still assumed: email about 1, mobile about 10).
-3. LLM key: the PO adds `GEMINI_API_KEY` to `backend/.env`. M1 doesn't need it; M2 (title
-   classification, theme naming) does.
-4. Noise seed 42 shows one chance finding at 350 deals. It is kept as an honest example; the PO
-   may prefer another seed for demos.
+3. The PO adds the Gemini or Anthropic key in Settings > AI model and tries the Ask panel; there
+   is no live AI test yet.
+4. GitHub: push to a private repository once the PO has run `gh auth login`.

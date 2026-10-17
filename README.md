@@ -9,7 +9,8 @@ computed.
 The demo data is **synthetic, generated with a known ground truth, and announced as such**.
 
 Design and build contract: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (M1) and
-[`docs/UI-CONTRACT.md`](docs/UI-CONTRACT.md) (M1b: local UI, TamTam connect). Decisions:
+[`docs/UI-CONTRACT.md`](docs/UI-CONTRACT.md) (M1b: local UI, TamTam connect) and
+[`docs/M2A-CONTRACT.md`](docs/M2A-CONTRACT.md) (M2a: flows, Company 360, AI assistant). Decisions:
 [`docs/DECISIONS.md`](docs/DECISIONS.md). What was built and why, for non-developers:
 [`docs/DataForce-build-report.pdf`](docs/DataForce-build-report.pdf).
 
@@ -40,6 +41,19 @@ M3: anyone who can run programs on this computer can use it, nobody else can.
   the tools TamTam offers; *Disconnect* deletes the token.
 - **Paid lookups** happen only when you click *Enrich* on a contact of a real workspace and
   confirm the credit amount. Found emails / mobiles are stored encrypted, each with a *Delete*.
+- **Companies** (M2a): type a name to see whether you already dealt with a company. A company
+  groups its accounts and shows its address, contacts, deals and activity. *Search the public
+  registry* looks the name up in the free French company register (api.gouv.fr) only when you
+  click, and *Add to CRM* creates it.
+- **Analysis** (M2a): drag blocks onto a canvas, wire them, and press *Run all*. Datasets come from
+  the CRM, an uploaded CSV / Excel file or a read-only PostgreSQL connection (*Settings > Data
+  connections*). Blocks include filter, sort, columns, group, join, **pivot**, stats test, chart,
+  train/test split, regression and clustering. Comparisons and models are labelled *verified* or
+  *not verified*, exactly like the M1 engine.
+- **AI model** (M2a): in *Settings > AI model*, pick Gemini or Anthropic and paste your API key.
+  It is stored encrypted and never shown again. The *Ask* panel on an account or company answers
+  from that record's data, cites it, and flags any number it could not find in the data.
+- **Theme**: the *Theme* button in the header cycles System / Light / Dark.
 - `make ui-dev` runs the same app with the Vite dev server (hot reload) on 127.0.0.1:5173.
 
 ## Quickstart
@@ -85,7 +99,9 @@ any drift (then `make db-reset-test`).
 | `backend/app/` | domain contracts, DB models, services, stats engine, demo generator, LLM, CLI |
 | `backend/app/api/` | local HTTP API (FastAPI) + request guards + SPA hosting |
 | `backend/app/connectors/` | TamTam OAuth over MCP (discovery, registration, PKCE, sealed tokens) |
-| `backend/alembic/` | migrations (`0001_initial` ... `0004_connectors`) |
+| `backend/app/flows/` | analysis flow engine, blocks, data sources (CRM, files, PostgreSQL) |
+| `backend/app/registry/`, `backend/app/assistant/` | public company registry client; AI Ask assistant |
+| `backend/alembic/` | migrations (`0001_initial` ... `0005_m2a`) |
 | `frontend/` | React UI (Vite + TypeScript), built into `frontend/dist` by `make ui` |
 | `docs/` | architecture, decisions, security reports |
 
