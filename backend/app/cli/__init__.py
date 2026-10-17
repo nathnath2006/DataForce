@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import typer
 
-from app.cli import crm, db, demo, stats
+from app.cli import crm, db, demo, secrets, stats, ui
 
 app = typer.Typer(
     name="dataforce",
@@ -22,5 +22,7 @@ app.add_typer(db.app, name="db")
 app.add_typer(demo.app, name="demo")
 app.add_typer(stats.app, name="stats")
 app.add_typer(crm.app, name="crm")
+app.add_typer(secrets.app, name="secrets")
+app.command("ui")(ui.ui)
 
 __all__ = ["app"]

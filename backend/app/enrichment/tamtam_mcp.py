@@ -332,9 +332,13 @@ class TamTamMCPEnrichment:
         reviewed_tools: Collection[str] = (),
         session_factory: Callable[[], AbstractAsyncContextManager[Any]] | None = None,
         timeout_s: float = 60.0,
+        token: str | None = None,
     ) -> None:
         check_mcp_url(settings.tamtam_mcp_url, settings.environment)
         self._settings = settings
+        # An OAuth access token handed in by app.connectors takes precedence over
+        # settings.tamtam_mcp_token. Every other guard is unchanged.
+        self._token = token
         self._timeout_s = timeout_s
         self._session_factory = session_factory or self._default_session
         self._tool_map: dict[str, tuple[str, ...]] = dict(DEFAULT_TOOL_MAP)
@@ -638,6 +642,8 @@ class TamTamMCPEnrichment:
     # --- connection ---------------------------------------------------------------------------
 
     def _token_value(self) -> str | None:
+        if self._token is not None:
+            return self._token or None
         secret = self._settings.tamtam_mcp_token
         return secret.get_secret_value() if secret is not None and len(secret) else None
 
