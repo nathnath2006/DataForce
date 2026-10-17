@@ -23,7 +23,7 @@ from google.genai import types
 from pydantic import BaseModel
 
 from app.config import Settings
-from app.domain.ports import UsageRecorder
+from app.domain.ports import ChatMessage, UsageRecorder
 from app.llm._structured import RawCompletion, StructuredLLM
 from app.llm.errors import LLMError, require_secret
 from app.llm.usage import CallTimer, describe_exception, llm_slot
@@ -40,9 +40,10 @@ EMBED_BATCH_SIZE = 100  # API limit for one batch embed request
 THINKING_HEADROOM = 4096
 
 
-def make_gemini_client(settings: Settings) -> genai.Client:
-    """Build the SDK client. The key is read here and nowhere else."""
-    key = require_secret(
+def make_gemini_client(settings: Settings, api_key: str | None = None) -> genai.Client:
+    """Build the SDK client. The key is read here and nowhere else (an explicit `api_key` is the
+    workspace's key from Settings; the SDK sends it in the x-goog-api-key header)."""
+    key = api_key or require_secret(
         settings.gemini_api_key, "GEMINI_API_KEY", needed_for="the Gemini LLM / embedding provider"
     )
     return genai.Client(
@@ -93,11 +94,15 @@ class GeminiLLM(StructuredLLM):
         *,
         client: genai.Client | None = None,
         schema_mode: Literal["json_schema", "pydantic"] = "json_schema",
+        api_key: str | None = None,
+        model: str | None = None,
     ) -> None:
         super().__init__(settings, usage)
-        self.model = settings.gemini_model
+        self.model = model or settings.gemini_model
         self._schema_mode = schema_mode
-        self._client = client if client is not None else make_gemini_client(settings)
+        self._client = (
+            client if client is not None else make_gemini_client(settings, api_key=api_key)
+        )
 
     async def aclose(self) -> None:
         await self._client.aio.aclose()
@@ -125,6 +130,30 @@ class GeminiLLM(StructuredLLM):
             kwargs["temperature"] = 0.0
         return types.GenerateContentConfig(**kwargs)
 
+    async def _complete_text(
+        self, *, system: str, messages: list[ChatMessage], max_output_tokens: int
+    ) -> RawCompletion:
+        thinking_off = self._thinking_disabled()
+        kwargs: dict[str, Any] = {
+            "system_instruction": system,
+            "max_output_tokens": max_output_tokens + (0 if thinking_off else THINKING_HEADROOM),
+        }
+        if thinking_off:
+            kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+        if not self.model.startswith("gemini-3"):
+            kwargs["temperature"] = 0.0
+        contents = [
+            types.Content(
+                role="user" if m.role == "user" else "model",
+                parts=[types.Part(text=m.content)],
+            )
+            for m in messages
+        ]
+        response = await self._client.aio.models.generate_content(
+            model=self.model, contents=contents, config=types.GenerateContentConfig(**kwargs)
+        )
+        return self._raw(response)
+
     async def _complete(
         self, *, system: str, user: str, schema: type[T], max_output_tokens: int
     ) -> RawCompletion:
@@ -134,6 +163,10 @@ class GeminiLLM(StructuredLLM):
         response = await self._client.aio.models.generate_content(
             model=self.model, contents=user, config=config
         )
+        return self._raw(response)
+
+    @staticmethod
+    def _raw(response: Any) -> RawCompletion:
         candidates = response.candidates or []
         text: str | None = None
         finish: str | None = None

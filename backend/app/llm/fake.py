@@ -28,7 +28,7 @@ import numpy as np
 from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
-from app.domain.ports import UsageRecorder
+from app.domain.ports import ChatMessage, TextResult, UsageRecorder
 from app.llm.errors import LLMError
 from app.llm.usage import CallTimer
 
@@ -125,10 +125,41 @@ class FakeLLM:
     def __init__(self, usage: UsageRecorder | None = None) -> None:
         self._usage = usage
         self._handlers: dict[type[BaseModel], Handler] = {}
+        self._text_handler: Callable[[str, list[ChatMessage]], str] | None = None
+        self.text_calls: list[tuple[str, list[ChatMessage]]] = []
 
     def register(self, schema: type[T], handler: Callable[[str, str], T | dict[str, Any]]) -> None:
         """`handler(system, user)` returns an instance (or dict) used for `schema`."""
         self._handlers[schema] = handler
+
+    def register_text(self, handler: Callable[[str, list[ChatMessage]], str]) -> None:
+        """`handler(system, messages)` returns the reply of `generate_text`."""
+        self._text_handler = handler
+
+    async def generate_text(
+        self,
+        *,
+        system: str,
+        messages: list[ChatMessage],
+        purpose: Literal["assistant", "connection_test"],
+        max_output_tokens: int = 800,
+    ) -> TextResult:
+        timer = CallTimer(self._usage, provider=self.name, model=self.model, purpose=purpose)
+        self.text_calls.append((system, list(messages)))
+        try:
+            if self._text_handler is not None:
+                text = self._text_handler(system, messages)
+            elif purpose == "connection_test":
+                text = "OK"
+            else:
+                text = "Fake answer: see the facts."
+        except LLMError as exc:
+            timer.failure(str(exc))
+            raise
+        n_in = (len(system) + sum(len(m.content) for m in messages)) // 4
+        n_out = len(text) // 4
+        timer.success(input_tokens=n_in, output_tokens=n_out)
+        return TextResult(text=text, input_tokens=n_in, output_tokens=n_out)
 
     async def generate_structured(
         self,

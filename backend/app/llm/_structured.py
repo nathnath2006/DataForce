@@ -15,7 +15,7 @@ from typing import Literal, TypeVar
 from pydantic import BaseModel, ValidationError
 
 from app.config import Settings
-from app.domain.ports import UsageRecorder
+from app.domain.ports import ChatMessage, TextResult, UsageRecorder
 from app.llm.errors import LLMError
 from app.llm.usage import CallTimer, describe_exception, llm_slot
 
@@ -88,6 +88,53 @@ class StructuredLLM(ABC):
         self, *, system: str, user: str, schema: type[T], max_output_tokens: int
     ) -> RawCompletion:
         """One raw API call. Raise LLMError for non-retryable failures (refusal, truncation)."""
+
+    async def _complete_text(
+        self, *, system: str, messages: list[ChatMessage], max_output_tokens: int
+    ) -> RawCompletion:
+        """One raw conversation call (assistant). Implemented by the real providers."""
+        raise LLMError(f"{self.name}: text generation is not supported")
+
+    async def generate_text(
+        self,
+        *,
+        system: str,
+        messages: list[ChatMessage],
+        purpose: Literal["assistant", "connection_test"],
+        max_output_tokens: int = 800,
+    ) -> TextResult:
+        """`ChatProvider.generate_text`: conversation in, text out. One attempt, no retry."""
+        timer = CallTimer(self._usage, provider=self.name, model=self.model, purpose=purpose)
+        timeout_s = self._settings.llm_timeout_s
+        failure: str | None = None
+        raw: RawCompletion | None = None
+        try:
+            async with llm_slot(self._settings.llm_max_concurrency):
+                async with asyncio.timeout(timeout_s):
+                    raw = await self._complete_text(
+                        system=system, messages=messages, max_output_tokens=max_output_tokens
+                    )
+        except LLMError as exc:
+            timer.failure(str(exc))
+            raise
+        except TimeoutError:
+            failure = f"{self.name}: no response within {timeout_s:.0f}s"
+        except Exception as exc:  # label only: see generate_structured (SR2-15)
+            failure = f"{self.name}: request failed ({describe_exception(exc)})"
+        if failure is not None or raw is None:
+            failure = failure or f"{self.name}: no response"
+            timer.failure(failure)
+            raise LLMError(failure)
+        if raw.text is None or not raw.text.strip():
+            msg = f"{self.name}: empty response (finish_reason={raw.finish_reason})"
+            timer.failure(msg, input_tokens=raw.input_tokens, output_tokens=raw.output_tokens)
+            raise LLMError(msg)
+        timer.success(input_tokens=raw.input_tokens, output_tokens=raw.output_tokens)
+        return TextResult(
+            text=raw.text.strip(),
+            input_tokens=raw.input_tokens,
+            output_tokens=raw.output_tokens,
+        )
 
     async def _guarded_complete(
         self, *, system: str, user: str, schema: type[T], max_output_tokens: int

@@ -17,7 +17,14 @@ from app.domain.schemas import LLMCallRecord
 
 log = logging.getLogger(__name__)
 
-Purpose = Literal["title_classification", "theme_naming", "explanation", "embedding"]
+Purpose = Literal[
+    "title_classification",
+    "theme_naming",
+    "explanation",
+    "embedding",
+    "assistant",
+    "connection_test",
+]
 
 # One semaphore per event loop (an asyncio.Semaphore is bound to the loop that first waits on
 # it, and tests / `asyncio.run` create several loops in one process). Module-level so every

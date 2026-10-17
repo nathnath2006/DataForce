@@ -25,7 +25,7 @@ import anthropic
 from pydantic import BaseModel
 
 from app.config import Settings
-from app.domain.ports import UsageRecorder
+from app.domain.ports import ChatMessage, UsageRecorder
 from app.llm._structured import RawCompletion, StructuredLLM
 from app.llm.errors import LLMError, require_secret
 
@@ -40,8 +40,10 @@ SDK_MAX_RETRIES = 2  # SDK-level retries for 408/409/429/5xx and connection erro
 ANTHROPIC_BASE_URL = "https://api.anthropic.com"
 
 
-def make_anthropic_client(settings: Settings) -> anthropic.AsyncAnthropic:
-    key = require_secret(
+def make_anthropic_client(
+    settings: Settings, api_key: str | None = None
+) -> anthropic.AsyncAnthropic:
+    key = api_key or require_secret(
         settings.anthropic_api_key, "ANTHROPIC_API_KEY", needed_for="the Anthropic LLM provider"
     )
     return anthropic.AsyncAnthropic(
@@ -61,13 +63,36 @@ class AnthropicLLM(StructuredLLM):
         usage: UsageRecorder | None = None,
         *,
         client: anthropic.AsyncAnthropic | None = None,
+        api_key: str | None = None,
+        model: str | None = None,
     ) -> None:
         super().__init__(settings, usage)
-        self.model = settings.anthropic_model
-        self._client = client if client is not None else make_anthropic_client(settings)
+        self.model = model or settings.anthropic_model
+        self._client = (
+            client if client is not None else make_anthropic_client(settings, api_key=api_key)
+        )
 
     async def aclose(self) -> None:
         await self._client.close()
+
+    async def _complete_text(
+        self, *, system: str, messages: list[ChatMessage], max_output_tokens: int
+    ) -> RawCompletion:
+        response = await self._client.messages.create(
+            model=self.model,
+            max_tokens=max_output_tokens + THINKING_HEADROOM,
+            system=system,
+            messages=[{"role": m.role, "content": m.content} for m in messages],
+        )
+        if response.stop_reason == "refusal":
+            raise LLMError("anthropic: the model declined the request")
+        text = "".join(b.text for b in response.content if b.type == "text") or None
+        return RawCompletion(
+            text=text,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            finish_reason=response.stop_reason,
+        )
 
     async def _complete(
         self, *, system: str, user: str, schema: type[T], max_output_tokens: int
