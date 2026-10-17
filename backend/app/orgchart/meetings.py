@@ -66,7 +66,8 @@ def aliases(contacts: Sequence[ContactRef]) -> dict[str, uuid.UUID]:
             names.add(f"{tokens[0]} {tokens[-1]}")
         names.add(tokens[0])
         for name in names:
-            if len(name) >= 2:
+            # A first name alone needs 3+ letters (SR12-04); multi-word aliases keep >= 2.
+            if len(name) >= (2 if " " in name else 3):
                 seen.setdefault(name, set()).add(c.id)
     return {a: next(iter(ids)) for a, ids in seen.items() if len(ids) == 1}
 
@@ -161,6 +162,21 @@ def _compile(src: str, names_key: tuple[str, ...]) -> re.Pattern[str]:
 
 
 _BOUNDARY = ".!?\n"
+_NEXT_WORD = re.compile(r"[ \t]+(\S)")
+_HYPHEN_LETTER = re.compile(r"-[^\W\d_]")
+
+
+def _wrong_person(original: str, alias: str, start: int, end: int) -> bool:
+    """True when the matched alias is only part of a longer name in the ORIGINAL text:
+    "Marie Curie" (alias "marie"), "Jean-Pierre" (alias "jean"), "Anne-Marie" (alias "marie")."""
+    if _HYPHEN_LETTER.match(original, end):
+        return True
+    if start >= 2 and original[start - 1] == "-" and original[start - 2].isalpha():
+        return True
+    if " " in alias:
+        return False
+    nxt = _NEXT_WORD.match(original, end)
+    return nxt is not None and nxt.group(1).isalpha() and nxt.group(1).isupper()
 
 
 def _sentence_span(text: str, start: int, end: int) -> tuple[int, int]:
@@ -208,6 +224,13 @@ def extract(
             for m in rx.finditer(folded):
                 named = alias.get(re.sub(r"\s+", " ", m.group("name"))) if "{N}" in src else None
                 if "{N}" in src and named is None:
+                    continue
+                if "{N}" in src and _wrong_person(
+                    chunk.text,
+                    re.sub(r"\s+", " ", m.group("name")),
+                    m.start("name"),
+                    m.end("name"),
+                ):
                     continue
                 if kind == "reports_to":
                     if named == chunk.contact_id:

@@ -18,9 +18,11 @@ from app.orgchart import rules
 from app.services import contacts as contact_service
 from app.services import runs
 from app.services._common import require, require_account, require_user
-from app.services.errors import InvalidInputError
+from app.services.errors import AlreadyExistsError, InvalidInputError
 
 CONTRADICTS = "contradicts_current_link"
+AMBIGUOUS_KEY = "ambiguous"
+BASELINE = "baseline_manager_id"  # evidence key: the contact's manager when the proposal was made
 _OPEN = (ProposalStatus.PROPOSED.value, ProposalStatus.AMBIGUOUS.value)
 
 
@@ -38,19 +40,32 @@ def _blocked(session: Session, ws_id: uuid.UUID, account_id: uuid.UUID) -> set[t
     signals (already recorded)."""
     blocked: set[tuple] = set()
     rows = session.execute(
-        select(OrgProposal.contact_id, OrgProposal.kind, OrgProposal.manager_id, OrgProposal.status)
+        select(
+            OrgProposal.contact_id,
+            OrgProposal.kind,
+            OrgProposal.manager_id,
+            OrgProposal.status,
+            OrgProposal.candidates,
+        )
         .where(OrgProposal.workspace_id == ws_id, OrgProposal.account_id == account_id)
         .where(
             OrgProposal.status.in_([ProposalStatus.REJECTED.value, ProposalStatus.ACCEPTED.value])
         )
     )
-    for cid, kind, mid, status in rows:
+    for cid, kind, mid, status, cands in rows:
         if kind == ProposalKind.REPORTS_TO.value:
             if status == ProposalStatus.REJECTED.value:
-                blocked.add((cid, kind, mid))
+                if mid is None and cands:  # ambiguous: remembered per (contact, candidate set)
+                    blocked.add((cid, AMBIGUOUS_KEY, frozenset(cands)))
+                else:
+                    blocked.add((cid, kind, mid))
         else:
             blocked.add((cid, kind, None))
     return blocked
+
+
+def _baseline(manager_id: uuid.UUID | None) -> str | None:
+    return str(manager_id) if manager_id else None
 
 
 def _rule_rows(
@@ -58,13 +73,22 @@ def _rule_rows(
 ) -> list[dict[str, Any]]:
     rejected = [(c, m) for c, k, m in blocked if k == ProposalKind.REPORTS_TO.value and m]
     found = rules.propose_for_account(_people(contacts), rejected)
+    links = {c.id: c.reports_to_id for c in contacts}
+    found = [
+        f
+        for f in found
+        if not (
+            f.ambiguous
+            and (f.contact_id, AMBIGUOUS_KEY, frozenset(map(str, f.candidates))) in blocked
+        )
+    ]
     return [
         {
             "kind": ProposalKind.REPORTS_TO.value,
             "contact_id": f.contact_id,
             "manager_id": f.manager_id,
             "rule": f.rule,
-            "evidence": dict(f.evidence),
+            "evidence": {**f.evidence, BASELINE: _baseline(links.get(f.contact_id))},
             "candidates": [str(c) for c in f.candidates] or None,
             "status": (ProposalStatus.AMBIGUOUS if f.ambiguous else ProposalStatus.PROPOSED).value,
         }
@@ -123,7 +147,7 @@ def _meeting_rows(
                 "contact_id": f.contact_id,
                 "manager_id": f.manager_id,
                 "rule": rule,
-                "evidence": dict(f.evidence),
+                "evidence": {**f.evidence, BASELINE: _baseline(links.get(f.contact_id))},
                 "candidates": None,
                 "status": ProposalStatus.PROPOSED.value,
             }
@@ -260,6 +284,21 @@ def _open_proposal(session: Session, ws_id: uuid.UUID, proposal_id: uuid.UUID) -
     return proposal
 
 
+def _refuse_stale(session: Session, ws_id: uuid.UUID, proposal: OrgProposal, force: bool) -> None:
+    """409 when the contact's manager changed since the proposal was made (a manual edit must not
+    be overwritten silently). Null before and null now is the normal case. Proposals made before
+    the baseline was recorded are not checked."""
+    if force or BASELINE not in proposal.evidence:
+        return
+    contact = require(session, Contact, ws_id, proposal.contact_id)
+    now = _baseline(contact.reports_to_id)
+    if now != proposal.evidence[BASELINE]:
+        raise AlreadyExistsError(
+            "the contact's manager changed since this proposal was made "
+            "(send force=true to replace it)"
+        )
+
+
 def accept(
     session: Session,
     ws_id: uuid.UUID,
@@ -267,10 +306,12 @@ def accept(
     *,
     manager_id: uuid.UUID | None = None,
     by_id: uuid.UUID | None = None,
+    force: bool = False,
 ) -> OrgProposal:
     by = _decide_user(session, ws_id, by_id)
     proposal = _open_proposal(session, ws_id, proposal_id)
     if proposal.kind == ProposalKind.REPORTS_TO.value:
+        _refuse_stale(session, ws_id, proposal, force)
         if proposal.manager_id is None:  # ambiguous: the user picks among the candidates
             if manager_id is None:
                 raise InvalidInputError("manager_id is required to pick among the candidates")

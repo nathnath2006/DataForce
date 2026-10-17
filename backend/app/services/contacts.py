@@ -5,11 +5,12 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
-from app.db.models import Account, Contact, ContactChannel, Note
+from app.db.models import Account, Contact, ContactChannel, Note, OrgProposal
 from app.domain.schemas import ContactIn
+from app.services import documents
 from app.services._common import (
     LIKE_ESCAPE,
     erasure,
@@ -121,9 +122,41 @@ def org_chart(
 
 def erase_contact(session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID) -> None:
     """The "1-click delete": the contact and, by cascade, their notes. People who reported to
-    them lose their manager link (FK SET NULL)."""
-    require_contact(session, ws_id, contact_id)
+    them lose their manager link (FK SET NULL). Never blocked: the proposals that involve them
+    are deleted first and the `reports_to_proposal_id` pointers cleared (SR12-01: the FK SET NULL
+    re-checked a pointer to a proposal the same cascade had just removed). Their turns and name
+    are redacted from the transcripts in the same transaction (SR12-03)."""
+    contact = require_contact(session, ws_id, contact_id)
     with erasure(session):
+        involved = (
+            select(OrgProposal.id)
+            .where(
+                OrgProposal.workspace_id == ws_id,
+                or_(OrgProposal.contact_id == contact_id, OrgProposal.manager_id == contact_id),
+            )
+            .scalar_subquery()
+        )
+        session.execute(
+            update(Contact)
+            .where(Contact.workspace_id == ws_id, Contact.reports_to_proposal_id.in_(involved))
+            .values(reports_to_proposal_id=None)
+            .execution_options(synchronize_session=False)
+        )
+        # Ambiguous proposals that list them as a candidate would keep a dangling id.
+        session.execute(
+            delete(OrgProposal)
+            .where(
+                OrgProposal.workspace_id == ws_id,
+                or_(
+                    OrgProposal.contact_id == contact_id,
+                    OrgProposal.manager_id == contact_id,
+                    OrgProposal.candidates.contains([str(contact_id)]),
+                ),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        session.flush()
+        documents.redact_contact(session, ws_id, contact)
         session.execute(
             delete(Contact)
             .where(Contact.id == contact_id, Contact.workspace_id == ws_id)

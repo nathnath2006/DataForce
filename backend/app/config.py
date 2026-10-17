@@ -299,6 +299,7 @@ class Settings(BaseSettings):
     # --- M2b: titles, transcripts, themes ---------------------------------------------------
     # AI title classifications per normalisation run (unknown titles only, then cached).
     titles_max_llm_calls_per_run: int = Field(default=200, ge=0, le=5_000)
+    titles_max_llm_calls_per_day: int = Field(default=1_000, ge=0, le=50_000)  # per workspace
     transcript_max_bytes: int = Field(default=5 * 1024 * 1024, ge=1024, le=50 * 1024 * 1024)
     transcript_max_pages: int = Field(default=300, ge=1, le=2_000)  # PDF
     transcript_max_chars: int = Field(default=1_000_000, ge=1_000, le=10_000_000)

@@ -77,7 +77,9 @@ def accept(
     proposal_id: uuid.UUID, db: Db, ws: CurrentWorkspace, body: AcceptIn | None = None
 ) -> ProposalOut:
     body = body or AcceptIn()
-    row = org_proposals.accept(db, ws.id, proposal_id, manager_id=body.manager_id, by_id=body.by_id)
+    row = org_proposals.accept(
+        db, ws.id, proposal_id, manager_id=body.manager_id, by_id=body.by_id, force=body.force
+    )
     db.commit()
     return _out(db, ws.id, [row])[0]
 

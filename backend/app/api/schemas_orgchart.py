@@ -32,6 +32,7 @@ class ProposeOut(BaseModel):
 class AcceptIn(_In):
     manager_id: UUID | None = None
     by_id: UUID | None = None
+    force: bool = False  # replace a manager set since the proposal was made
 
 
 class RejectIn(_In):

@@ -134,3 +134,26 @@ def test_offsets_not_matching_document_are_dropped():
 def test_fold_keeps_length():
     s = "Zoé œuvre à l’ONU – İstanbul ß"
     assert len(meetings.fold(s)) == len(s)
+
+
+# --- SR12-04: a first name never matches a longer, different name ------------------------------
+def test_first_name_does_not_match_longer_names():
+    only = [
+        ContactRef(ANA, "Ana Dupont"),
+        ContactRef(MARIE_A, "Marie Dupont"),
+        ContactRef(BOB, "Jean Dupont"),
+    ]
+
+    def found(text):
+        doc = "Ana: " + text
+        chunk = ChunkRec(DOC, uuid.uuid4(), "Ana", ANA, 5, len(doc), text)
+        return [f.manager_id for f in meetings.extract([chunk], only, {DOC: doc})]
+
+    assert found("My manager is Marie Curie.") == []
+    assert found("I report to Jean-Pierre Martin.") == []
+    assert found("I report to Anne-Marie Roux.") == []
+    assert found("I report to Marie Dupont.") == [MARIE_A]
+    assert found("I report to Marie.") == [MARIE_A]
+    assert found("Je reporte à Marie, depuis un an.") == [MARIE_A]
+    assert found("I report to Jean Dupont-Martin.") == []
+    assert found("I report to Jean. Then we met.") == [BOB]

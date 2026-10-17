@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import io
+import time
 import uuid
 
 import pytest
 from pypdf import PdfWriter
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 from app.transcripts import importer
 from app.transcripts.names import Candidate, match_speaker
@@ -44,14 +46,82 @@ def test_pdf_encrypted_pages_chars_notpdf():
         importer.extract("a.exe", b"x", **KW)
 
 
-def test_pdf_with_text_and_char_cap(monkeypatch):
-    from pypdf import PageObject
+def text_pdf(content: bytes, pages: int = 1, compress: bool = False) -> bytes:
+    """A PDF whose pages share one content stream (like the SR12 heavy-page probe)."""
+    w = PdfWriter()
+    font = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }
+    )
+    fref = w._add_object(font)
+    stream = DecodedStreamObject()
+    stream.set_data(content)
+    if compress:
+        stream = stream.flate_encode()
+    sref = w._add_object(stream)
+    for _ in range(pages):
+        page = w.add_blank_page(612, 792)
+        page[NameObject("/Resources")] = DictionaryObject(
+            {NameObject("/Font"): DictionaryObject({NameObject("/F1"): fref})}
+        )
+        page[NameObject("/Contents")] = sref
+    buf = io.BytesIO()
+    w.write(buf)
+    return buf.getvalue()
 
-    monkeypatch.setattr(PageObject, "extract_text", lambda self, *a, **k: "Marie: bonjour " * 50)
-    out = importer.extract("a.pdf", pdf_bytes(pages=2), **KW)
+
+def test_pdf_with_text_and_char_cap():
+    data = text_pdf(b"BT /F1 12 Tf 10 700 Td (Marie: bonjour) Tj ET", pages=2)
+    out = importer.extract("a.pdf", data, **KW)
     assert out.text.startswith("Marie: bonjour") and out.media_type == "application/pdf"
     with pytest.raises(importer.ImportRefused, match="characters"):
-        importer.extract("a.pdf", pdf_bytes(pages=2), **{**KW, "max_chars": 500})
+        importer.extract("a.pdf", data, **{**KW, "max_chars": 20})
+
+
+def test_pdf_heavy_page_refused_within_budget(monkeypatch):
+    """SR12-02: 3 M text operators held a worker for 205 s; the child is killed at the budget."""
+    monkeypatch.setattr(importer, "PDF_TIME_BUDGET_S", 3.0)
+    heavy = text_pdf(b"BT /F1 12 Tf (a) Tj ET\n" * 3_000_000, compress=True)
+    assert len(heavy) < 1_000_000
+    t0 = time.monotonic()
+    with pytest.raises(importer.ImportRefused):
+        importer.extract("a.pdf", heavy, **{**KW, "max_pages": 300, "max_chars": 1_000_000})
+    assert time.monotonic() - t0 < 10
+
+
+def test_pdf_worker_failure_modes(monkeypatch):
+    import subprocess
+
+    def boom(*a, **k):
+        raise subprocess.TimeoutExpired("x", 1)
+
+    monkeypatch.setattr(subprocess, "run", boom)
+    with pytest.raises(importer.ImportRefused, match="too long"):
+        importer.extract("a.pdf", pdf_bytes(), **KW)
+
+    class R:
+        stdout = b"not json"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: R())
+    with pytest.raises(importer.ImportRefused, match="could not be read"):
+        importer.extract("a.pdf", pdf_bytes(), **KW)
+
+
+def test_clean_text_strips_format_and_bidi_controls():
+    nasty = (
+        "a\u2066b\u2067c\u2068d\u2069e\u202ef\u200eg\u200fh"
+        "\u061ci\u00adj\u180ek\U000e0041l\x07m\x85n"
+    )
+    assert importer.clean_text(nasty) == "abcdefghijklmn"
+    assert importer.clean_text("a\u2028b\tc\nd") == "a\nb c\nd"
+    # Controls go BEFORE offsets: chunks index the cleaned text.
+    t = importer.clean_text("Bob\u202e: salut\u2066 tout\nPaul: ok")
+    assert t == "Bob: salut tout\nPaul: ok"
+    assert all(t[c.start : c.end] == c.text for c in chunk_text(t))
+    assert importer.clean_text(t) == t
 
 
 def test_markdown_and_latin1():
@@ -94,6 +164,15 @@ def test_name_matching():
     assert match_speaker("dupont marie", contacts, users).id == a
     assert match_speaker("Marie", contacts, users) is None  # ambiguous
     assert match_speaker("M. Dupont", contacts, users).id == a
+    # SR12-04/05: last name required; no initials-only; first name alone only if unique.
+    assert match_speaker("Marie Curie", contacts, users) is None
+    assert match_speaker("Jean-Pierre", [Candidate(a, "Jean Dupont")], []) is None
+    assert match_speaker("Jean-Pierre Martin", [Candidate(a, "Jean Dupont")], []) is None
+    assert match_speaker("P. D.", [Candidate(a, "Paul Durand")], []) is None
+    assert match_speaker("I", [Candidate(a, "Isabelle Roux")], []) is None
+    assert match_speaker("Durand", [Candidate(a, "Paul Durand")], []) is None
+    assert match_speaker("Paul", [Candidate(a, "Paul Durand")], []).id == a
+    assert match_speaker("Paul", [Candidate(a, "Paul Durand")], [Candidate(c, "Paul Roux")]) is None
     m = match_speaker("eric martin", contacts, users)
     assert m.kind == "user" and m.id == c
     assert match_speaker("Zed", contacts, users) is None

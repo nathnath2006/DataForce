@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import threading
+import time
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -25,6 +27,51 @@ FLAG_NO_AI = "unknown title (no AI model configured)"
 FLAG_AI_CAPPED = "unknown title (AI call limit reached)"
 FLAG_AI_FAILED = "unknown title (AI call failed)"
 FLAG_UNKNOWN = "unknown title"
+
+
+# In-memory AI budget (process-wide, per workspace): a daily call cap on top of the per-run cap
+# (SR12-09), and a short negative cache so a title the provider failed on is not retried.
+FAILURE_TTL_S = 3_600.0
+_LOCK = threading.Lock()
+_DAILY: dict[tuple[uuid.UUID, int], int] = {}
+_FAILED: dict[tuple[uuid.UUID, str], float] = {}
+
+
+def reset_ai_limits() -> None:
+    with _LOCK:
+        _DAILY.clear()
+        _FAILED.clear()
+
+
+def _day() -> int:
+    return int(time.time() // 86_400)
+
+
+def _daily_remaining(ws_id: uuid.UUID, settings: Settings) -> int:
+    cap = settings.titles_max_llm_calls_per_day
+    with _LOCK:
+        for key in [k for k in _DAILY if k[1] != _day()]:
+            del _DAILY[key]
+        return max(0, cap - _DAILY.get((ws_id, _day()), 0))
+
+
+def _spend(ws_id: uuid.UUID, n: int) -> None:
+    with _LOCK:
+        _DAILY[(ws_id, _day())] = _DAILY.get((ws_id, _day()), 0) + n
+
+
+def _recently_failed(ws_id: uuid.UUID, title: str) -> bool:
+    with _LOCK:
+        at = _FAILED.get((ws_id, title))
+        if at is not None and time.monotonic() - at > FAILURE_TTL_S:
+            del _FAILED[(ws_id, title)]
+            return False
+        return at is not None
+
+
+def _remember_failure(ws_id: uuid.UUID, title: str) -> None:
+    with _LOCK:
+        _FAILED[(ws_id, title)] = time.monotonic()
 
 
 def _apply(contact: Contact, cls: TitleClass) -> None:
@@ -100,21 +147,25 @@ def normalize_workspace(
         {cls.normalized for _, cls in todo if cls.source == "none" and cls.normalized}
     )
     to_ask = [t for t in unresolved if t not in cache]
+    failed: set[str] = {t for t in to_ask if _recently_failed(ws_id, t)}
+    to_ask = [t for t in to_ask if t not in failed]
 
     provider = _open_provider(session, ws_id, settings, factory) if use_ai else None
     ai_configured = llm_settings.get_credential(session, ws_id) is not None
     llm_calls = 0
-    failed: set[str] = set()
     capped: set[str] = set()
     if provider is not None and to_ask:
-        batch = to_ask[: settings.titles_max_llm_calls_per_run]
+        allowance = min(settings.titles_max_llm_calls_per_run, _daily_remaining(ws_id, settings))
+        batch = to_ask[:allowance]
         capped = set(to_ask[len(batch) :])
         if batch:
             results = asyncio.run(_run_ai(provider, batch))
             llm_calls = len(batch)
+            _spend(ws_id, llm_calls)
             for title, answer in results:
                 if answer is None:
                     failed.add(title)
+                    _remember_failure(ws_id, title)
                     continue
                 row = TitleCache(
                     workspace_id=ws_id,
