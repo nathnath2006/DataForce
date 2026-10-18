@@ -74,3 +74,32 @@ def test_missing_and_unknown():
     assert (c.function.value, c.seniority.value, c.flag) == ("unknown", "unknown", "no title")
     c = classify_title("Astronaute")
     assert c.source == "none" and c.flag == "unknown title" and not c.matched
+
+
+def test_methods_review_followups():
+    from app.titles.classify import classify_title
+
+    def c(t):
+        r = classify_title(t)
+        return r.function.value, r.seniority.value
+
+    for t, f in [
+        ("Chief Financial Officer", "finance"), ("Chief Revenue Officer", "sales"),
+        ("Chief Product Officer", "tech"), ("Chief Operating Officer", "operations"),
+        ("Chief Technology Officer", "tech"), ("Chief People Officer", "hr"),
+        ("Chief Data Officer", "tech"), ("CRO", "sales"), ("CCO", "sales"),
+    ]:  # fmt: skip
+        assert c(t) == (f, "c_level"), t
+    assert c("DRH") == ("hr", "c_level")
+    assert c("Directrice des Ressources Humaines") == ("hr", "head")
+    assert c("HR Director") == ("hr", "head")
+    for t in ("Account Manager", "Key Account Manager", "KAM"):
+        assert c(t) == ("sales", "individual"), t
+    assert c("Sales Manager") == ("sales", "manager")
+    assert c("Product Manager") == ("tech", "individual")
+    assert c("Community Manager")[1] == "individual"
+    assert c("Customer Success Manager")[1] == "individual"
+    assert c("Head of Product") == ("tech", "head")
+    assert c("Acheteur")[0] == "operations"
+    assert c("Responsable des Achats") == ("operations", "manager")
+    assert c("Trésorier")[0] == "finance"

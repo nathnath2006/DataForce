@@ -143,3 +143,24 @@ def test_filler_topics_dropped():
     except ThemeError:
         return
     assert all("interessant" not in th.top_terms for th in res.themes)
+
+
+def _themes(text):
+    from app.themes.lexicon import match_known
+
+    return {f.id for f in match_known([text]).found}
+
+
+def test_context_rules_remove_false_positives():
+    assert "integration" not in _themes("Une nouvelle intégration de stagiaires aura lieu.")
+    assert "integration" not in _themes("L'intégration des nouveaux collaborateurs est lundi.")
+    assert "support" not in _themes("Le support de présentation est joint.")
+    assert "support" not in _themes("Le support de cours est joint.")
+    assert "support" not in _themes("I support your decision completely.")
+    assert "price" not in _themes("Le coût de la vie à Paris est dingue.")
+    assert "price" not in _themes("Budget meeting at three.")
+    assert "legal" not in _themes("She has a legal background.")
+    # the general terms still match
+    assert "integration" in _themes("We need an integration with Salesforce.")
+    assert "support" in _themes("What support do you offer?")
+    assert "price" in _themes("The price is too high.")

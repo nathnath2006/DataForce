@@ -157,3 +157,13 @@ def test_first_name_does_not_match_longer_names():
     assert found("Je reporte à Marie, depuis un an.") == [MARIE_A]
     assert found("I report to Jean Dupont-Martin.") == []
     assert found("I report to Jean. Then we met.") == [BOB]
+
+
+def test_conditional_report_statement_is_refused():
+    import re
+
+    from app.orgchart.meetings import _HYPOTHETICAL
+
+    assert _HYPOTHETICAL.search("if i report to paul, he will say no")
+    assert _HYPOTHETICAL.search("si je reporte a paul")
+    assert not re.search(_HYPOTHETICAL, "i report to paul")

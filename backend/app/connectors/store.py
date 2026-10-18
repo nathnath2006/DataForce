@@ -124,7 +124,10 @@ def delete_credential(session: Session, ws_id: uuid.UUID) -> None:
 
 
 def purge_expired_pending(session: Session) -> int:
-    result = session.execute(delete(OAuthPending).where(OAuthPending.expires_at < func.now()))
+    # The app's clock both sets (create_pending) and checks expiry: the database clock can drift
+    # (a Docker VM after the laptop slept), and mixing the two made expiry flaky.
+    now = datetime.now(UTC)
+    result = session.execute(delete(OAuthPending).where(OAuthPending.expires_at < now))
     return result.rowcount or 0
 
 

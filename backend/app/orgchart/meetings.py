@@ -73,6 +73,11 @@ def aliases(contacts: Sequence[ContactRef]) -> dict[str, uuid.UUID]:
 
 
 _S = r"\s+"
+# A conditional or hypothetical word earlier in the same sentence ("If I report to Paul, ...")
+# means the statement is not an assertion.
+_HYPOTHETICAL = re.compile(
+    r"\b(?:if|si|unless|whether|suppose|supposing|imagine|what if|when|quand|lorsque|au cas ou)\b"
+)
 
 # (id, kind, subject, regex source with {N} for the name). subject: "speaker" = first person,
 # "name" = the person named, "name_manager" = speaker/name pairs for reports_to.
@@ -242,6 +247,8 @@ def extract(
                     assert named is not None
                     contact_id, manager_id = named, None
                 s, e = _sentence_span(chunk.text, m.start(), m.end())
+                if _HYPOTHETICAL.search(folded[s : m.start()]):
+                    continue
                 start, end = chunk.char_start + s, chunk.char_start + e
                 excerpt = chunk.text[s:e]
                 if not excerpt or doc_text[start:end] != excerpt:

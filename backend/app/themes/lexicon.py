@@ -43,14 +43,18 @@ def _rx(src: str) -> re.Pattern[str]:
 
 
 _PRICE = (
-    r"\b(?:prix|prices?|priced|pricing|tarifs?|tarification|couts?|couteu\w+|costs?|costly"
-    r"|chers?(?!\s+(?:monsieur|madame|client|collegue|ami))|cheres?|expensive|cheap(?:er)?"
+    r"\b(?:prix|prices?|priced|pricing|tarifs?|tarification|couts?(?!\s+de\s+la\s+vie)|couteu\w+"
+    r"|costs?(?!-)(?!\s+of\s+living)|costly"
+    r"|chers?(?!\s+(?:monsieur|madame|client|collegue|ami))|cheres?|expensive(?!-)|cheap(?:er)?"
     r"|remises?|discounts?|reductions?)\b"
-    r"|\bbudgets?\b(?!\s+(?:gel|freeze|freezes))(?<!gel des budget)(?<!gel du budget)"
+    r"|\bbudgets?\b(?!\s+(?:gel|freeze|freezes|meeting|photo|vacances))"
+    r"(?<!gel des budget)(?<!gel du budget)"
     r"(?<!gel des budgets)(?<!gel du budgets)(?<!gel de budget)(?<!gel de budgets)"
 )
 _COMPETITOR = (
-    r"\b(?:concurren\w+|competitors?|competition|competitive|alternatives?|rivals?"
+    r"\b(?:concurren\w+|competitors?|competition(?!\s+(?:en|de)\s+(?:athletisme|natation|sport|ski))"
+    r"|competitive(?!\s+(?:football|soccer|sports?|swimming|league|running|athletics))"
+    r"|alternatives?|rivals?"
     r"|offres? similaires?|similar (?:offers?|products?|solutions?|tools?)"
     r"|versus|vs"
     r"|(?:other|another|autres?) (?:vendors?|editeurs?|fournisseurs?|providers?|vendeurs?))\b"
@@ -58,33 +62,42 @@ _COMPETITOR = (
     r"(?!\s+(?:ce|ca|what|how|last|our|notre|nos|l|la|le|les|the|my|mon|ma)\b)"
 )
 _SECURITY = (
-    r"\b(?:securite|security|secure|rgpd|gdpr|hebergement\w*|heberge\w*|hosting|hosted"
+    r"\b(?:securite(?!\s+(?:routiere|sociale|de\s+l'emploi))|security|secure|rgpd|gdpr|hebergement\w*|heberge\w*|hosting|hosted"
     r"|conformite|compliance|compliant|conformes?|soc ?2|iso ?27001"
     r"|donnees personnelles|personal data|dpo|rssi|ciso|chiffrement|encryption)\b"
 )
 _INTEGRATION = (
-    r"\b(?:integrations?|integrer|integre\w*|integrate\w*|apis?|connecteurs?|connectors?"
+    r"\b(?:integrations?(?!\s+(?:d'|de\s+|des\s+)(?:nouveau\w*|stagiaires?|collaborat\w+|salaries?"
+    r"|employes?|recrues?|apprentis?|alternants?|equipes?|personnel)"
+    r"|\s+of\s+(?:new\s+(?:hires?|employees?|staff|joiners?|team\s+members?|recruits?)"
+    r"|(?:the\s+)?(?:two|both|three)\b))|integrer|integre\w*|integrate\w*|apis?|connecteurs?|connectors?"
     r"|synchronisations?|synchroniser|sync|salesforce|hubspot|crm|erp|webhooks?"
     r"|imports?|exports?|importer|exporter)\b"
 )
 _TIMING = (
     r"\bgel (?:des |du |de )?budget\w*|\bbudget (?:freeze|gel)\w*|\bpas avant\b|\bnot before\b"
     r"|\bprochain trimestre\b|\bnext (?:quarter|year|month)\b"
-    r"|\b(?:postpone\w*|delay\w*|retard\w*|decale\w*|suspendu\w*|reportees?)\b"
+    r"|\b(?:postpone\w*|delay\w*(?!\s+on\s+the\s+(?:train|bus|flight|metro))|retard\w*|decale\w*|suspendu\w*|reportees?)\b"
     r"|\breport(?:e|er|ons|ez) (?:le|la|les|ce|cette|notre|ca|au|apres|a plus tard)\b"
     r"|\bcalendrier (?:de|du) (?:lancement|deploiement|mise|projet|livraison|migration)\b"
-    r"|\btimeline\b|\bfin d'annee\b"
+    r"|\btimeline\b(?!\s+(?:linkedin|facebook|instagram|twitter))|\bfin d'annee\b"
     r"|\bend of (?:the )?(?:year|quarter)\b|\bon hold\b|\bpushed back\b"
 )
 _LEGAL = (
-    r"\b(?:contrats?|contracts?|juridique|legal|clauses?|dpa|conditions generales"
+    r"\b(?:contrats?(?!\s+de\s+travail)|contracts?|juridique|legal(?!\s+(?:background|degree|career|studies))"
+    r"|clauses?|dpa|conditions generales"
     r"|terms and conditions|terms of (?:service|use)|cgv|cgu)\b"
 )
 _ONBOARDING = (
     r"\b(?:formations?|training|onboarding|deploiement|rollout|roll-out|accompagnement"
     r"|mise en route|go-live)\b"
 )
-_SUPPORT = r"\b(?:support|sla|assistance|hotline|helpdesk|temps de reponse|response time)\b"
+_SUPPORT = (
+    r"(?<!\bi )(?<!\bi fully )\b(?:support"
+    r"(?!\s+(?:de|du|d')\s*(?:presentation|cours|communication|vente|formation|marketing)\b)"
+    r"(?!\s+(?:your|his|her|their)\s+(?:decision|choice|idea|opinion))"
+    r"|sla|assistance|hotline|helpdesk|temps de reponse|response time)\b"
+)
 
 CATALOG: tuple[KnownDef, ...] = tuple(
     KnownDef(i, label, kind.value, desc, _rx(src))
