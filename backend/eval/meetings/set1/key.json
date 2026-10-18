@@ -1,0 +1,502 @@
+[
+ {
+  "file": "01.md",
+  "account": "Ulmaris Technologies",
+  "language": "fr",
+  "topics": [
+   "price",
+   "integration",
+   "onboarding"
+  ],
+  "decoys": [
+   "support de présentation"
+  ],
+  "reports_to": [
+   {
+    "contact": "Jade Bramwell-Ode",
+    "manager": "Corentin T. Quercival",
+    "sentence": "moi je suis rattachée directement à Corentin T. Quercival, le PDG"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Corentin T. Quercival",
+    "kind": "decision_maker",
+    "sentence": "c'est Corentin T. Quercival qui tranche, pas moi."
+   },
+   {
+    "contact": "Jade Bramwell-Ode",
+    "kind": "champion",
+    "sentence": "Je vais défendre le projet en interne auprès de la direction."
+   },
+   {
+    "contact": "Tiphaine Montbelair",
+    "kind": "blocker",
+    "sentence": "Tiphaine Montbelair n'est pas convaincue par le ROI"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "02.txt",
+  "account": "Fabrion Capital",
+  "language": "fr",
+  "topics": [
+   "price",
+   "competitor",
+   "legal"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Marlowe Dalmasse",
+    "manager": "Imogen Bramwell-Ode",
+    "sentence": "Imogen Bramwell-Ode, mon N+1, valide tout ce qui touche aux outils commerciaux"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Marlowe Dalmasse",
+    "kind": "champion",
+    "sentence": "Moi je vais pousser ce dossier en interne, promis"
+   },
+   {
+    "contact": "Axelle Greywell",
+    "kind": "blocker",
+    "sentence": "Axelle Greywell est plutôt réticente"
+   },
+   {
+    "contact": "Axelle R. Wexcombe",
+    "kind": "decision_maker",
+    "sentence": "la décision finale revient à Axelle R. Wexcombe, notre CEO"
+   }
+  ],
+  "org_decoys": [
+   "Franchement, si je reportais à Axelle Greywell, on aurait déjà abandonné le projet, haha."
+  ]
+ },
+ {
+  "file": "03.md",
+  "account": "Nivelle Logistique",
+  "language": "fr",
+  "topics": [
+   "security",
+   "integration",
+   "timing"
+  ],
+  "decoys": [
+   "l'intégration d'un nouveau collaborateur",
+   "budget de l'événement interne"
+  ],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Océane Roussevel",
+    "kind": "decision_maker",
+    "sentence": "Océane Roussevel signe tous les contrats supérieurs à cinq mille euros"
+   }
+  ],
+  "org_decoys": [
+   "mon ancien patron, Étienne Marchal, m'avait dit la même chose sur ce genre d'outil"
+  ]
+ },
+ {
+  "file": "04.txt",
+  "account": "Alderon Group",
+  "language": "en",
+  "topics": [
+   "price",
+   "competitor",
+   "support"
+  ],
+  "decoys": [
+   "We price our own products weekly"
+  ],
+  "reports_to": [
+   {
+    "contact": "Fenwick Moriceau-Daul",
+    "manager": "Maëlle Penhallow",
+    "sentence": "I work under Maëlle Penhallow, she runs the whole sales team"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Maëlle Penhallow",
+    "kind": "champion",
+    "sentence": "I'll push this internally"
+   },
+   {
+    "contact": "Wilhelmina Calderwick",
+    "kind": "blocker",
+    "sentence": "Our CMO, Wilhelmina Calderwick, is against it for now"
+   },
+   {
+    "contact": "Noémie Roussevel",
+    "kind": "decision_maker",
+    "sentence": "the final call is with Noémie Roussevel"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "05.md",
+  "account": "Syndrome Industries",
+  "language": "fr",
+  "topics": [
+   "security",
+   "legal",
+   "timing"
+  ],
+  "decoys": [
+   "support de présentation"
+  ],
+  "reports_to": [
+   {
+    "contact": "Aurélien Greywell",
+    "manager": "Valère R. Pellegrand",
+    "sentence": "Valère R. Pellegrand, mon N+1, a déjà validé le principe"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Basile Casterel",
+    "kind": "blocker",
+    "sentence": "Je suis contre, franchement, tant que le gel budgétaire n'est pas levé."
+   },
+   {
+    "contact": "Wilhelmina Fairbourne",
+    "kind": "decision_maker",
+    "sentence": "C'est Wilhelmina Fairbourne qui signe, de toute façon"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "06.txt",
+  "account": "Jovance Retail",
+  "language": "en",
+  "topics": [
+   "integration",
+   "onboarding"
+  ],
+  "decoys": [
+   "the legal team at our other company is great"
+  ],
+  "reports_to": [
+   {
+    "contact": "Tabitha Dalmasse",
+    "manager": "Imogen T. Penhallow",
+    "sentence": "I report directly into Imogen T. Penhallow"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Callum Ferrandaz",
+    "kind": "champion",
+    "sentence": "I'll push this internally"
+   },
+   {
+    "contact": "Aurélien Ankerwood",
+    "kind": "decision_maker",
+    "sentence": "the final call is with Aurélien Ankerwood"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "07.txt",
+  "account": "Helvora Partners 68",
+  "language": "fr",
+  "topics": [
+   "price",
+   "competitor",
+   "timing"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Basile Moriceau-Daul",
+    "manager": "Aurélien Valmorin",
+    "sentence": "Moi je suis rattaché à Aurélien Valmorin pour tout ce qui est reporting commercial"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Thaddeus P. Thistlegrove",
+    "kind": "decision_maker",
+    "sentence": "C'est moi qui arbitre les renouvellements, avec l'accord d'Odette Roussevel."
+   },
+   {
+    "contact": "Odette Roussevel",
+    "kind": "blocker",
+    "sentence": "Odette Roussevel n'est pas convaincue"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "08.md",
+  "account": "Dorvane Retail",
+  "language": "en",
+  "topics": [
+   "security",
+   "legal"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Valère Bramwell-Ode",
+    "manager": "Imogen Z. Ferrandaz",
+    "sentence": "My boss, Imogen Z. Ferrandaz, wants the DPA reviewed first"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Gaspard Dalmasse",
+    "kind": "blocker",
+    "sentence": "Right now I'm against signing the three-year version."
+   },
+   {
+    "contact": "Valère Bramwell-Ode",
+    "kind": "champion",
+    "sentence": "I'm going to champion this with the leadership team"
+   },
+   {
+    "contact": "Tabitha Strathmoor",
+    "kind": "decision_maker",
+    "sentence": "Tabitha Strathmoor, as CEO, but she follows our recommendation"
+   }
+  ],
+  "org_decoys": [
+   "if I reported to Tabitha Strathmoor on every single decision, we'd never ship anything"
+  ]
+ },
+ {
+  "file": "09.txt",
+  "account": "Elysor Santé",
+  "language": "fr",
+  "topics": [
+   "price",
+   "competitor",
+   "security",
+   "support"
+  ],
+  "decoys": [
+   "support de présentation"
+  ],
+  "reports_to": [
+   {
+    "contact": "Ingrid Wexcombe",
+    "manager": "Wilhelmina Hartlemoor",
+    "sentence": "Wilhelmina Hartlemoor, c'est ma directrice, je suis dans son équipe"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Valère Quercival",
+    "kind": "blocker",
+    "sentence": "Notre CFO est contre, Valère Quercival a refusé l'enveloppe pour cet exercice."
+   },
+   {
+    "contact": "Odette E. Thistlegrove",
+    "kind": "decision_maker",
+    "sentence": "c'est Odette E. Thistlegrove qui signe"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "10.txt",
+  "account": "Dorvane Systèmes",
+  "language": "en",
+  "topics": [
+   "integration",
+   "onboarding",
+   "support"
+  ],
+  "decoys": [
+   "The budget for our internal offsite"
+  ],
+  "reports_to": [
+   {
+    "contact": "Roxane Merriwick",
+    "manager": "Noémie Oakenshaw",
+    "sentence": "Noémie Oakenshaw, my boss, signed off on the pilot scope"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Noémie Oakenshaw",
+    "kind": "champion",
+    "sentence": "I'll push this internally with Evrard G. Ferrandaz"
+   },
+   {
+    "contact": "Evrard G. Ferrandaz",
+    "kind": "decision_maker",
+    "sentence": "The final call is with Evrard G. Ferrandaz."
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "11.md",
+  "account": "Gravina Industries",
+  "language": "fr",
+  "topics": [
+   "competitor",
+   "integration",
+   "legal"
+  ],
+  "decoys": [
+   "budget de l'événement interne"
+  ],
+  "reports_to": [
+   {
+    "contact": "Odette Pellegrand",
+    "manager": "Callum Hartlemoor",
+    "sentence": "Callum Hartlemoor, mon N+1, m'a demandé de préparer la grille de mapping"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Tabitha Montbelair",
+    "kind": "blocker",
+    "sentence": "Tabitha n'est pas convaincue par la partie reporting"
+   },
+   {
+    "contact": "Noémie Casterel",
+    "kind": "decision_maker",
+    "sentence": "C'est Noémie Casterel qui signe"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "12.md",
+  "account": "Alderon Group 64",
+  "language": "en",
+  "topics": [
+   "price",
+   "timing"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Rosalind Q. Fairbourne",
+    "manager": "Fenwick Calderwick",
+    "sentence": "I work under Fenwick Calderwick"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Liora S. Bramwell-Ode",
+    "kind": "blocker",
+    "sentence": "our CFO, Liora S. Bramwell-Ode, is against it for this budget cycle"
+   },
+   {
+    "contact": "Harriet Strathmoor",
+    "kind": "decision_maker",
+    "sentence": "The final call is with Harriet Strathmoor, our CEO."
+   },
+   {
+    "contact": "Fenwick Calderwick",
+    "kind": "champion",
+    "sentence": "I'm happy to defend it"
+   }
+  ],
+  "org_decoys": [
+   "if I reported to Callum P. Quercival, I'd have more room for marketing tools"
+  ]
+ },
+ {
+  "file": "13.txt",
+  "account": "Kestrial Capital",
+  "language": "fr",
+  "topics": [
+   "price",
+   "support"
+  ],
+  "decoys": [
+   "support de présentation"
+  ],
+  "reports_to": [
+   {
+    "contact": "Marlowe Oakenshaw",
+    "manager": "Odilon Bramwell-Ode",
+    "sentence": "C'est Odilon Bramwell-Ode qui gère mon équipe"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Marlowe Oakenshaw",
+    "kind": "champion",
+    "sentence": "Je vais défendre le renouvellement en interne"
+   },
+   {
+    "contact": "Noémie Hartlemoor",
+    "kind": "decision_maker",
+    "sentence": "c'est Noémie Hartlemoor qui signe"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "14.md",
+  "account": "Gravina Conseil",
+  "language": "en",
+  "topics": [
+   "security",
+   "integration"
+  ],
+  "decoys": [],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Harriet Moriceau-Daul",
+    "kind": "champion",
+    "sentence": "I'll push this internally"
+   },
+   {
+    "contact": "Jade Valmorin",
+    "kind": "decision_maker",
+    "sentence": "The final call is with Jade Valmorin, our DG"
+   }
+  ],
+  "org_decoys": [
+   "I used to work with a manager, Peter Lang, who hated any tool that touched personal data."
+  ]
+ },
+ {
+  "file": "15.txt",
+  "account": "Elysor Labs",
+  "language": "fr",
+  "topics": [
+   "price",
+   "integration",
+   "onboarding"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Rosalind Bramwell-Ode",
+    "manager": "Lachlan Roussevel",
+    "sentence": "Moi, je suis rattachée à Lachlan Roussevel, c'est mon N+1"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Bryce Hautecourt",
+    "kind": "champion",
+    "sentence": "Je vais pousser le dossier en interne"
+   },
+   {
+    "contact": "Tiphaine Brouvenne",
+    "kind": "decision_maker",
+    "sentence": "C'est Tiphaine Brouvenne qui décide, elle est CEO."
+   }
+  ],
+  "org_decoys": [
+   "si je reportais à Tiphaine Brouvenne directement, ça irait beaucoup plus vite"
+  ]
+ }
+]

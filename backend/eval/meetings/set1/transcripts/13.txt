@@ -1,0 +1,53 @@
+Soline Valmorin (Vendeur): Bonjour Odilon, bonjour Marlowe. Merci d'avoir pris le temps pour ce point sur le renouvellement.
+
+Odilon Bramwell-Ode (Kestrial Capital): Bonjour Soline. Avec plaisir. Valère nous rejoint dans cinq minutes, il est en retard.
+
+Marlowe Oakenshaw (Kestrial Capital): Salut Soline. Contente de vous revoir.
+
+Soline Valmorin (Vendeur): Pareil. Alors, le renouvellement : 2 108 euros pour l'année, pour huit utilisateurs. C'est un petit montant, mais je voulais en discuter.
+
+Odilon Bramwell-Ode (Kestrial Capital): Oui. Le prix n'est pas vraiment un problème, mais j'aimerais comprendre pourquoi il augmente de cinq pour cent.
+
+Soline Valmorin (Vendeur): C'est l'indexation annuelle prévue au contrat. Mais je peux la geler si vous renouvelez pour deux ans.
+
+Odilon Bramwell-Ode (Kestrial Capital): Hmm. Deux ans, c'est long pour nous. Un an et demi, ce serait mieux.
+
+Soline Valmorin (Vendeur): Je peux faire dix-huit mois, au tarif actuel de 2 008 euros par an.
+
+Marlowe Oakenshaw (Kestrial Capital): Ça me paraît correct, non, Odilon ?
+
+Odilon Bramwell-Ode (Kestrial Capital): Oui, ça va.
+
+Soline Valmorin (Vendeur): Génial. Autre point : le support. Vous aviez eu un souci en février.
+
+Marlowe Oakenshaw (Kestrial Capital): Oui, un ticket qui est resté trois jours sans réponse. C'était pénible, j'ai dû relancer deux fois.
+
+Soline Valmorin (Vendeur): Je suis désolée. On a depuis changé l'organisation : un responsable de compte dédié, et un engagement de réponse sous quatre heures ouvrées.
+
+Odilon Bramwell-Ode (Kestrial Capital): Est-ce que c'est écrit dans le contrat, ce délai ?
+
+Soline Valmorin (Vendeur): Oui, dans l'annexe SLA, avec des crédits de service en cas de non-respect.
+
+Marlowe Oakenshaw (Kestrial Capital): Des crédits de combien ?
+
+Soline Valmorin (Vendeur): Cinq pour cent de la mensualité par tranche de quatre heures de retard, plafonné à vingt pour cent.
+
+Marlowe Oakenshaw (Kestrial Capital): D'accord. Ça me rassure.
+
+Marlowe Oakenshaw (Kestrial Capital): Haha. C'est Odilon Bramwell-Ode qui gère mon équipe, donc je lui laisse le dernier mot sur les conditions.
+
+Soline Valmorin (Vendeur): Merci Marlowe. Et la signature, côté Kestrial ?
+
+Odilon Bramwell-Ode (Kestrial Capital): Euh, c'est Noémie Hartlemoor qui signe, mais elle valide ce qu'on lui propose, c'est une formalité.
+
+Marlowe Oakenshaw (Kestrial Capital): Je vais défendre le renouvellement en interne, l'outil nous a fait gagner du temps chaque semaine.
+
+Soline Valmorin (Vendeur): Merci, c'est super de l'entendre. J'ai aussi mis à jour le support de présentation de votre compte, avec les statistiques d'usage.
+
+Odilon Bramwell-Ode (Kestrial Capital): Parfait, on le montrera à la direction.
+
+Soline Valmorin (Vendeur): Prochaines étapes : je vous envoie le contrat à dix-huit mois avec l'annexe SLA aujourd'hui.
+
+Marlowe Oakenshaw (Kestrial Capital): Super, on le signe cette semaine si tout est bon.
+
+Odilon Bramwell-Ode (Kestrial Capital): Merci, à très vite.

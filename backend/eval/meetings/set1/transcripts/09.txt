@@ -1,0 +1,53 @@
+Soline Valmorin (Vendeur): Bonjour Wilhelmina, bonjour Ingrid, bonjour Valère. Merci d'être là.
+
+Wilhelmina Hartlemoor (Elysor Santé): Bonjour Soline. On a un peu de temps, mais pas énormément.
+
+Ingrid Wexcombe (Elysor Santé): Bonjour. Je suis sur mon téléphone, excusez le bruit de fond.
+
+Valère Quercival (Elysor Santé): Bonjour.
+
+Soline Valmorin (Vendeur): Je vais droit au but. Dans notre dernier échange, vous aviez des réserves. Je voulais faire le point avant de clôturer le dossier de mon côté.
+
+Wilhelmina Hartlemoor (Elysor Santé): Oui. Le sujet numéro un, c'est l'hébergement des données de santé. Il vous faut la certification HDS, sinon on ne peut pas avancer.
+
+Soline Valmorin (Vendeur): Notre hébergeur est certifié HDS, le certificat est en cours de renouvellement. Je peux vous transmettre l'attestation actuelle.
+
+Wilhelmina Hartlemoor (Elysor Santé): En cours de renouvellement, ça ne me rassure pas trop, euh.
+
+Ingrid Wexcombe (Elysor Santé): Wilhelmina Hartlemoor, c'est ma directrice, je suis dans son équipe, donc je m'aligne sur son avis, mais sur le fond, l'outil nous plaît.
+
+Soline Valmorin (Vendeur): Merci Ingrid. Passons au chiffrage : 6 874 euros pour la première année, pour douze utilisateurs.
+
+Valère Quercival (Elysor Santé): C'est là que ça coince. Le prix n'est pas le sujet principal, mais pour nous c'est une dépense non prévue.
+
+Soline Valmorin (Vendeur): Je peux descendre à 6 200 euros avec un engagement de vingt-quatre mois.
+
+Valère Quercival (Elysor Santé): Même à ce prix, on a une proposition de Medixa à 4 800 euros, avec l'hébergement HDS déjà validé.
+
+Soline Valmorin (Vendeur): Je connais Medixa. Ils n'ont pas de module de suivi des comptes, par contre.
+
+Valère Quercival (Elysor Santé): Peut-être, mais on fait du suivi sur Excel et ça nous suffit pour l'instant.
+
+Ingrid Wexcombe (Elysor Santé): Moi je regrette un peu, Medixa a l'air plus limité, mais c'est vrai que le support est réputé réactif.
+
+Soline Valmorin (Vendeur): Chez nous, le support est joignable par téléphone de huit heures à dix-huit heures, avec un engagement de réponse en deux heures.
+
+Wilhelmina Hartlemoor (Elysor Santé): Et en cas d'incident majeur ?
+
+Soline Valmorin (Vendeur): Astreinte pour les clients premium, avec un délai de réponse de trente minutes. Et je vous ai envoyé le support de présentation avec les niveaux de service.
+
+Wilhelmina Hartlemoor (Elysor Santé): Oui, je l'ai vu, il est clair.
+
+Soline Valmorin (Vendeur): Alors, quelle est la situation côté décision ?
+
+Wilhelmina Hartlemoor (Elysor Santé): Notre CFO est contre, Valère Quercival a refusé l'enveloppe pour cet exercice. Voilà.
+
+Valère Quercival (Elysor Santé): Je n'ai rien contre vous personnellement, hein. C'est une question de priorités.
+
+Wilhelmina Hartlemoor (Elysor Santé): Et au final c'est Odette E. Thistlegrove qui signe, et elle suit son CFO.
+
+Soline Valmorin (Vendeur): D'accord, c'est très clair. Si la situation évolue, je reste disponible, je vous laisse mon contact.
+
+Wilhelmina Hartlemoor (Elysor Santé): Merci Soline, c'est honnête de votre part.
+
+Soline Valmorin (Vendeur): Merci à vous trois, bonne journée.

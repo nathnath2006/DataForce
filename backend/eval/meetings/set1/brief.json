@@ -1,0 +1,767 @@
+[
+ {
+  "account": "Ulmaris Technologies",
+  "segment": "smb",
+  "industry": "retail",
+  "deal": {
+   "name": "Ulmaris Technologies - Licence",
+   "stage": "closed_won",
+   "amount_eur": 11684.47,
+   "created_on": "2026-05-20",
+   "closed_on": "2026-06-17",
+   "owner (our sales rep)": "Ingrid Hautecourt"
+  },
+  "contacts": [
+   {
+    "full_name": "Corentin T. Quercival",
+    "title": "PDG",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Jade Bramwell-Ode",
+    "title": "VP SALES",
+    "true_manager": "Corentin T. Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Noémie Brouvenne",
+    "title": "DIRECTRICE MARKETING",
+    "true_manager": "Corentin T. Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Océane Calderwick",
+    "title": "Responsable des ventes",
+    "true_manager": "Jade Bramwell-Ode",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Lachlan Holloway-Finch",
+    "title": "Commercial grands comptes",
+    "true_manager": "Océane Calderwick",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Tiphaine Montbelair",
+    "title": "Directeur administratif et financier",
+    "true_manager": "Corentin T. Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Gaspard Z. Hautecourt",
+    "title": "sales development rep",
+    "true_manager": "Océane Calderwick",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Océane A. Calderwick",
+    "title": " Content Manager ",
+    "true_manager": "Noémie Brouvenne",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Odilon Dalmasse",
+    "title": null,
+    "true_manager": "Tiphaine Montbelair",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Fabrion Capital",
+  "segment": "smb",
+  "industry": "retail",
+  "deal": {
+   "name": "Fabrion Capital - Expansion",
+   "stage": "negotiation",
+   "amount_eur": 32105.2,
+   "created_on": "2026-06-04",
+   "closed_on": null,
+   "owner (our sales rep)": "Anselme Penhallow"
+  },
+  "contacts": [
+   {
+    "full_name": "Axelle R. Wexcombe",
+    "title": "Chief Executive Officer",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Imogen Bramwell-Ode",
+    "title": " Vice President Sales ",
+    "true_manager": "Axelle R. Wexcombe",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Axelle Greywell",
+    "title": "Directrice marketing",
+    "true_manager": "Axelle R. Wexcombe",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Marlowe Dalmasse",
+    "title": "Resp. commercial",
+    "true_manager": "Imogen Bramwell-Ode",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Nivelle Logistique",
+  "segment": "smb",
+  "industry": "energy",
+  "deal": {
+   "name": "Nivelle Logistique - Expansion",
+   "stage": "qualification",
+   "amount_eur": 6099.74,
+   "created_on": "2026-04-02",
+   "closed_on": null,
+   "owner (our sales rep)": "Ingrid Hautecourt"
+  },
+  "contacts": [
+   {
+    "full_name": "Océane Roussevel",
+    "title": "Chief Executive Officer",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Lachlan I. Ferrandaz",
+    "title": "Dir. commercial",
+    "true_manager": "Océane Roussevel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Corentin J. Brouvenne",
+    "title": "CMO",
+    "true_manager": "Océane Roussevel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Soline Bramwell-Ode",
+    "title": null,
+    "true_manager": "Lachlan I. Ferrandaz",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Alderon Group",
+  "segment": "smb",
+  "industry": "consulting",
+  "deal": {
+   "name": "Alderon Group - Pilot",
+   "stage": "proposal",
+   "amount_eur": 4589.1,
+   "created_on": "2026-08-01",
+   "closed_on": null,
+   "owner (our sales rep)": "Lachlan Dunsmoor"
+  },
+  "contacts": [
+   {
+    "full_name": "Noémie Roussevel",
+    "title": "Directeur Général",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Maëlle Penhallow",
+    "title": "Directrice des ventes",
+    "true_manager": "Noémie Roussevel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Wilhelmina Calderwick",
+    "title": "cmo",
+    "true_manager": "Noémie Roussevel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Fenwick Moriceau-Daul",
+    "title": "RESPOSNABLE DES VENTES",
+    "true_manager": "Maëlle Penhallow",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Syndrome Industries",
+  "segment": "midmarket",
+  "industry": "manufacturing",
+  "deal": {
+   "name": "Syndrome Industries - Licence",
+   "stage": "proposal",
+   "amount_eur": 15195.34,
+   "created_on": "2026-09-10",
+   "closed_on": null,
+   "owner (our sales rep)": "Anselme Thistlegrove"
+  },
+  "contacts": [
+   {
+    "full_name": "Wilhelmina Fairbourne",
+    "title": "DG",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Valère R. Pellegrand",
+    "title": "Vice President Sales",
+    "true_manager": "Wilhelmina Fairbourne",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Odette Hautecourt",
+    "title": "cmo",
+    "true_manager": "Wilhelmina Fairbourne",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Aurélien Greywell",
+    "title": "Responsable des ventes",
+    "true_manager": "Valère R. Pellegrand",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Soline Ankerwood",
+    "title": "Commercial grands comptes",
+    "true_manager": "Aurélien Greywell",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Basile Casterel",
+    "title": "DAF",
+    "true_manager": "Wilhelmina Fairbourne",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Callum Tessendre",
+    "title": "Sales Development Rep",
+    "true_manager": "Aurélien Greywell",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Soline Hartlemoor",
+    "title": "MARKETING MANAGER",
+    "true_manager": "Odette Hautecourt",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Jovance Retail",
+  "segment": "midmarket",
+  "industry": "finance",
+  "deal": {
+   "name": "Jovance Retail - Platform",
+   "stage": "closed_won",
+   "amount_eur": 7769.73,
+   "created_on": "2026-07-24",
+   "closed_on": "2026-09-17",
+   "owner (our sales rep)": "Philippa Montbelair"
+  },
+  "contacts": [
+   {
+    "full_name": "Aurélien Ankerwood",
+    "title": null,
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Imogen T. Penhallow",
+    "title": "Dir. commercial",
+    "true_manager": "Aurélien Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Callum Ferrandaz",
+    "title": "Dir. marketing",
+    "true_manager": "Aurélien Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Tabitha Dalmasse",
+    "title": " HEAD OF SALES ",
+    "true_manager": "Imogen T. Penhallow",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Mireille W. Calderwick",
+    "title": "Ingénieur d'affaires",
+    "true_manager": "Tabitha Dalmasse",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Noémie X. Hartlemoor",
+    "title": null,
+    "true_manager": "Aurélien Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Harriet Y. Hartlemoor",
+    "title": "Assistant commercial",
+    "true_manager": "Tabitha Dalmasse",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Odette Z. Ankerwood",
+    "title": "Chargée de communication",
+    "true_manager": "Callum Ferrandaz",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Helvora Partners 68",
+  "segment": "smb",
+  "industry": "software",
+  "deal": {
+   "name": "Helvora Partners 68 - Renouvellement",
+   "stage": "closed_lost",
+   "amount_eur": 2983.48,
+   "created_on": "2025-07-08",
+   "closed_on": "2025-08-08",
+   "owner (our sales rep)": "Philippa Montbelair"
+  },
+  "contacts": [
+   {
+    "full_name": "Odette Roussevel",
+    "title": "Chief Executive Officer",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Thaddeus P. Thistlegrove",
+    "title": "Vice President Sales",
+    "true_manager": "Odette Roussevel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Soline Q. Oakenshaw",
+    "title": "CHIEF MARKETING OFFICER",
+    "true_manager": "Odette Roussevel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Aurélien Valmorin",
+    "title": "Sales Manager",
+    "true_manager": "Thaddeus P. Thistlegrove",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Basile Moriceau-Daul",
+    "title": null,
+    "true_manager": "Aurélien Valmorin",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Dorvane Retail",
+  "segment": "smb",
+  "industry": "retail",
+  "deal": {
+   "name": "Dorvane Retail - Licence",
+   "stage": "closed_won",
+   "amount_eur": 6272.85,
+   "created_on": "2025-12-13",
+   "closed_on": "2026-01-04",
+   "owner (our sales rep)": "Soline Valmorin"
+  },
+  "contacts": [
+   {
+    "full_name": "Tabitha Strathmoor",
+    "title": "CEO",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Imogen Z. Ferrandaz",
+    "title": "VP Sales",
+    "true_manager": "Tabitha Strathmoor",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Ingrid Fairbourne",
+    "title": "CMO",
+    "true_manager": "Tabitha Strathmoor",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Valère Bramwell-Ode",
+    "title": "Head of Sales",
+    "true_manager": "Imogen Z. Ferrandaz",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Tabitha Eastlowe",
+    "title": "Business Developer",
+    "true_manager": "Valère Bramwell-Ode",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Gaspard Dalmasse",
+    "title": "Finance Director",
+    "true_manager": "Tabitha Strathmoor",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Jade Wexcombe",
+    "title": "SDR",
+    "true_manager": "Valère Bramwell-Ode",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Liora Dunsmoor",
+    "title": "Marketing Manager",
+    "true_manager": "Ingrid Fairbourne",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Elysor Santé",
+  "segment": "smb",
+  "industry": "healthcare",
+  "deal": {
+   "name": "Elysor Santé - Licence",
+   "stage": "closed_lost",
+   "amount_eur": 6874.49,
+   "created_on": "2026-06-06",
+   "closed_on": "2026-07-14",
+   "owner (our sales rep)": "Soline Valmorin"
+  },
+  "contacts": [
+   {
+    "full_name": "Odette E. Thistlegrove",
+    "title": "PDG",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Wilhelmina Hartlemoor",
+    "title": "Dir. commercial",
+    "true_manager": "Odette E. Thistlegrove",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Callum G. Casterel",
+    "title": "Dir. marketing",
+    "true_manager": "Odette E. Thistlegrove",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Ingrid Wexcombe",
+    "title": "Head of Sales",
+    "true_manager": "Wilhelmina Hartlemoor",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Bryce Bramwell-Ode",
+    "title": "Commercial grands comptes",
+    "true_manager": "Ingrid Wexcombe",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Valère Quercival",
+    "title": "CFO",
+    "true_manager": "Odette E. Thistlegrove",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Odette K. Oakenshaw",
+    "title": "Sales Development Rep",
+    "true_manager": "Ingrid Wexcombe",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Dorvane Systèmes",
+  "segment": "enterprise",
+  "industry": "manufacturing",
+  "deal": {
+   "name": "Dorvane Systèmes - Pilot",
+   "stage": "closed_won",
+   "amount_eur": 69196.31,
+   "created_on": "2025-10-08",
+   "closed_on": "2026-03-05",
+   "owner (our sales rep)": "Anselme Thistlegrove"
+  },
+  "contacts": [
+   {
+    "full_name": "Evrard G. Ferrandaz",
+    "title": "directeur général",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Noémie Oakenshaw",
+    "title": "Vice President Sales",
+    "true_manager": "Evrard G. Ferrandaz",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Quentin Lavandrier",
+    "title": "CMO",
+    "true_manager": "Evrard G. Ferrandaz",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Roxane Merriwick",
+    "title": "Sales Manager",
+    "true_manager": "Noémie Oakenshaw",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Thaddeus K. Fairbourne",
+    "title": "Commercial grands comptes",
+    "true_manager": "Roxane Merriwick",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Evrard Bramwell-Ode",
+    "title": "Finance Director",
+    "true_manager": "Evrard G. Ferrandaz",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Thaddeus Bramwell-Ode",
+    "title": null,
+    "true_manager": "Roxane Merriwick",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Gravina Industries",
+  "segment": "smb",
+  "industry": "logistics",
+  "deal": {
+   "name": "Gravina Industries - Expansion",
+   "stage": "negotiation",
+   "amount_eur": 17735.16,
+   "created_on": "2026-07-17",
+   "closed_on": null,
+   "owner (our sales rep)": "Lachlan Dunsmoor"
+  },
+  "contacts": [
+   {
+    "full_name": "Noémie Casterel",
+    "title": "Chief Executive Officer",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Callum Hartlemoor",
+    "title": "Dir. commercial",
+    "true_manager": "Noémie Casterel",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Tabitha Montbelair",
+    "title": "Chief Marketing Officer",
+    "true_manager": "Noémie Casterel",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Odette Pellegrand",
+    "title": null,
+    "true_manager": "Callum Hartlemoor",
+    "manager_link_missing_in_crm": false
+   }
+  ]
+ },
+ {
+  "account": "Alderon Group 64",
+  "segment": "smb",
+  "industry": "healthcare",
+  "deal": {
+   "name": "Alderon Group 64 - Renouvellement",
+   "stage": "closed_lost",
+   "amount_eur": 11416.01,
+   "created_on": "2026-07-02",
+   "closed_on": "2026-08-21",
+   "owner (our sales rep)": "Soline Valmorin"
+  },
+  "contacts": [
+   {
+    "full_name": "Harriet Strathmoor",
+    "title": "Chief Executive Officer",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Fenwick Calderwick",
+    "title": "Sales Director",
+    "true_manager": "Harriet Strathmoor",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Callum P. Quercival",
+    "title": "CHIEF MARKETING OFFICER",
+    "true_manager": "Harriet Strathmoor",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Rosalind Q. Fairbourne",
+    "title": "Sales Manager",
+    "true_manager": "Fenwick Calderwick",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Lachlan R. Ardenvale",
+    "title": "Accoun tExecutive",
+    "true_manager": "Rosalind Q. Fairbourne",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Liora S. Bramwell-Ode",
+    "title": "CFO",
+    "true_manager": "Harriet Strathmoor",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Evrard T. Tessendre",
+    "title": "BUSINESS DEVELOPER JUNIOR",
+    "true_manager": "Rosalind Q. Fairbourne",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Liora U. Wexcombe",
+    "title": "Marketing Manager",
+    "true_manager": "Callum P. Quercival",
+    "manager_link_missing_in_crm": false
+   }
+  ]
+ },
+ {
+  "account": "Kestrial Capital",
+  "segment": "smb",
+  "industry": "software",
+  "deal": {
+   "name": "Kestrial Capital - Renouvellement",
+   "stage": "closed_won",
+   "amount_eur": 2108.51,
+   "created_on": "2026-03-12",
+   "closed_on": "2026-04-19",
+   "owner (our sales rep)": "Soline Valmorin"
+  },
+  "contacts": [
+   {
+    "full_name": "Noémie Hartlemoor",
+    "title": "CEO",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Odilon Bramwell-Ode",
+    "title": "DIRECTEUR COMMERCIAL",
+    "true_manager": "Noémie Hartlemoor",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Valère Fairbourne",
+    "title": "Dir. marketing",
+    "true_manager": "Noémie Hartlemoor",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Marlowe Oakenshaw",
+    "title": "Sales Manager",
+    "true_manager": "Odilon Bramwell-Ode",
+    "manager_link_missing_in_crm": false
+   }
+  ]
+ },
+ {
+  "account": "Gravina Conseil",
+  "segment": "enterprise",
+  "industry": "software",
+  "deal": {
+   "name": "Gravina Conseil - Renouvellement",
+   "stage": "qualification",
+   "amount_eur": 37242.76,
+   "created_on": "2026-06-23",
+   "closed_on": null,
+   "owner (our sales rep)": "Lachlan Dunsmoor"
+  },
+  "contacts": [
+   {
+    "full_name": "Jade Valmorin",
+    "title": "DG",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Marlowe Greywell",
+    "title": "Directrice des ventes",
+    "true_manager": "Jade Valmorin",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Harriet Moriceau-Daul",
+    "title": "CMO",
+    "true_manager": "Jade Valmorin",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Jade H. Valmorin",
+    "title": "Resp. commercial",
+    "true_manager": "Marlowe Greywell",
+    "manager_link_missing_in_crm": false
+   }
+  ]
+ },
+ {
+  "account": "Elysor Labs",
+  "segment": "midmarket",
+  "industry": "software",
+  "deal": {
+   "name": "Elysor Labs - Licence",
+   "stage": "proposal",
+   "amount_eur": 13484.67,
+   "created_on": "2026-07-03",
+   "closed_on": null,
+   "owner (our sales rep)": "Soline Valmorin"
+  },
+  "contacts": [
+   {
+    "full_name": "Tiphaine Brouvenne",
+    "title": "Chief xEecutive Officer",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Lachlan Roussevel",
+    "title": "Directeur commercial",
+    "true_manager": "Tiphaine Brouvenne",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Harriet Roussevel",
+    "title": "Marketing Director",
+    "true_manager": "Tiphaine Brouvenne",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Rosalind Bramwell-Ode",
+    "title": "Sales Manager",
+    "true_manager": "Lachlan Roussevel",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Tabitha Brouvenne",
+    "title": null,
+    "true_manager": "Rosalind Bramwell-Ode",
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Bryce Hautecourt",
+    "title": null,
+    "true_manager": "Tiphaine Brouvenne",
+    "manager_link_missing_in_crm": false
+   }
+  ]
+ }
+]

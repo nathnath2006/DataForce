@@ -271,6 +271,24 @@ statements, the screening caveat on "Themes vs win rate") were fixed afterwards.
 set has therefore been seen and is no longer clean: a fresh one is needed for the next
 measurement.
 
+**Independent transcripts, set 1 (2026-10-18)** (`backend/eval/meetings/`).
+- 15 FR/EN meetings were written by a separate agent from account briefs only, without the
+  code, and imported through the upload API into `test-data`. Figures carry Wilson 95 %
+  intervals.
+- **Speakers** matched to a contact or rep: 95 % [86, 98] (56/59).
+- **Known themes** per meeting: precision 74 % [60, 84], recall 83 % [69, 91].
+  - Security, integration and price recall: 100 %.
+  - Misfires: lateness to the call read as timing; an internal event's budget read as price; a
+    passing "contract" read as legal; "versus last year" read as competitor.
+- **Meeting org statements.**
+  - Reports-to: **0 of 13**. The fixed patterns ("je reporte à", "I report to", "mon manager
+    est X") miss common wordings such as "rattachée à X", "I work under X", "X, mon N+1, …" and
+    "My boss, X, …".
+  - Signals: precision 100 % (15/15), recall 44 % [29, 61].
+- So the meeting patterns were fitted to the demo's wording. Set 1 drives a broadening of the
+  patterns and lexicon, and is therefore no longer held-out. The result is measured on a fresh
+  set 2.
+
 ## K. Open
 1. CRM scope, TamTam, AI key: as in M2a (the PO is testing).
 2. Themes on real transcripts: the keyword catalog is generic sales vocabulary, but it has

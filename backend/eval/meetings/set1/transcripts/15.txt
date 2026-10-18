@@ -1,0 +1,59 @@
+Soline Valmorin: Bonjour Lachlan, bonjour Rosalind, bonjour Bryce. Merci d'être venus.
+
+Lachlan Roussevel: Bonjour Soline. On est au complet, enfin presque, Bryce a un souci de micro.
+
+Bryce Hautecourt: Là, ça marche ? Bonjour à tous, désolé.
+
+Rosalind Bramwell-Ode: Bonjour. Je vous entends bien.
+
+Soline Valmorin: Parfait. On a trois sujets aujourd'hui : l'intégration SSO et API, le plan d'onboarding, et la proposition commerciale. On commence par quoi ?
+
+Lachlan Roussevel: Par la technique, ça nous inquiète le plus.
+
+Soline Valmorin: OK. Vous utilisez Okta, c'est bien ça ?
+
+Bryce Hautecourt: Oui, Okta, et on a un back-office maison qui pousse les licences clients. On voudrait que votre outil récupère ces données via l'API.
+
+Soline Valmorin: C'est faisable. L'API REST permet de créer des comptes et des abonnements, avec des webhooks en retour.
+
+Bryce Hautecourt: Et la limite d'appels ? Parce que, euh, on peut avoir des pics, genre dix mille appels à l'heure.
+
+Soline Valmorin: La limite standard est de cinq mille par heure, mais on peut monter à vingt mille sur le plan que je vous propose.
+
+Rosalind Bramwell-Ode: Moi, je suis rattachée à Lachlan Roussevel, c'est mon N+1, et je valide avec lui avant toute décision sur l'API.
+
+Lachlan Roussevel: Oui, c'est ça. Rosalind gère l'équipe des commerciaux, moi je suis plus sur la stratégie.
+
+Soline Valmorin: Très bien. Passons à l'onboarding. Nous proposons un parcours de trois semaines.
+
+Lachlan Roussevel: Détaillez-moi ça, s'il vous plaît.
+
+Soline Valmorin: Semaine un, configuration et SSO. Semaine deux, formation des administrateurs. Semaine trois, formation des commerciaux, en deux groupes, et un point de suivi à J+30.
+
+Rosalind Bramwell-Ode: Combien de personnes ? J'ai quinze commerciaux, plus deux managers.
+
+Soline Valmorin: Deux sessions de deux heures, donc ça passe. Je prévois aussi des vidéos courtes pour les nouveaux arrivants.
+
+Rosalind Bramwell-Ode: Nickel. Ça évitera de refaire la formation à chaque embauche.
+
+Soline Valmorin: Côté proposition : 13 484 euros par an pour dix-sept licences.
+
+Lachlan Roussevel: Le prix n'est pas le sujet principal, mais on avait en tête plutôt douze mille.
+
+Soline Valmorin: Je peux passer à 12 600 euros avec un paiement annuel d'avance.
+
+Lachlan Roussevel: Je prends. Je dois juste en parler à la direction.
+
+Bryce Hautecourt: Je vais pousser le dossier en interne, ça fait un an que je demande un outil comme ça.
+
+Soline Valmorin: Merci Bryce. Et la décision finale ?
+
+Lachlan Roussevel: C'est Tiphaine Brouvenne qui décide, elle est CEO. Elle a juste besoin de voir le plan d'onboarding.
+
+Rosalind Bramwell-Ode: Au passage, si je reportais à Tiphaine Brouvenne directement, ça irait beaucoup plus vite, mais bon, on a un process.
+
+Soline Valmorin: Haha, je comprends. Je vous envoie le plan d'onboarding et la proposition à 12 600 euros dès ce soir.
+
+Lachlan Roussevel: Parfait, merci.
+
+Soline Valmorin: Merci à tous les trois, bonne journée.

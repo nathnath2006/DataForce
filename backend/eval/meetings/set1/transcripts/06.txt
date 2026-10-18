@@ -1,0 +1,57 @@
+Philippa Montbelair: Hi everyone, thanks for making time. Imogen, Tabitha, Callum, did I get the names right?
+
+Imogen T. Penhallow: You did. Hi Philippa.
+
+Tabitha Dalmasse: Hello! Good to finally put a face to the emails.
+
+Callum Ferrandaz: Hey, hi. I'm in the car, so bear with me if I drop.
+
+Philippa Montbelair: Ha, no problem. So we signed last week, congratulations to you. Today is about kickoff: integrations first, then onboarding plan.
+
+Imogen T. Penhallow: Sounds right. Our biggest worry is how it plugs into our stack.
+
+Philippa Montbelair: Let's start there. You told me you're on Salesforce for the CRM, correct?
+
+Tabitha Dalmasse: Yes, Salesforce, plus Slack for the daily alerts. And we'd like single sign-on through Okta.
+
+Philippa Montbelair: SSO via SAML is standard. Slack notifications are a native app. For Salesforce, we sync accounts and opportunities every fifteen minutes.
+
+Callum Ferrandaz: Is it two-way? Because marketing updates the lead status in Salesforce, and um, we want that reflected on your side.
+
+Philippa Montbelair: Two-way, yes, with conflict rules. The most recent edit wins unless you choose otherwise.
+
+Imogen T. Penhallow: And what about our billing system? It's a custom thing exposed through an API.
+
+Philippa Montbelair: We have a REST API and webhooks, so your developers can push invoices in. I'd suggest a technical workshop with them.
+
+Tabitha Dalmasse: I report directly into Imogen T. Penhallow, so she'll coordinate with our IT lead on that.
+
+Imogen T. Penhallow: Yes, I'll nominate Jacques from IT as the contact. Is that enough?
+
+Philippa Montbelair: Perfect. Now onboarding. The standard plan is four weeks: week one setup and SSO, week two data migration, week three training, week four go-live support.
+
+Callum Ferrandaz: How many training sessions? We have around fifty people across sales and marketing.
+
+Philippa Montbelair: Three live sessions of two hours by role, recorded, plus a sandbox for practice.
+
+Tabitha Dalmasse: Good. The sales reps always complain if they don't get hands-on time.
+
+Philippa Montbelair: Totally. We also give you a champions programme, two power users per team who get an extra session.
+
+Callum Ferrandaz: I'll push this internally, marketing needs the data and I want my whole team on board from day one.
+
+Imogen T. Penhallow: Thank you Callum. For the record, the final call is with Aurélien Ankerwood, but he's already approved the rollout plan.
+
+Philippa Montbelair: Great, that makes things easy. By the way, I heard the legal team at our other company is great at handling contracts like yours, just joking, wrong shop!
+
+Tabitha Dalmasse: Ha! Wrong shop indeed.
+
+Philippa Montbelair: Okay, back on track. Data migration: can you send me an export of your accounts by Friday?
+
+Tabitha Dalmasse: I'll do it tomorrow. It's about nine thousand records.
+
+Philippa Montbelair: Fine. Kickoff next Monday at ten, then. I'll send the plan and the invite today.
+
+Imogen T. Penhallow: Perfect. Thanks, Philippa.
+
+Callum Ferrandaz: Thanks, bye all.

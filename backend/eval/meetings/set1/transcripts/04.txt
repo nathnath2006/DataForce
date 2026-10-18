@@ -1,0 +1,55 @@
+Lachlan Dunsmoor (Vendor): Hi Maëlle, hi Fenwick, thanks for joining. How's the week been?
+
+Maëlle Penhallow (Alderon Group): Busy, as usual. End of quarter is coming, you know.
+
+Fenwick Moriceau-Daul (Alderon Group): Hi all. Sorry, I have a hard stop at four, so I'll try to be quick.
+
+Lachlan Dunsmoor (Vendor): No worries. The plan: quick recap of the pilot proposal, the pricing, and how support works during the pilot. Sound good?
+
+Maëlle Penhallow (Alderon Group): Sure. Go ahead.
+
+Lachlan Dunsmoor (Vendor): So the pilot is ninety days, fifteen seats, for 4,589 euros all in.
+
+Fenwick Moriceau-Daul (Alderon Group): Honestly that's more than I expected. We're a small consulting shop, so, um, every euro counts.
+
+Maëlle Penhallow (Alderon Group): Price isn't the only thing, but we did get a quote from another vendor, quite a bit lower.
+
+Lachlan Dunsmoor (Vendor): Do you know how much?
+
+Maëlle Penhallow (Alderon Group): Around three thousand for the same seat count. I won't say their name, they asked us to keep it confidential.
+
+Lachlan Dunsmoor (Vendor): Fair enough. What I'd say is that our pilot includes the reporting module, which usually is an add-on elsewhere.
+
+Fenwick Moriceau-Daul (Alderon Group): True, but do we need it for a pilot? Half my team lives in Excel and honestly will do so for a while.
+
+Lachlan Dunsmoor (Vendor): Understood. I could drop the reporting module and bring the pilot to 3,900 euros.
+
+Maëlle Penhallow (Alderon Group): That's more like it. We price our own products weekly, so I know how fast numbers move, I'd rather lock it now.
+
+Lachlan Dunsmoor (Vendor): Noted. Now on support. During the pilot you get email and chat support with a four-hour response time on business days.
+
+Fenwick Moriceau-Daul (Alderon Group): Four hours is fine. What about the full contract? Is there a 24/7 option?
+
+Lachlan Dunsmoor (Vendor): Yes, the premium SLA is 99.9 percent uptime with one-hour response on critical tickets.
+
+Maëlle Penhallow (Alderon Group): Okay. That's good to know for later.
+
+Fenwick Moriceau-Daul (Alderon Group): I work under Maëlle Penhallow, she runs the whole sales team, so I'll let her decide on the SLA tier.
+
+Maëlle Penhallow (Alderon Group): Thanks Fenwick, no pressure then. Honestly, I like what I've seen. I'll push this internally, I just need the numbers in writing.
+
+Lachlan Dunsmoor (Vendor): Great. Who else needs to be convinced?
+
+Maëlle Penhallow (Alderon Group): Our CMO, Wilhelmina Calderwick, is against it for now, she thinks the team has too many tools.
+
+Lachlan Dunsmoor (Vendor): Would a short demo for her help?
+
+Maëlle Penhallow (Alderon Group): Maybe. And the final call is with Noémie Roussevel, she's the managing director, she signs everything.
+
+Lachlan Dunsmoor (Vendor): Perfect. Let me send a revised proposal tomorrow, and I'll suggest two slots for a demo with Wilhelmina.
+
+Fenwick Moriceau-Daul (Alderon Group): Sounds good. Gotta run, thanks!
+
+Maëlle Penhallow (Alderon Group): Thanks Lachlan. Talk soon.
+
+Lachlan Dunsmoor (Vendor): Thanks both, take care.

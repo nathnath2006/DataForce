@@ -1,0 +1,53 @@
+[00:00:05] Anselme Thistlegrove: Good afternoon, Noémie, Roxane, Evrard. Thanks for making the time, I know the pilot is moving fast.
+
+[00:00:13] Noémie Oakenshaw: Hi Anselme. Yes, we're in the thick of it. The plant managers keep asking when it goes live.
+
+[00:00:21] Roxane Merriwick: Hi all. I'll mostly listen, but I've got questions on the technical side.
+
+[00:00:28] Evrard Bramwell-Ode: Hello. I'm only here for the budget questions.
+
+[00:00:34] Anselme Thistlegrove: Fine. The agenda: integration status with your ERP, the onboarding schedule, then support terms for the pilot phase.
+
+[00:00:46] Roxane Merriwick: The ERP is SAP S/4, and we need purchase orders to flow in both directions. How far did your team get?
+
+[00:00:57] Anselme Thistlegrove: The connector is built and tested in your sandbox. The remaining item is the field mapping for supplier codes, which we need from your master data team.
+
+[00:01:09] Roxane Merriwick: They're slow, to be honest. I'll chase them this week.
+
+[00:01:15] Noémie Oakenshaw: And SSO? Our IT policy says no new tool without Azure AD login.
+
+[00:01:23] Anselme Thistlegrove: Azure AD via SAML is configured on the test tenant. Nothing else needed except your admin approving the app.
+
+[00:01:33] Roxane Merriwick: Noémie Oakenshaw, my boss, signed off on the pilot scope, so any change in scope has to go through her.
+
+[00:01:44] Noémie Oakenshaw: Correct. And I'll push this internally with Evrard G. Ferrandaz at the next executive meeting, I want the pilot extended to the second plant.
+
+[00:01:56] Anselme Thistlegrove: Great. If you add the second plant, that's another two hundred users, so we'd need to discuss the contract amount at that point.
+
+[00:02:06] Evrard Bramwell-Ode: Let's park that. The budget for our internal offsite is already stretched, so don't expect anything quick.
+
+[00:02:15] Anselme Thistlegrove: Understood, no pressure. Now onboarding. We planned workshops in week two and four with your supervisors. Does that still work?
+
+[00:02:27] Roxane Merriwick: Week four is a problem, we have a plant shutdown for maintenance. Can we shift to week five?
+
+[00:02:36] Anselme Thistlegrove: Yes. I'll move both sessions and send updated invites. Also, we'd train super-users first, around fifteen people.
+
+[00:02:47] Noémie Oakenshaw: Good approach. Can the training be done on-site? Supervisors don't like video calls.
+
+[00:02:55] Anselme Thistlegrove: Absolutely, one of our trainers can travel. Two days on site.
+
+[00:03:03] Roxane Merriwick: Now support. During the pilot, who do we call if a purchase order sync fails at night?
+
+[00:03:12] Anselme Thistlegrove: You get a dedicated Slack channel with our support engineers, and a phone number for critical issues. The SLA is a one-hour response, twenty-four seven, during the pilot.
+
+[00:03:26] Roxane Merriwick: That's what I wanted to hear. Last vendor took two days to answer.
+
+[00:03:34] Evrard Bramwell-Ode: And who decides the extension in the end, to be clear for everyone?
+
+[00:03:42] Noémie Oakenshaw: The final call is with Evrard G. Ferrandaz. But he listens to us.
+
+[00:03:50] Anselme Thistlegrove: Thanks, that's helpful. Next steps: supplier code mapping by Friday, shifted workshops, on-site training booking, and I'll prepare a one-pager for the executive meeting.
+
+[00:04:02] Noémie Oakenshaw: Perfect. Thanks all.
+
+[00:04:06] Roxane Merriwick: Thanks. Bye.
