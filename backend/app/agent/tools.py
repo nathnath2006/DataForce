@@ -12,10 +12,13 @@ channels (emails, mobiles), secrets and keys are never read.
 
 from __future__ import annotations
 
+import re
+import threading
 import uuid
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -107,12 +110,20 @@ from app.services import (
     themes,
 )
 from app.services import comments as comment_svc
-from app.services import notes as note_svc
 from app.services._common import LIKE_ESCAPE, like_contains, require_workspace
 from app.services.errors import InvalidInputError, NotFoundError
 from app.stats.engine import gate_config_from_settings
 
 PREVIEW_ROWS = 50
+MAX_COLUMNS = 60
+MAX_THEMES = 100
+SCAN_REUSE_S = 60
+_SCAN_LOCK = threading.Lock()
+# Columns that may hold secrets or personal contact data are blanked in flow results (SR14-02).
+_REDACT = re.compile(
+    r"(?i)^(?:.*_enc|(?:.*[_\- .])?(?:password|passwd|secret|token|api_key|apikey|email|e-mail"
+    r"|mail|phone|mobile|tel|telephone|téléphone))$"
+)
 RECENT_ITEMS = 20
 
 
@@ -173,7 +184,7 @@ def workspace_overview(session: Session, ws_id: uuid.UUID, args: NoArgs) -> Enve
     notes = ["Counts are exact SQL counts."]
     if ws.is_demo:
         notes.append("This workspace is SYNTHETIC demo data, not real customers.")
-    return Envelope(data=data, notes=notes)
+    return Envelope(data=data, notes=notes, untrusted_fields=["workspace_name"])
 
 
 # --- search_companies ---------------------------------------------------------------------------
@@ -220,6 +231,13 @@ def search_companies(
         notes=[
             "`interacted` means a deal, note or comment exists. "
             "Paging (offset) applies to companies; accounts without a company are capped at limit."
+        ],
+        untrusted_fields=[
+            "companies[].name",
+            "companies[].domain",
+            "companies[].city",
+            "accounts_without_company[].name",
+            "accounts_without_company[].domain",
         ],
     )
 
@@ -320,7 +338,16 @@ def get_company(session: Session, ws_id: uuid.UUID, args: GetCompanyArgs) -> Env
     return Envelope(
         data=data,
         notes=["recent_activity lists the 20 most recent items; excerpts are customer text."],
-        untrusted_fields=["recent_activity[].excerpt_untrusted"],
+        untrusted_fields=[
+            "name",
+            "domain",
+            "city",
+            "postal_code",
+            "accounts[].name",
+            "accounts[].industry",
+            "recent_activity[].title",
+            "recent_activity[].excerpt_untrusted",
+        ],
     )
 
 
@@ -422,14 +449,27 @@ def get_account(session: Session, ws_id: uuid.UUID, args: GetAccountArgs) -> Env
         .limit(50)
     ).all()
     feed: list[NoteOut] = []
-    for p in people:
-        for n in note_svc.current_notes(session, ws_id, p.id):
+    ids = [p.id for p in people]
+    if ids:
+        # latest notes of all contacts in one bounded query (current heads: not corrected,
+        # not deleted), newest first
+        for n in session.scalars(
+            select(Note)
+            .where(
+                Note.workspace_id == ws_id,
+                Note.contact_id.in_(ids),
+                Note.deleted_at.is_(None),
+                Note.id.not_in(select(Note.corrects_id).where(Note.corrects_id.is_not(None))),
+            )
+            .order_by(Note.created_at.desc(), Note.id)
+            .limit(RECENT_ITEMS)
+        ):
             feed.append(
                 NoteOut(
                     id=n.id,
                     kind="note",
-                    contact_id=p.id,
-                    contact_name=clean(p.full_name),
+                    contact_id=n.contact_id,
+                    contact_name=clean(by_id[n.contact_id].full_name),
                     created_at=n.created_at,
                     body_untrusted=untrusted(n.body) or "",
                 )
@@ -476,6 +516,21 @@ def get_account(session: Session, ws_id: uuid.UUID, args: GetAccountArgs) -> Env
             "email or phone in this tool.",
         ],
         untrusted_fields=[
+            "name",
+            "domain",
+            "industry",
+            "region",
+            "company_name",
+            "contacts[].name",
+            "contacts[].title",
+            "contacts[].title_flag",
+            "deals[].name",
+            "deals[].account",
+            "deals[].owner",
+            "org_suggestions_not_verified[].contact_name",
+            "org_suggestions_not_verified[].manager_name",
+            "org_suggestions_not_verified[].candidates[].name",
+            "notes_and_comments[].contact_name",
             "notes_and_comments[].body_untrusted",
             "deals[].lost_reason_untrusted",
             "org_suggestions_not_verified[].evidence_untrusted",
@@ -527,7 +582,12 @@ def list_deals(session: Session, ws_id: uuid.UUID, args: ListDealsArgs) -> Envel
     return Envelope(
         data=ListDealsData(deals=out, page=_page(total, args.limit, args.offset, len(out))),
         notes=["Newest first. `total` is the exact number of matching deals."],
-        untrusted_fields=["deals[].lost_reason_untrusted"],
+        untrusted_fields=[
+            "deals[].name",
+            "deals[].account",
+            "deals[].owner",
+            "deals[].lost_reason_untrusted",
+        ],
     )
 
 
@@ -587,16 +647,41 @@ def _overall(report: ScanReport) -> dict[str, Any]:
     return {m.value: v.model_dump(mode="json") for m, v in report.overall.items()}
 
 
+def _scan_age_s(run: Run) -> float:
+    started = run.started_at
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - started).total_seconds()
+
+
+def _scan_or_reuse(session: Session, ws_id: uuid.UUID) -> tuple[Run, bool]:
+    """(scan run, reused). Under a per-process lock: a scan younger than SCAN_REUSE_S is reused,
+    otherwise a new one is run and committed before the lock is released (SR14-04)."""
+    with _SCAN_LOCK:
+        run = _latest_scan_run(session, ws_id)
+        if run is not None and _scan_age_s(run) < SCAN_REUSE_S:
+            return run, True
+        analytics.run_scan(session, ws_id)
+        session.commit()
+        run = _latest_scan_run(session, ws_id)
+        if run is None:  # cannot happen: run_scan just recorded one
+            raise ToolError("the scan could not be recorded")
+        return run, False
+
+
+def _reuse_note(run: Run) -> str:
+    return f"reused the scan from {run.started_at.isoformat(timespec='seconds')}"
+
+
 def compare_groups(
     session: Session, ws_id: uuid.UUID, args: CompareGroupsArgs
 ) -> Envelope[CompareGroupsData]:
     run = _latest_scan_run(session, ws_id)
     ran_now = run is None
+    reused = False
     if run is None:
-        analytics.run_scan(session, ws_id)
-        run = _latest_scan_run(session, ws_id)
-        if run is None:  # cannot happen: run_scan just recorded one
-            raise ToolError("the scan could not be recorded")
+        run, reused = _scan_or_reuse(session, ws_id)
+        ran_now = not reused
     report = ScanReport.model_validate(run.result)
     found = [
         f
@@ -623,13 +708,15 @@ def compare_groups(
             "'verified' may be stated as fact; 'not_verified' findings are leads, with reasons.",
             "Read from the latest recorded scan"
             + (" (run now: none existed)." if ran_now else "; use run_scan for a fresh one."),
+            *([_reuse_note(run)] if reused else []),
         ],
+        untrusted_fields=["findings[].group"],
     )
 
 
 def run_scan(session: Session, ws_id: uuid.UUID, args: NoArgs) -> Envelope[RunScanData]:
-    report = analytics.run_scan(session, ws_id)
-    run = _latest_scan_run(session, ws_id)
+    run, reused = _scan_or_reuse(session, ws_id)
+    report = ScanReport.model_validate(run.result)
     findings = _findings(report)
     reasons = Counter(r for f in findings if f.status == "not_verified" for r in f.reasons)
     data = RunScanData(
@@ -649,9 +736,11 @@ def run_scan(session: Session, ws_id: uuid.UUID, args: NoArgs) -> Envelope[RunSc
         data=data,
         notes=[
             *[clean(n, 300) or "" for n in report.notes],
+            *([_reuse_note(run)] if reused else []),
             "Only verified_findings may be stated as fact. Not-verified findings are counted "
             "here; use compare_groups to see them with their reasons.",
         ],
+        untrusted_fields=["verified_findings[].group"],
     )
 
 
@@ -674,18 +763,63 @@ def list_flows(session: Session, ws_id: uuid.UUID, args: NoArgs) -> Envelope[Lis
         out.append(
             FlowOut(id=row.id, name=clean(row.name) or "", n_blocks=len(blocks), blocks=blocks)
         )
-    return Envelope(data=ListFlowsData(flows=out), notes=["Newest first."])
+    return Envelope(
+        data=ListFlowsData(flows=out), notes=["Newest first."], untrusted_fields=["flows[].name"]
+    )
 
 
-def _node_out(r: Any) -> NodeOut:
+def _redacted(name: str) -> bool:
+    return bool(_REDACT.match(name.strip()))
+
+
+def _view_out(view: Any, redact: set[str]) -> dict[str, Any] | None:
+    """The view as JSON with no customer string used as a key (SR14-01)."""
+    if view is None:
+        return None
+    raw = view.model_dump(mode="json")
+    if raw.get("kind") == "cluster":
+        raw["centroids"] = [
+            {"features_untrusted": list(c.keys()), "values": list(c.values())}
+            for c in raw.get("centroids", [])
+        ]
+    if raw.get("kind") == "pivot" and redact:
+        idx = [i for i, h in enumerate(raw.get("row_headers", [])) if h in redact]
+        for row in raw.get("rows", []):
+            keys = row.get("keys")
+            if isinstance(keys, list):
+                for i in idx:
+                    if i < len(keys):
+                        keys[i] = None
+    return json_clean(raw)
+
+
+def _node_out(r: Any, notes: list[str]) -> NodeOut:
+    names = [c.name for c in r.columns]
+    for row in r.preview[:PREVIEW_ROWS]:
+        for k in row:
+            if k not in names:
+                names.append(k)
+    dropped = max(0, len(names) - MAX_COLUMNS)
+    kept = names[:MAX_COLUMNS]
+    hidden = {n for n in kept if _redacted(n)}
+    if dropped:
+        notes.append(f"block {r.node_id}: {dropped} columns dropped (at most {MAX_COLUMNS} shown)")
+    if hidden:
+        listed = ", ".join(clean(n, 60) or "" for n in sorted(hidden))
+        notes.append(
+            f"block {r.node_id}: columns blanked as possible secrets or contacts: {listed}"
+        )
+    rows = [[None if n in hidden else row.get(n) for n in kept] for row in r.preview[:PREVIEW_ROWS]]
     return NodeOut(
         node_id=r.node_id,
         status=r.status,
         error=clean(r.error, 300),
         n_rows=r.n_rows,
-        columns=[{"name": clean(c.name, 200) or "", "dtype": c.dtype} for c in r.columns],
-        preview_untrusted=json_clean(r.preview[:PREVIEW_ROWS]),
-        view=json_clean(r.view.model_dump(mode="json")) if r.view is not None else None,
+        columns=[
+            {"name": clean(c.name, 200) or "", "dtype": c.dtype} for c in r.columns[:MAX_COLUMNS]
+        ],
+        preview_untrusted=json_clean({"columns_untrusted": kept, "rows_untrusted": rows}),
+        view=_view_out(r.view, hidden),
         warnings=[clean(w, 300) or "" for w in r.warnings],
     )
 
@@ -725,7 +859,8 @@ def run_flow(session: Session, ws_id: uuid.UUID, args: RunFlowArgs) -> Envelope[
     else:
         sources = {e.source for e in graph.edges}
         wanted = [n.id for n in graph.nodes if n.id not in sources]
-    out = [_node_out(results[i]) for i in wanted if i in results]
+    flow_notes: list[str] = []
+    out = [_node_out(results[i], flow_notes) for i in wanted if i in results]
     return Envelope(
         data=RunFlowData(
             flow_id=row.id, flow_name=clean(row.name) or "", run_id=run_id, results=out
@@ -733,9 +868,27 @@ def run_flow(session: Session, ws_id: uuid.UUID, args: RunFlowArgs) -> Envelope[
         notes=[
             "Runs the latest saved version with the same limits as the app. Views carry "
             "status 'verified' / 'not_verified' (or 'exploratory' for clusters): never present "
-            "not_verified as fact. Preview is the first 50 rows.",
+            "not_verified as fact. Preview is the first 50 rows; its columns and rows are in "
+            "preview_untrusted.columns_untrusted / rows_untrusted.",
+            *flow_notes,
         ],
-        untrusted_fields=["results[].preview_untrusted", "results[].view (group labels)"],
+        untrusted_fields=[
+            "flow_name",
+            "results[].columns[].name",
+            "results[].preview_untrusted.columns_untrusted",
+            "results[].preview_untrusted.rows_untrusted",
+            "results[].view.row_headers",
+            "results[].view.column_values",
+            "results[].view.rows[].keys",
+            "results[].view.rows[].group",
+            "results[].view.x_label",
+            "results[].view.y_label",
+            "results[].view.series[].name",
+            "results[].view.series[].points",
+            "results[].view.outcome",
+            "results[].view.coefficients[].feature",
+            "results[].view.centroids[].features_untrusted",
+        ],
     )
 
 
@@ -814,6 +967,8 @@ def list_meetings(
             "meetings[].title_untrusted",
             "meetings[].speakers_untrusted",
             "meetings[].themes_untrusted",
+            "meetings[].account",
+            "meetings[].deal",
         ],
     )
 
@@ -886,7 +1041,8 @@ def get_themes(session: Session, ws_id: uuid.UUID, args: NoArgs) -> Envelope[Get
             data=GetThemesData(run_id=None, run_at=None, themes=[]),
             notes=["No theme analysis has been run in this workspace."],
         )
-    views = themes.themes_of_run(session, ws_id, run.id)
+    all_views = themes.themes_of_run(session, ws_id, run.id)
+    views = all_views[:MAX_THEMES]
     out = [
         ThemeOut(
             id=v.theme.id,
@@ -915,7 +1071,12 @@ def get_themes(session: Session, ws_id: uuid.UUID, args: NoArgs) -> Envelope[Get
         data=GetThemesData(run_id=run.id, run_at=run.started_at, themes=out),
         notes=[
             "Counts are exact (recomputed from current assignments). 'known' themes come from "
-            "a fixed lexicon, 'discovered' ones from clustering; labels may be AI-written."
+            "a fixed lexicon, 'discovered' ones from clustering; labels may be AI-written.",
+            *(
+                [f"only the first {MAX_THEMES} of {len(all_views)} themes are shown"]
+                if len(all_views) > MAX_THEMES
+                else []
+            ),
         ],
         untrusted_fields=[
             "themes[].label_untrusted",
@@ -923,6 +1084,7 @@ def get_themes(session: Session, ws_id: uuid.UUID, args: NoArgs) -> Envelope[Get
             "themes[].top_terms_untrusted",
             "themes[].excerpts[].text_untrusted",
             "themes[].excerpts[].speaker_untrusted",
+            "themes[].excerpts[].account",
         ],
     )
 
@@ -1032,7 +1194,7 @@ def search_text(
             "counts every match; hits are capped at limit (sources in the order asked).",
             "Meeting matches are speaker turns; use get_meeting with the document_id.",
         ],
-        untrusted_fields=["hits[].excerpt_untrusted"],
+        untrusted_fields=["hits[].account", "hits[].excerpt_untrusted"],
     )
 
 

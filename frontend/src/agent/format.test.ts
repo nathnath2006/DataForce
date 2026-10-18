@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { callSummary, desktopSnippet, shortDescription } from "./format";
+import { callSummary, desktopSnippet, shortDescription, PATH_NOTE, PRIVACY_NOTE } from "./format";
 
 describe("agent format", () => {
   it("formats the desktop snippet as indented JSON", () => {
@@ -15,5 +15,9 @@ describe("agent format", () => {
   it("summarises a call", () => {
     expect(callSummary({ at: "", tool: "t", ok: true, rows: 1, duration_ms: 12 })).toBe("t: ok, 1 row, 12 ms");
     expect(callSummary({ at: "", tool: "t", ok: false, rows: null, duration_ms: null })).toBe("t: error");
+  });
+  it("states the privacy and path caveats", () => {
+    expect(PRIVACY_NOTE).toContain("never sees stored e-mails");
+    expect(PATH_NOTE).toContain("this computer");
   });
 });

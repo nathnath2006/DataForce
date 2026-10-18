@@ -22,3 +22,8 @@ export function callSummary(c: AgentCall): string {
   const ms = c.duration_ms == null ? "" : `, ${c.duration_ms} ms`;
   return `${c.tool}: ${c.ok ? "ok" : "error"}${rows}${ms}`;
 }
+
+export const PRIVACY_NOTE =
+  "The assistant never sees stored e-mails, phone numbers or keys. Columns that look like them are blanked in flow results.";
+export const PATH_NOTE =
+  "These snippets contain the path of this folder on this computer. Copy them again if you move the folder.";

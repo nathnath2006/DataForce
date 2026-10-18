@@ -119,11 +119,19 @@ class GetMeetingArgs(_Args):
 
 
 class SearchTextArgs(_Args):
-    query: str = Field(min_length=1, max_length=200, description="Plain substring, not semantic.")
+    query: str = Field(
+        min_length=2, max_length=200, description="Plain substring (at least 2 characters)."
+    )
     sources: list[Literal["notes", "comments", "meetings"]] = Field(
         default_factory=lambda: ["notes", "comments", "meetings"], min_length=1, max_length=3
     )
     limit: int = _limit()
+
+    @model_validator(mode="after")
+    def _two_chars(self) -> SearchTextArgs:
+        if len(self.query.strip()) < 2:
+            raise ValueError("query needs at least 2 non-space characters")
+        return self
 
 
 # --- shared output pieces -------------------------------------------------------------
@@ -375,7 +383,7 @@ class NodeOut(BaseModel):
     error: str | None
     n_rows: int | None
     columns: list[dict[str, str]]
-    preview_untrusted: list[dict[str, Any]]
+    preview_untrusted: dict[str, Any]  # columns_untrusted: [..], rows_untrusted: [[..], ..]
     view: dict[str, Any] | None
     warnings: list[str]
 

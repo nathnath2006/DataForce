@@ -57,7 +57,7 @@ def _args_for(name, demo, db):
         "compare_groups": {"dimension": "lead_source", "metric": "win_rate"},
         "run_flow": {"name": "deals sorted"},
         "get_meeting": {"document_id": doc.id},
-        "search_text": {"query": "e"},
+        "search_text": {"query": "ee"},
     }.get(name, {})
 
 
@@ -182,10 +182,10 @@ def test_flows_list_and_run(db_session, demo):
     res = call("run_flow", db_session, demo.ws_id, flow_id=f.id)
     assert [r.node_id for r in res.data.results] == ["s"]  # the sink only
     r = res.data.results[0]
-    assert r.status == "ok" and r.n_rows == 5 and len(r.preview_untrusted) == 5
+    assert r.status == "ok" and r.n_rows == 5 and len(r.preview_untrusted["rows_untrusted"]) == 5
     one = call("run_flow", db_session, demo.ws_id, name="deals sorted", node_id="d").data.results
     assert [x.node_id for x in one] == ["d"] and one[0].n_rows == 60
-    assert len(one[0].preview_untrusted) == 50  # preview cap
+    assert len(one[0].preview_untrusted["rows_untrusted"]) == 50  # preview cap
     run = db_session.scalars(select(Run).where(Run.kind == "flow_run")).first()
     assert run is not None and "Acme" not in json.dumps(run.result)
     with pytest.raises(ToolError, match="node_id"):
@@ -234,11 +234,11 @@ def test_search_text_finds_notes_comments_meetings(db_session, demo):
     assert r.method == "substring" and r.total_by_source["notes"] >= 1
     assert any(h.source == "notes" and "Call went well" in h.excerpt_untrusted for h in r.hits)
     # a LIKE wildcard is a literal
-    assert call("search_text", db_session, demo.ws_id, query="%").data.total_by_source == {
+    assert call("search_text", db_session, demo.ws_id, query="%%").data.total_by_source == {
         "notes": 0, "comments": 0, "meetings": 0,
     }  # fmt: skip
     only = call(
-        "search_text", db_session, demo.ws_id, query="e", sources=["meetings"], limit=3
+        "search_text", db_session, demo.ws_id, query="ee", sources=["meetings"], limit=3
     ).data
     assert len(only.hits) <= 3 and set(only.total_by_source) == {"meetings"}
     assert all(len(h.excerpt_untrusted) <= 320 for h in only.hits)
@@ -385,6 +385,6 @@ def test_workspace_isolation(db_session, demo):
     ov = call("workspace_overview", db_session, other).data
     assert ov.counts.accounts == 0 and ov.synthetic is False
     assert call("list_flows", db_session, other).data.flows == []
-    assert call("search_text", db_session, other, query="e").data.hits == []
+    assert call("search_text", db_session, other, query="ee").data.hits == []
     assert call("search_companies", db_session, other, query="a").data.page.total == 0
     assert call("list_deals", db_session, other).data.page.total == 0

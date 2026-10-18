@@ -4,7 +4,7 @@ import { request, w } from "../api";
 import { useWs } from "../context";
 import { formatDateTime } from "../lib";
 import { ErrorNote, Loading, Tag, useLoad } from "../ui";
-import { callSummary, desktopSnippet, shortDescription, type AgentInfo } from "./format";
+import { callSummary, desktopSnippet, shortDescription, PATH_NOTE, PRIVACY_NOTE, type AgentInfo } from "./format";
 
 function Snippet({ title, text }: { title: string; text: string }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
@@ -48,6 +48,7 @@ export function McpPanel() {
         <>
           <Snippet title="Claude Desktop (claude_desktop_config.json)" text={desktopSnippet(d.connect)} />
           <Snippet title="Claude Code (terminal)" text={d.connect.claude_code} />
+          <p className="muted small">{PATH_NOTE}</p>
           <div className="stack">
             <strong>Tools</strong>
             {d.tools.length === 0 && <p className="muted small">No tools available yet.</p>}
@@ -76,7 +77,7 @@ export function McpPanel() {
         </>
       )}
       <p className="muted small">
-        The assistant gets read access to this workspace only. It never sees emails, phone numbers or keys.
+        The assistant gets read access to this workspace only. {PRIVACY_NOTE}
       </p>
     </div>
   );

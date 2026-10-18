@@ -79,6 +79,7 @@ class DbSourceLoader:
             row = session.get(DataConnection, source.connection_id)
             if row is None or row.workspace_id != self._ws_id:
                 raise SourceError("the database connection no longer exists")
+            postgres.refuse_app_database(row.host, row.port, row.database)
             target = target_of(row, self._settings)
         finally:
             session.close()

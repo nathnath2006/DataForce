@@ -26,6 +26,13 @@ def _check_tls(host: str, sslmode: str) -> None:
         raise InvalidInputError(str(exc)) from None
 
 
+def _check_target(host: str, port: int, database: str) -> None:
+    try:
+        postgres.refuse_app_database(host, port, database)
+    except SourceError as exc:
+        raise InvalidInputError(str(exc)) from None
+
+
 def list_connections(db: Session, ws_id: uuid.UUID) -> list[DataConnection]:
     stmt = (
         select(DataConnection)
@@ -54,6 +61,7 @@ def create_connection(
     db: Session, ws_id: uuid.UUID, data: dict, settings: Settings
 ) -> DataConnection:
     _check_tls(data["host"], data["sslmode"])
+    _check_target(data["host"], data["port"], data["database"])
     if _name_taken(db, ws_id, data["name"], None):
         raise AlreadyExistsError("a connection with this name already exists")
     password = data.pop("password", None)
@@ -76,6 +84,7 @@ def update_connection(
     host = changes.get("host", row.host)
     sslmode = changes.get("sslmode", row.sslmode)
     _check_tls(host, sslmode)
+    _check_target(host, changes.get("port", row.port), changes.get("database", row.database))
     moved = any(k in changes and changes[k] != getattr(row, k) for k in _TARGET_FIELDS)
     if moved and not password and row.password_enc:
         # the stored password must never be sent to another server or as another user
@@ -121,6 +130,7 @@ def test_connection(
     row = require_connection(db, ws_id, connection_id)
     row.last_test_at = datetime.now(UTC)
     try:
+        postgres.refuse_app_database(row.host, row.port, row.database)
         postgres.check_connection(target_of(row, settings))
         row.last_test_ok, row.last_error = True, None
     except SourceError as exc:
@@ -133,4 +143,5 @@ def tables_of(
     db: Session, ws_id: uuid.UUID, connection_id: uuid.UUID, settings: Settings
 ) -> list[dict[str, str]]:
     row = require_connection(db, ws_id, connection_id)
+    _check_target(row.host, row.port, row.database)
     return postgres.list_tables(target_of(row, settings))

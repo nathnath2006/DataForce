@@ -11,6 +11,14 @@ pytestmark = pytest.mark.integration
 PW = "unit-test-pw-123"
 
 
+@pytest.fixture(autouse=True)
+def _allow_test_db(monkeypatch):
+    """The test database is also DATABASE_URL here; SR14-02 tests turn the refusal back on."""
+    from app.flows.sources import postgres
+
+    monkeypatch.setattr(postgres, "_app_database", lambda: None)
+
+
 @pytest.fixture
 def ws(client):
     client.post("/api/workspaces", json={"slug": "c1", "name": "C1"})
@@ -116,3 +124,40 @@ def test_moving_the_server_requires_the_password_again(client, ws, monkeypatch):
     assert client.patch(f"{ws}/connections/{cid}", json={"name": "renamed"}).status_code == 200
     client.post(f"{ws}/connections/{cid}/test")
     assert sent[-1].password == "new" and sent[-1].port == 1
+
+
+def test_application_database_refused_on_save_test_and_load(
+    client, ws, monkeypatch, session_factory, app
+):
+    """SR14-02: a connection to the DataForce database is refused when saved, when tested and by
+    the source loader (for rows saved before the rule)."""
+    import uuid
+
+    from app.db.models import Workspace
+    from app.flows.ports import SourceError
+    from app.flows.schemas import PostgresSource
+    from app.flows.sources import postgres
+    from app.flows.sources.loader import DbSourceLoader
+
+    ok = client.post(f"{ws}/connections", json=body()).json()
+    assert "id" in ok  # allowed while the guard is off
+    monkeypatch.undo()  # guard on: DATABASE_URL is the test database
+    for host in ("127.0.0.1", "localhost", "::1"):
+        r = client.post(f"{ws}/connections", json=body(name=f"x{host}", host=host))
+        assert r.status_code == 422 or r.status_code == 400, r.text
+        assert "application database" in r.text
+    other = client.post(f"{ws}/connections", json=body(name="o", database="elsewhere"))
+    assert other.status_code in (200, 201)
+    r = client.patch(
+        f"{ws}/connections/{other.json()['id']}", json={"database": body()["database"]}
+    )
+    assert r.status_code in (400, 422) and "application database" in r.text
+    t = client.post(f"{ws}/connections/{ok['id']}/test").json()
+    assert t["last_test_ok"] is False and "application database" in t["last_error"]
+    with session_factory() as s:
+        ws_id = s.query(Workspace).filter_by(slug="c1").one().id
+    loader = DbSourceLoader(session_factory, ws_id, get_settings())
+    src = PostgresSource(connection_id=uuid.UUID(ok["id"]), table="workspace")
+    with pytest.raises(SourceError, match="application database"):
+        loader.load(src, 10)
+    assert not postgres.targets_app_database("127.0.0.1", 1, "x")

@@ -194,7 +194,7 @@ def test_cli_real_tools_over_stdio(demo_ws, test_database_url):
             acc_id = rows[0]["account_id"]
             acc = await call("get_account", {"account_id": acc_id})
             assert acc["data"]
-            await call("search_text", {"query": "a", "limit": 5})
+            await call("search_text", {"query": "ab", "limit": 5})
 
     anyio.run(go)
     from app.db.models import Run

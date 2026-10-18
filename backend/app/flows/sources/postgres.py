@@ -8,7 +8,9 @@ are stripped of the password and of any connection string before they are shown.
 
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -18,7 +20,7 @@ import pandas as pd
 import psycopg
 from psycopg import sql
 
-from app.config import is_loopback_host
+from app.config import get_settings, is_loopback_host, parse_database_url
 from app.flows.ports import SourceError
 from app.flows.sources.frame import frame_from_rows
 
@@ -49,6 +51,53 @@ def check_tls_policy(host: str, sslmode: str) -> None:
         raise SourceError(
             "this host is not local: sslmode must be require, verify-ca or verify-full"
         )
+
+
+APP_DB_REFUSAL = "this is the DataForce application database: choose another database"
+
+
+def _app_database() -> tuple[str, int, str] | None:
+    """(host, port, database) of settings.database_url, or None when it cannot be read."""
+    try:
+        url = parse_database_url(get_settings().database_url.get_secret_value())
+    except Exception:  # noqa: BLE001
+        return None
+    return (url.host or "localhost", url.port or 5432, url.database or "")
+
+
+def _addresses(host: str) -> set[str]:
+    host = host.strip().strip("[]").rstrip(".").lower()
+    found = {host}
+    try:
+        found |= {str(ai[4][0]) for ai in socket.getaddrinfo(host, None)}
+    except (OSError, UnicodeError):
+        pass
+    try:
+        found.add(str(ipaddress.ip_address(host)))
+    except ValueError:
+        pass
+    return found
+
+
+def targets_app_database(host: str, port: int, database: str) -> bool:
+    """True when the target is the DataForce database: same port and database name, and the same
+    host, or both loopback, or the same resolved address (SR14-02)."""
+    app = _app_database()
+    if app is None:
+        return False
+    a_host, a_port, a_db = app
+    if int(port) != a_port or database != a_db:
+        return False
+    if host.strip().lower() == a_host.strip().lower():
+        return True
+    if is_loopback_host(host) and is_loopback_host(a_host):
+        return True
+    return bool(_addresses(host) & _addresses(a_host))
+
+
+def refuse_app_database(host: str, port: int, database: str) -> None:
+    if targets_app_database(host, port, database):
+        raise SourceError(APP_DB_REFUSAL)
 
 
 def sanitize_message(text: str, password: str | None = None) -> str:
