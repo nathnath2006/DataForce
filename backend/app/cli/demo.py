@@ -88,6 +88,49 @@ def generate_cmd(
             console.print(f"  {k}: {v}")
 
 
+# The one synthetic workspace people use in the app ("Test data"). It is the planted dataset of
+# the automated checks (seed 42), shown without any seed or variant wording.
+TEST_SLUG = "test-data"
+TEST_NAME = "Test data (synthetic)"
+TEST_SEED = 42
+
+
+@app.command("testdata")
+@cli_command
+def testdata_cmd(
+    replace: Annotated[
+        bool, typer.Option("--replace", help="Replace the existing test workspace.")
+    ] = False,
+    drop_seed_workspaces: Annotated[
+        bool,
+        typer.Option(
+            "--drop-seed-workspaces",
+            help="Also delete the old demo-<variant>-<seed> workspaces (synthetic only).",
+        ),
+    ] = False,
+) -> None:
+    """Load the SYNTHETIC "Test data" workspace (companies, contacts, deals, notes, meetings)."""
+    ds = generate("planted", TEST_SEED)
+    factory = session_factory()
+    with factory() as s:
+        if drop_seed_workspaces:
+            old = [w.slug for w in workspaces.list_workspaces(s) if w.is_demo]
+            for slug in (x for x in old if x.startswith("demo-")):
+                workspaces.delete_workspace(s, slug)  # expires the session: use the saved slugs
+                console.print(f"Deleted synthetic workspace {slug}.")
+        counts = load_dataset(
+            s, ds, workspace_slug=TEST_SLUG, workspace_name=TEST_NAME, replace=replace
+        )
+        s.commit()
+    path = DEMO_DIR / "ground_truth_test_data.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(ds.ground_truth.model_dump_json(indent=2), encoding="utf-8")
+    console.print(f"Loaded [bold]{TEST_NAME}[/bold] as workspace {TEST_SLUG}.")
+    for k, v in counts.items():
+        if k not in ("workspace_id", "workspace_slug"):
+            console.print(f"  {k}: {v}")
+
+
 @app.command("check")
 @cli_command
 def check_cmd(

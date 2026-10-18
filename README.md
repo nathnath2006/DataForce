@@ -25,8 +25,7 @@ cd backend && python3.13 -m venv .venv \
   && .venv/bin/pip install --require-hashes -r requirements-dev.lock \
   && .venv/bin/pip install --no-deps -e . && cd ..
 make migrate                                   # create / upgrade the schema
-backend/.venv/bin/dataforce demo generate --variant planted --seed 42 --replace
-backend/.venv/bin/dataforce demo generate --variant noise   --seed 1  --replace
+make testdata                                  # the synthetic "Test data" workspace
 ```
 
 Then, every time: `make ui` and open **http://127.0.0.1:8800** (use exactly this address: the
@@ -34,8 +33,9 @@ TamTam sign-in comes back to it). `make ui` creates the secret key in `backend/.
 builds the frontend when it changed, and starts the app on loopback only. There is no login before
 M3: anyone who can run programs on this computer can use it, nobody else can.
 
-- **Demo workspaces** (marked *synthetic*) hold generated companies and people, with a known
-  answer key. Enrichment there always uses a fake provider and never spends credits.
+- **Test data (synthetic)** holds generated companies, people, deals, notes and 160 meetings,
+  with a known answer key. Enrichment there always uses a fake provider and never spends credits.
+  `make testdata` reloads it from scratch (your own workspaces are never touched).
 - **Connect TamTam**: create a real workspace (workspace menu, *+ New workspace…*), open
   *Settings*, click *Connect TamTam* and sign in on TamTam's page. DataForce registers itself with
   TamTam, keeps the token encrypted in the database and never shows it. *Check connection* lists
