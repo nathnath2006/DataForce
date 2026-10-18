@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api } from "../api";
 import { aiApi } from "../assistant/api";
 import { ConnectionsPanel } from "../flows/ConnectionsPanel";
+import { McpPanel } from "../agent/McpPanel";
 import type { AiProvider } from "../types";
 import { useWs } from "../context";
 import { formatDateTime, isSafeAuthorizeUrl, tamtamReason } from "../lib";
@@ -92,6 +93,7 @@ export function SettingsPage() {
       )}
       <AiSection />
       <ConnectionsPanel />
+      <McpPanel />
       {disc && (
         <Confirm title="Disconnect TamTam" confirmLabel="Disconnect" danger onClose={() => setDisc(false)}
           onConfirm={async () => { await api.disconnectTamtam(ws.slug); setChecked(null); c.reload(); }}>

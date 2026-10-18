@@ -110,6 +110,7 @@ class RunKind(StrEnum):
     TITLE_NORMALIZE = "title_normalize"  # M2b
     ORG_RULES = "org_rules"  # M2b: org-chart proposals from rules and meetings
     THEME_ANALYSIS = "theme_analysis"  # M2b
+    AGENT_CALL = "agent_call"  # M3a: one MCP / agent tool call (params: tool + args; summary)
 
 
 class RunStatus(StrEnum):
