@@ -1,0 +1,31 @@
+Ingrid Hautecourt: Hi all, thanks for making time. I know this has dragged on a bit.
+Callum Greywell: No worries, Ingrid. Hi. Sorry, my camera's frozen, I'll just talk.
+Imogen Ankerwood: Hey Ingrid. I'm on the train so if I vanish, that's the tunnel.
+Tiphaine Ferrandaz: Hello. Sorry, my chair has no lumbar support so I'm wriggling around a bit.
+Ingrid Hautecourt: Ha, no problem. Lovely weather finally, isn't it?
+Callum Greywell: About time. Right, shall we get into it?
+Ingrid Hautecourt: Yes. So you've seen the revised quote, seventy-seven thousand for the platform over three years.
+Callum Greywell: We have. And, to be frank, that's above what we had pencilled in.
+Imogen Ankerwood: Callum, we said up to seventy, right? Or was it, um, sixty-five for year one?
+Callum Greywell: Seventy all in. So we're a few thousand off.
+Ingrid Hautecourt: I can take the per-seat rate down, and I could drop the implementation fee entirely.
+Tiphaine Ferrandaz: Dropping the fee helps. But Lumenfield Analytics quoted us less than half of that.
+Ingrid Hautecourt: I've heard that. Their number doesn't include the text extraction module though, or am I wrong?
+Tiphaine Ferrandaz: Possibly. Their rep was vague about it, to be honest.
+Callum Greywell: Look, Tiphaine isn't convinced and keeps pushing back on the whole thing, I'd rather say it out loud.
+Tiphaine Ferrandaz: That's fair, I won't deny it.
+Ingrid Hautecourt: Fair enough, I'd rather have it on the table. What would change your mind?
+Tiphaine Ferrandaz: Proof the extraction works on our messy transcripts. Not a demo, our actual files.
+Ingrid Hautecourt: We can run a sample on your files this week.
+Callum Greywell: To be fair, Imogen has been the biggest cheerleader for this platform since day one.
+Imogen Ankerwood: Guilty. I just think it would save my team hours.
+Ingrid Hautecourt: Thanks Imogen. Now on timing, you mentioned January?
+Callum Greywell: We need to be live by the first week of January, the new fiscal year starts and the board wants numbers.
+Ingrid Hautecourt: That's feasible if we sign by mid-November.
+Imogen Ankerwood: Hmm, before that, our lawyers need to look at the paper. Last time the liability cap was an issue.
+Ingrid Hautecourt: The cap is twice the annual fee; I can ask our counsel whether we can go to three times.
+Callum Greywell: That would help. And we'd want termination for convenience after year one.
+Ingrid Hautecourt: I'll take that to counsel as well. Nothing promised.
+Tiphaine Ferrandaz: Okay. Anything else?
+Ingrid Hautecourt: I think that's it. I'll send the sample plan and the revised terms by Friday.
+Callum Greywell: Thanks all.

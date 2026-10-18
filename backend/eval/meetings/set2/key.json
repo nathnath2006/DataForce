@@ -1,0 +1,414 @@
+[
+ {
+  "file": "01.md",
+  "account": "Orvalis Industries",
+  "language": "fr",
+  "topics": [
+   "price",
+   "integration",
+   "onboarding"
+  ],
+  "decoys": [
+   "un agent de sécurité à l'accueil qui m'a demandé mon badge trois fois"
+  ],
+  "reports_to": [
+   {
+    "contact": "Harriet Calderwick",
+    "manager": "Corentin E. Roussevel",
+    "sentence": "je réponds directement à Corentin E. Roussevel, notre directeur général"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Bryce J. Lavandrier",
+    "kind": "decision_maker",
+    "sentence": "C'est moi qui signe en dernier ressort sur tout ce qui dépasse quatre mille euros"
+   },
+   {
+    "contact": "Mireille F. Moriceau-Daul",
+    "kind": "champion",
+    "sentence": "je vais porter ce projet auprès de la direction, vous pouvez compter sur moi"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "02.txt",
+  "account": "Valtrio Capital",
+  "language": "en",
+  "topics": [
+   "competitor",
+   "security",
+   "timing"
+  ],
+  "decoys": [
+   "I'll pay the price for that third coffee"
+  ],
+  "reports_to": [
+   {
+    "contact": "Liora Fairbourne",
+    "manager": "Océane R. Oakenshaw",
+    "sentence": "Liora is one of the people who sit under Océane R. Oakenshaw, our managing director"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Soline W. Wexcombe",
+    "kind": "blocker",
+    "sentence": "I'm not going to sign off on anything that stores data outside the EU, that's a hard no from me"
+   },
+   {
+    "contact": "Liora Fairbourne",
+    "kind": "champion",
+    "sentence": "I'll be your internal advocate on this, I'll push it in the next leadership meeting"
+   },
+   {
+    "contact": "Océane R. Oakenshaw",
+    "kind": "decision_maker",
+    "sentence": "Océane R. Oakenshaw has the final say on any pilot"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "03.md",
+  "account": "Gravina Conseil 40",
+  "language": "fr",
+  "topics": [
+   "legal",
+   "support",
+   "price"
+  ],
+  "decoys": [
+   "ma fille fait de la compétition de natation ce week-end"
+  ],
+  "reports_to": [
+   {
+    "contact": "Dexter X. Roussevel",
+    "manager": "Aurélien Eastlowe",
+    "sentence": "Mon patron direct, c'est Aurélien Eastlowe, le directeur commercial"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Aurélien Dunsmoor",
+    "kind": "blocker",
+    "sentence": "Moi, je suis franchement contre ce renouvellement"
+   },
+   {
+    "contact": "Aurélien Eastlowe",
+    "kind": "decision_maker",
+    "sentence": "la décision finale m'appartient, je signerai si le juridique est rassuré"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "04.txt",
+  "account": "Vestal Industries",
+  "language": "en",
+  "topics": [
+   "price",
+   "competitor",
+   "timing",
+   "legal"
+  ],
+  "decoys": [
+   "my chair has no lumbar support"
+  ],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Imogen Ankerwood",
+    "kind": "champion",
+    "sentence": "Imogen has been the biggest cheerleader for this platform since day one"
+   },
+   {
+    "contact": "Tiphaine Ferrandaz",
+    "kind": "blocker",
+    "sentence": "Tiphaine isn't convinced and keeps pushing back on the whole thing"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "05.txt",
+  "account": "Orvalis Systèmes",
+  "language": "fr",
+  "topics": [
+   "integration",
+   "onboarding",
+   "support"
+  ],
+  "decoys": [
+   "sa première année de droit"
+  ],
+  "reports_to": [
+   {
+    "contact": "Gaspard Fairbourne",
+    "manager": "Evrard Tessendre",
+    "sentence": "Gaspard Fairbourne remonte à Evrard Tessendre, c'est son manager direct"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Evrard Tessendre",
+    "kind": "champion",
+    "sentence": "Je suis prêt à défendre ce projet devant tout le monde"
+   },
+   {
+    "contact": "Tiphaine Moriceau-Daul",
+    "kind": "decision_maker",
+    "sentence": "c'est moi qui prends la décision finale, Wilhelmina me fait confiance là-dessus"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "06.md",
+  "account": "Norvane Conseil 120",
+  "language": "fr",
+  "topics": [
+   "security",
+   "legal",
+   "timing"
+  ],
+  "decoys": [
+   "l'intégration de mon neveu dans son nouveau club de foot s'est super bien passée"
+  ],
+  "reports_to": [
+   {
+    "contact": "Noémie T. Roussevel",
+    "manager": "Noémie Quercival",
+    "sentence": "moi je dépends de Noémie Quercival, notre PDG, depuis le début"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Bryce Q. Hartlemoor",
+    "kind": "blocker",
+    "sentence": "Je mettrai mon veto tant que l'hébergement n'est pas certifié"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "07.md",
+  "account": "Helvora Industries",
+  "language": "en",
+  "topics": [
+   "support",
+   "integration",
+   "competitor"
+  ],
+  "decoys": [
+   "the guitarist's timing was off all night at the concert"
+  ],
+  "reports_to": [
+   {
+    "contact": "Wilhelmina Quercival",
+    "manager": "Roxane Ankerwood",
+    "sentence": "Roxane Ankerwood is my line manager"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Roxane Ankerwood",
+    "kind": "champion",
+    "sentence": "I'm the one pushing this internally, honestly nobody else would"
+   },
+   {
+    "contact": "Noémie Dunsmoor",
+    "kind": "decision_maker",
+    "sentence": "Noémie Dunsmoor signs everything above ten thousand, so she'll decide this one"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "08.txt",
+  "account": "Nivelle Capital",
+  "language": "fr",
+  "topics": [
+   "price",
+   "security",
+   "onboarding"
+  ],
+  "decoys": [
+   "j'ai acheté un support pour mon téléphone de voiture"
+  ],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Thaddeus E. Thistlegrove",
+    "kind": "blocker",
+    "sentence": "Thaddeus bloque systématiquement les nouveaux outils, il ne veut rien entendre"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "09.txt",
+  "account": "Lumeris Solutions",
+  "language": "en",
+  "topics": [
+   "timing",
+   "legal",
+   "support"
+  ],
+  "decoys": [
+   "the Prix Goncourt shortlist"
+  ],
+  "reports_to": [
+   {
+    "contact": "Evrard Ankerwood",
+    "manager": "Basile Calderwick",
+    "sentence": "I answer to Basile Calderwick, he's the CEO and has been for years"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Basile Calderwick",
+    "kind": "decision_maker",
+    "sentence": "Basile Calderwick is the one who signs, that's how it works here"
+   },
+   {
+    "contact": "Thaddeus H. Fairbourne",
+    "kind": "champion",
+    "sentence": "You've got my backing on this, I'll go to bat for it with the executive team"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "10.md",
+  "account": "Brevena Labs 116",
+  "language": "fr",
+  "topics": [
+   "competitor",
+   "integration",
+   "price"
+  ],
+  "decoys": [
+   "la sécurité routière a posé des radars partout sur ma route"
+  ],
+  "reports_to": [
+   {
+    "contact": "Clémence Casterel",
+    "manager": "Noémie S. Valmorin",
+    "sentence": "mon N+1, c'est Noémie S. Valmorin, notre Managing Director"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Imogen V. Penhallow",
+    "kind": "champion",
+    "sentence": "Je suis votre meilleure alliée sur ce dossier"
+   },
+   {
+    "contact": "Clémence Casterel",
+    "kind": "blocker",
+    "sentence": "Clémence freine des quatre fers sur ce projet"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "11.txt",
+  "account": "Norvane Logistique 103",
+  "language": "fr",
+  "topics": [
+   "security",
+   "onboarding",
+   "timing"
+  ],
+  "decoys": [],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Ingrid C. Calderwick",
+    "kind": "decision_maker",
+    "sentence": "La dernière validation, c'est moi, et personne d'autre"
+   }
+  ],
+  "org_decoys": [
+   "Si je dépendais de Basile Z. Thistlegrove, je changerais de métier"
+  ]
+ },
+ {
+  "file": "12.md",
+  "account": "Nivelle Partners 112",
+  "language": "en",
+  "topics": [
+   "legal",
+   "price",
+   "support"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Dexter Calderwick",
+    "manager": "Aurélien Merriwick",
+    "sentence": "Dexter's boss is Aurélien Merriwick"
+   }
+  ],
+  "signals": [],
+  "org_decoys": [
+   "I used to report to Gerald Pellow at my last firm"
+  ]
+ },
+ {
+  "file": "13.md",
+  "account": "Opaline Group",
+  "language": "fr",
+  "topics": [
+   "integration",
+   "security",
+   "competitor"
+  ],
+  "decoys": [],
+  "reports_to": [],
+  "signals": [],
+  "org_decoys": [
+   "Océane J. Lavandrier ne rapporte pas à Lachlan G. Valmorin"
+  ]
+ },
+ {
+  "file": "14.txt",
+  "account": "Alderon Digital",
+  "language": "en",
+  "topics": [
+   "onboarding",
+   "timing",
+   "competitor"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Jade Thistlegrove",
+    "manager": "Marlowe Moriceau-Daul",
+    "sentence": "Marlowe Moriceau-Daul is my director, I've reported there since I joined"
+   }
+  ],
+  "signals": [],
+  "org_decoys": [
+   "Over at our supplier their ops lead reports straight to their founder"
+  ]
+ },
+ {
+  "file": "15.txt",
+  "account": "Orvalis Santé",
+  "language": "fr",
+  "topics": [
+   "legal",
+   "support",
+   "onboarding"
+  ],
+  "decoys": [],
+  "reports_to": [],
+  "signals": [],
+  "org_decoys": [
+   "Si jamais je passais sous la responsabilité de Clémence Strathmoor, je démissionnerais"
+  ]
+ }
+]

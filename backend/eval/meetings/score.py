@@ -1,7 +1,7 @@
 """Score meeting extraction on an independently written transcript set.
 
 Imports the set's transcripts through the upload API of a running DataForce (`make ui`), runs
-the meeting org proposals and a theme run (no AI), then compares with the set's key.json:
+a theme run (no AI) and the meeting org-statement extraction, then compares with key.json:
 speaker matching, known themes per meeting, reports-to links and signals. Rerunning replaces
 the set's earlier imports. Run from backend/:
 
@@ -11,9 +11,14 @@ the set's earlier imports. Run from backend/:
 from __future__ import annotations
 
 import argparse
+import importlib
+import importlib.util
 import json
 import pathlib
+import sys
+import uuid
 from collections import Counter
+from types import ModuleType
 
 import httpx
 
@@ -36,11 +41,24 @@ def theme_id(label: str) -> str | None:
     return next((t for t in THEMES if low.startswith(t[:5])), None)
 
 
+def load_patterns(path: pathlib.Path | None) -> ModuleType:
+    """The meeting pattern module: the app's, or another version of it (e.g. from git)."""
+    if path is None:
+        return importlib.import_module("app.orgchart.meetings")
+    spec = importlib.util.spec_from_file_location("meetings_under_test", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # dataclasses look their module up while being built
+    spec.loader.exec_module(module)
+    return module
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("set_dir", type=pathlib.Path)
     ap.add_argument("--base", default="http://127.0.0.1:8800")
     ap.add_argument("--ws", default="test-data")
+    ap.add_argument("--patterns", type=pathlib.Path, help="another version of meetings.py")
     a = ap.parse_args()
     key = json.loads((a.set_dir / "key.json").read_text())
     brief = {b["account"]: b for b in json.loads((a.set_dir / "brief.json").read_text())}
@@ -82,9 +100,6 @@ def main() -> None:
     print("Speakers matched to a contact or a rep:", ci(matched, len(speakers)))
 
     accounts_ids = {d["account_id"] for d in docs.values()}
-    for acc_id in accounts_ids:
-        body = {"account_id": acc_id, "origins": ["meeting"]}
-        c.post(f"{api}/orgchart/propose", json=body).raise_for_status()
     c.post(f"{api}/themes/run", json={"use_ai": False}).raise_for_status()
 
     tp, fp, fn = Counter(), Counter(), Counter()
@@ -101,12 +116,43 @@ def main() -> None:
     n_tp, n_fp, n_fn = sum(tp.values()), sum(fp.values()), sum(fn.values())
     print(f"  {'all':12} precision {ci(n_tp, n_tp + n_fp):24} recall {ci(n_tp, n_tp + n_fn)}")
 
-    doc_ids = {d["id"] for d in docs.values()}
-    props = []
+    # Org statements: the app's extraction code runs here on this set's transcripts only. The
+    # workspace's own synthetic meetings may already state the same links, and a proposal keeps
+    # the first quote found, so reading proposals back would hide what this set contributed.
+    patterns = load_patterns(a.patterns)
+    found: list[tuple[str, str, str | None]] = []
     for acc_id in accounts_ids:
-        for p in c.get(f"{api}/accounts/{acc_id}/org-proposals").json():
-            if p["origin"] == "meeting" and (p.get("evidence") or {}).get("document_id") in doc_ids:
-                props.append(p)
+        people = c.get(f"{api}/contacts", params={"account_id": acc_id, "limit": 200}).json()
+        people = people["items"]
+        name = {p["id"]: p["full_name"] for p in people}
+        current = {p["id"]: p["reports_to_id"] for p in people}
+        refs = [patterns.ContactRef(uuid.UUID(p["id"]), p["full_name"]) for p in people]
+        for d in docs.values():
+            if d["account_id"] != acc_id:
+                continue
+            full = c.get(f"{api}/documents/{d['id']}").json()
+            text, doc_id = full["text"], uuid.UUID(full["id"])
+            chunks = [
+                patterns.ChunkRec(
+                    doc_id,
+                    uuid.UUID(ch["id"]),
+                    ch["speaker"],
+                    uuid.UUID(ch["contact_id"]) if ch["contact_id"] else None,
+                    ch["char_start"],
+                    ch["char_end"],
+                    text[ch["char_start"] : ch["char_end"]],
+                )
+                for ch in full["chunks"]
+            ]
+            for f in patterns.extract(chunks, refs, {doc_id: text}):
+                who, boss = str(f.contact_id), str(f.manager_id) if f.manager_id else None
+                if f.kind == "reports_to" and current.get(who) == boss:
+                    continue  # already in the CRM: the app does not propose it
+                found.append((f.kind, name[who], name.get(boss) if boss else None))
+    props = [
+        {"kind": k, "contact": {"full_name": n}, "manager": {"full_name": m} if m else None}
+        for k, n, m in set(found)
+    ]
     missing = {
         (ct["full_name"], ct["true_manager"])
         for b in brief.values()

@@ -1,0 +1,28 @@
+Lachlan Dunsmoor: Hi everyone, thanks for joining. How's your week going?
+Marlowe Moriceau-Daul: Busy, as usual. Hi Lachlan.
+Jade Thistlegrove: Hi. I'm joining from the shop floor so it's a bit noisy, sorry.
+Marlowe Casterel: Hello. Two Marlowes on the call, so I'll go by my surname if there's confusion.
+Lachlan Dunsmoor: Ha, good plan. Okay, so you told me last time the pilot didn't land well. I'd like to understand what went wrong.
+Jade Thistlegrove: Honestly, onboarding was the problem. Nobody on my team really knew how to use it after the first session.
+Lachlan Dunsmoor: That's useful to hear. What would a better start have looked like?
+Jade Thistlegrove: Shorter training sessions, and a checklist. Marlowe Moriceau-Daul is my director, I've reported there since I joined, and even she struggled to find the guide.
+Marlowe Moriceau-Daul: Yes, that's fair. We never got a proper walkthrough, just a recorded call.
+Marlowe Casterel: And the sandbox was empty, so nobody could practise.
+Lachlan Dunsmoor: I take that on board. We've since built a guided setup with sample data.
+Marlowe Moriceau-Daul: That sounds better. But timing was also an issue: we started the pilot in the middle of our busiest quarter.
+Lachlan Dunsmoor: Right, and I should have pushed back on that.
+Marlowe Casterel: We would need a start in January at the earliest, when production slows down.
+Jade Thistlegrove: January suits me too, as long as we get two weeks without any other project.
+Lachlan Dunsmoor: Understood. Is anyone else in the running meanwhile?
+Marlowe Moriceau-Daul: We looked at Pulsegrid. It's quicker to start but we heard it needs a lot of manual tagging.
+Marlowe Casterel: Yes, and Pulsegrid asked us to export everything to spreadsheets. Not appealing.
+Lachlan Dunsmoor: That's consistent with what I hear elsewhere.
+Jade Thistlegrove: Over at our supplier their ops lead reports straight to their founder, which is why things move fast there. I wish we were like that.
+Marlowe Moriceau-Daul: Ha, we're not. Anyway.
+Lachlan Dunsmoor: So if I come back in January with a guided setup and a short training plan, would you reopen the conversation?
+Marlowe Casterel: I would, yes.
+Marlowe Moriceau-Daul: I'd want to see the plan before deciding.
+Jade Thistlegrove: Same here.
+Lachlan Dunsmoor: Great, I'll prepare it and send it to you by the end of the month.
+Marlowe Moriceau-Daul: Thanks Lachlan.
+Marlowe Casterel: Thanks, bye.

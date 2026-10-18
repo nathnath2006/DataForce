@@ -1,0 +1,27 @@
+Soline Valmorin: Bonjour à tous, c'est Soline. Vous m'entendez ?
+Mireille Sarrenac: Oui, bonjour Soline, ravie de vous retrouver.
+Noémie Calderwick: Bonjour. Je m'excuse, j'ai les comptes trimestriels sous les yeux, je suis un peu ailleurs.
+Thaddeus E. Thistlegrove: Bonjour. Excusez le bruit, j'ai acheté un support pour mon téléphone de voiture et je le teste en roulant.
+Soline Valmorin: Ha ha, prudence ! Alors, on est sur la licence. Félicitations d'avoir avancé.
+Mireille Sarrenac: Merci. Première chose, le prix. On a vu le devis à vingt-huit mille six cents.
+Noémie Calderwick: Qui est dans notre enveloppe, mais je voudrais un paiement en deux fois.
+Soline Valmorin: Deux échéances, ça se fait : la moitié à la signature et le reste à six mois.
+Thaddeus E. Thistlegrove: Et la remise dont on avait parlé ?
+Soline Valmorin: Cinq pour cent déjà inclus dans le devis.
+Mireille Sarrenac: J'avais compris sept, mais bon, passons. Thaddeus bloque systématiquement les nouveaux outils, il ne veut rien entendre, mais là il s'est calmé.
+Thaddeus E. Thistlegrove: Ha, c'est faux ! Enfin... un peu vrai, je l'avoue.
+Noémie Calderwick: Côté sécurité, on traite des données de clients financiers, il nous faut un chiffrement fort et un hébergement européen.
+Soline Valmorin: C'est le cas : chiffrement de bout en bout, hébergement en Europe, et gestion fine des droits par utilisateur.
+Thaddeus E. Thistlegrove: Et la double authentification, euh, c'est obligatoire ou optionnel ?
+Soline Valmorin: Obligatoire pour les administrateurs, optionnelle pour les autres.
+Noémie Calderwick: Je préférerais obligatoire pour tout le monde.
+Soline Valmorin: Ça se règle d'un clic dans la console.
+Mireille Sarrenac: Bien. Passons à l'arrivée des équipes sur l'outil, parce que c'est là que ça coince d'habitude.
+Soline Valmorin: Nous proposons un kit de démarrage, une formation d'une demi-journée et des webinaires d'accueil pour les nouveaux arrivants.
+Thaddeus E. Thistlegrove: Les webinaires, c'est enregistré ? Parce que l'équipe de Clémence est en décalé.
+Soline Valmorin: Oui, tout est disponible en replay.
+Noémie Calderwick: Et un référent chez vous pour les premières semaines ?
+Soline Valmorin: Oui, un conseiller dédié pendant le premier mois de prise en main.
+Mireille Sarrenac: Parfait. Je crois qu'on a fait le tour.
+Thaddeus E. Thistlegrove: Oui, merci Soline.
+Soline Valmorin: Merci à vous, je vous renvoie le devis signé de mon côté.

@@ -1,0 +1,28 @@
+Lachlan Dunsmoor: Bonjour tout le monde, vous me recevez bien ?
+Tiphaine Moriceau-Daul: Oui très bien, bonjour Lachlan. On est tous les trois dans la salle de réunion.
+Evrard Tessendre: Bonjour. Excusez-moi, je termine un café, euh, la machine est en panne depuis lundi.
+Gaspard Fairbourne: Salut Lachlan.
+Lachlan Dunsmoor: Bonjour Gaspard. Alors, on avait laissé la discussion sur le branchement avec votre WMS, c'est bien ça ?
+Tiphaine Moriceau-Daul: Oui. Notre WMS maison est assez ancien, il parle surtout en fichiers plats, pas vraiment d'API.
+Lachlan Dunsmoor: Pas de problème, on a un connecteur par dépôt de fichiers, ça tourne en SFTP toutes les heures.
+Gaspard Fairbourne: Et ça, c'est quelqu'un de chez vous qui le configure, ou c'est nous ?
+Lachlan Dunsmoor: La première fois, c'est notre ingénieur d'intégration, avec vous en visio.
+Evrard Tessendre: D'accord. Parce que l'an dernier, avec l'autre prestataire, on s'est retrouvés tout seuls avec un tableur.
+Tiphaine Moriceau-Daul: Gaspard Fairbourne remonte à Evrard Tessendre, c'est son manager direct, donc ils feront le point ensemble avant.
+Evrard Tessendre: Oui, je le briefe demain.
+Lachlan Dunsmoor: Super. Sur la mise en route avec les équipes : on propose une formation de quatre heures pour les chauffeurs-livreurs référents et une demi-journée pour les exploitants.
+Gaspard Fairbourne: Quatre heures pour les chauffeurs, c'est long, ils ne sont pas devant un écran toute la journée.
+Lachlan Dunsmoor: On peut faire des capsules vidéo de dix minutes, c'est fréquent sur les métiers de terrain.
+Evrard Tessendre: Je suis prêt à défendre ce projet devant tout le monde, je l'ai déjà dit à mon équipe, mais il faut que la prise en main soit simple.
+Tiphaine Moriceau-Daul: Idem. Et c'est moi qui prends la décision finale, Wilhelmina me fait confiance là-dessus.
+Lachlan Dunsmoor: Très clair, merci Tiphaine.
+Gaspard Fairbourne: Et si ça plante un samedi, on appelle qui ?
+Lachlan Dunsmoor: Hotline ouverte six jours sur sept, de huit heures à vingt heures, avec un technicien qui connaît votre configuration.
+Evrard Tessendre: Et le dimanche ?
+Lachlan Dunsmoor: Astreinte uniquement pour les incidents bloquants.
+Tiphaine Moriceau-Daul: Ça me va. Et en cas de souci, on a un interlocuteur nominatif ?
+Lachlan Dunsmoor: Oui, vous aurez son numéro direct.
+Gaspard Fairbourne: Mon fils vient de commencer sa première année de droit, il m'a bloqué toute la soirée avec ses fiches, je suis crevé.
+Tiphaine Moriceau-Daul: Ha ha. Bon, on se refait un point ?
+Lachlan Dunsmoor: Je vous envoie le compte rendu et on organise ça.
+Tiphaine Moriceau-Daul: Parfait, merci.

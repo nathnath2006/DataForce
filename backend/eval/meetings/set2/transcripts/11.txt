@@ -1,0 +1,27 @@
+Ingrid Hautecourt: Bonjour à tous, on démarre ? Je vois Philippa et Thaddeus, il manque Ingrid.
+Philippa Y. Oakenshaw: Elle arrive, elle finit un appel avec la banque.
+Thaddeus A. Fairbournex: Bonjour ! Je suis encore en train de chercher mon câble, désolé.
+Ingrid C. Calderwick: Me voilà, bonjour. Excusez-moi, c'était long.
+Ingrid Hautecourt: Pas de problème. Alors, on est signés, bravo à tous, et on prépare la mise en place.
+Philippa Y. Oakenshaw: Oui. On a des questions sur les accès. Comment sont gérés les droits des utilisateurs ?
+Ingrid Hautecourt: Chaque utilisateur a un profil, avec trois niveaux : lecture, édition, administration. Et tout est journalisé.
+Thaddeus A. Fairbournex: Et les données de santé, elles sont stockées où ?
+Ingrid Hautecourt: Chez un hébergeur certifié, en France, avec chiffrement des données.
+Ingrid C. Calderwick: Nous avons un test d'intrusion annuel, je voudrais que vous nous fournissiez le rapport du vôtre.
+Ingrid Hautecourt: Je vous l'envoie dès cet après-midi.
+Philippa Y. Oakenshaw: Si je dépendais de Basile Z. Thistlegrove, je changerais de métier, il pose cent questions par réunion.
+Thaddeus A. Fairbournex: Ha ha, elle exagère. Enfin, un peu.
+Ingrid C. Calderwick: Pour la mise en production, vous visez toujours le premier septembre ?
+Ingrid Hautecourt: Oui, le premier septembre, avec une semaine de marge au cas où.
+Thaddeus A. Fairbournex: Une semaine de marge, c'est bien, parce que la rentrée est chargée.
+Philippa Y. Oakenshaw: Je préférerais que les utilisateurs soient formés avant la mise en production, pas après.
+Ingrid Hautecourt: C'est le plan : deux sessions de formation fin août, une pour les managers, une pour les équipes.
+Ingrid C. Calderwick: La dernière validation, c'est moi, et personne d'autre, donc je veux voir le plan de formation écrit.
+Ingrid Hautecourt: Je vous l'envoie ce soir.
+Thaddeus A. Fairbournex: Et pour les nouveaux arrivants qui rejoindront plus tard ?
+Ingrid Hautecourt: Il y a un module d'accueil en autonomie, de trente minutes.
+Philippa Y. Oakenshaw: Parfait, ça évite de tout refaire à chaque embauche.
+Ingrid C. Calderwick: D'accord. On se retrouve dans quinze jours pour le point d'étape ?
+Ingrid Hautecourt: Oui, je cale ça.
+Thaddeus A. Fairbournex: Merci Ingrid.
+Philippa Y. Oakenshaw: Merci, bonne journée.

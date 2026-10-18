@@ -13,7 +13,10 @@ Score a set against a running app (`make testdata`, then `make ui`):
     cd backend && .venv/bin/python eval/meetings/score.py eval/meetings/set1
 
 The script imports the transcripts into the `test-data` workspace (titled "Eval set1 …"; a rerun
-replaces them), runs the meeting org proposals and a theme run without AI, then prints:
+replaces them) and runs a theme run without AI. It runs the app's org-statement extraction on
+the set's transcripts only, because the workspace's own synthetic meetings already state many of
+the same links. `--patterns FILE` scores another version of `app/orgchart/meetings.py`, for
+example one taken from git. It then prints:
 
 - the speaker match rate;
 - theme precision and recall per meeting;
@@ -21,5 +24,6 @@ replaces them), runs the meeting org proposals and a theme run without AI, then 
 
 Each figure comes with a Wilson 95 % interval.
 
-A set is held-out only until its misses have been used to change the rules. `set1` was used that
-way on 2026-10-18 (see `docs/DECISIONS.md` §J).
+A set is held-out only until its misses have been used to change the rules. On 2026-10-18,
+`set1` was used to broaden the rules, and `set2` then measured that change. Both are now seen,
+so the next measurement needs a set 3. Results are in `docs/DECISIONS.md` §J.

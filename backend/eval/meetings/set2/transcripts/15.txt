@@ -1,0 +1,29 @@
+Anselme Thistlegrove: Bonjour à tous, c'est Anselme. Vous m'entendez bien ?
+Fenwick Tessendre: Oui, bonjour Anselme. Nous sommes trois ici, Clémence et Mireille sont avec moi.
+Clémence Strathmoor: Bonjour. Pardon, je vous entends avec un petit écho.
+Mireille Dunsmoor: Bonjour. Je coupe mon micro quand je ne parle pas, ça devrait aider.
+Anselme Thistlegrove: Merci. Alors, on est dans le secteur de la santé, donc je commence par le juridique, si vous voulez bien.
+Fenwick Tessendre: Oui. Notre direction juridique veut une clause sur l'hébergement de données de santé et une clause de réversibilité.
+Anselme Thistlegrove: La réversibilité est prévue : vous récupérez toutes vos données dans un format ouvert à la fin du contrat.
+Clémence Strathmoor: Et la responsabilité en cas de fuite ? Le plafond me paraît trop bas.
+Anselme Thistlegrove: Je transmets la demande à notre juridique, je ne peux pas vous donner de réponse ferme aujourd'hui.
+Mireille Dunsmoor: Si jamais je passais sous la responsabilité de Clémence Strathmoor, je démissionnerais, je le dis en riant, hein.
+Clémence Strathmoor: Merci pour la confiance, Mireille !
+Fenwick Tessendre: Plus sérieusement, il y a aussi l'assistance. Nos équipes soignantes ne sont pas des informaticiens.
+Anselme Thistlegrove: Bien sûr. On propose une assistance en français, par téléphone et par messagerie, du lundi au vendredi.
+Mireille Dunsmoor: Et en cas d'urgence un week-end ? Les services de santé ne dorment jamais.
+Anselme Thistlegrove: Une astreinte est possible en option pour les incidents bloquants.
+Clémence Strathmoor: Il faudrait un engagement écrit sur le temps de réponse.
+Anselme Thistlegrove: Oui, je l'ajoute à la proposition : une heure pour un incident bloquant, quatre heures pour le reste.
+Fenwick Tessendre: Ça me semble raisonnable. Et les nouveaux utilisateurs, comment ça se passe pour leur arrivée ?
+Anselme Thistlegrove: On propose un programme d'onboarding avec des sessions courtes, adaptées aux plannings des soignants.
+Mireille Dunsmoor: Des sessions de vingt minutes, ce serait idéal, ils n'ont jamais plus.
+Anselme Thistlegrove: C'est exactement le format que je recommande, avec des fiches pratiques par métier.
+Clémence Strathmoor: Y aura-t-il un référent formé dans chaque service ?
+Anselme Thistlegrove: Oui, on forme un relais par service, qui accompagne ses collègues.
+Fenwick Tessendre: Très bien. Et un guide d'accueil pour les intérimaires ?
+Anselme Thistlegrove: On peut le produire, oui, dans les deux premières semaines.
+Mireille Dunsmoor: Parfait, ça répond à ma question.
+Clémence Strathmoor: Merci Anselme, on revient vers vous avec les retours de notre juridique.
+Anselme Thistlegrove: Avec plaisir. Bonne fin de journée à tous.
+Fenwick Tessendre: À vous aussi.

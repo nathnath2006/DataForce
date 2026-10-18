@@ -1,0 +1,28 @@
+Anselme Thistlegrove: Hi everyone, thanks for joining. Can you all hear me okay?
+Lachlan S. Dunsmoor: Loud and clear, Anselme. Sorry, I'm in the car park, give me a second to get inside.
+Liora Fairbourne: Hi Anselme. I just got off another call, so bear with me if I'm a bit scattered. I'll pay the price for that third coffee later.
+Soline W. Wexcombe: Morning. Is it still raining where you are? It's been grey here for a week.
+Anselme Thistlegrove: Pouring, honestly. Anyway, shall we start with where you are on the evaluation?
+Lachlan S. Dunsmoor: Sure. So, um, we've been looking at Brightwave Insight in parallel, as you know.
+Anselme Thistlegrove: I did hear that. What do you like about it?
+Liora Fairbourne: Honestly their dashboards are prettier. But, well, prettier isn't the same as better.
+Soline W. Wexcombe: There's also Quorix, which one of our partners uses. Different animal though, more of a reporting add-on.
+Anselme Thistlegrove: Fair. The difference with us is that we do the extraction on the raw text rather than just charting.
+Lachlan S. Dunsmoor: Right, that's what I told the others. Brightwave can't really do that, or not that I saw.
+Anselme Thistlegrove: On the data side, let me address what Soline raised last time: everything is encrypted at rest and in transit, hosted in Frankfurt.
+Soline W. Wexcombe: Frankfurt is good. I'm not going to sign off on anything that stores data outside the EU, that's a hard no from me.
+Anselme Thistlegrove: Understood, that's not an issue for us. Single sign-on with your identity provider is also supported.
+Soline W. Wexcombe: And access logs? We get audited every spring.
+Anselme Thistlegrove: Full audit logs, exportable. I can send the penetration test summary too.
+Liora Fairbourne: Please do. Sorry, I was muted. I'll be your internal advocate on this, I'll push it in the next leadership meeting.
+Anselme Thistlegrove: That's great to hear, Liora, thank you.
+Lachlan S. Dunsmoor: Liora is one of the people who sit under Océane R. Oakenshaw, our managing director, so she has a direct line there.
+Liora Fairbourne: Yes, which helps. And Océane R. Oakenshaw has the final say on any pilot anyway.
+Anselme Thistlegrove: Good to know. So on the calendar, what are you aiming for?
+Lachlan S. Dunsmoor: We'd like to go live before the end of Q4, ideally mid-November, because after that everyone vanishes for the holidays.
+Soline W. Wexcombe: Mid-November is tight. I need the security review done first, that's three weeks minimum.
+Anselme Thistlegrove: If I get you the documents this week, you could start the review Monday and still hit early December.
+Lachlan S. Dunsmoor: Early December works. Um, I'd say the hard deadline is the board meeting on the twelfth.
+Anselme Thistlegrove: Noted. I'll send everything today, and let's reconvene next Tuesday.
+Liora Fairbourne: Perfect, thanks Anselme.
+Lachlan S. Dunsmoor: Thanks all, bye.

@@ -285,9 +285,26 @@ measurement.
     est X") miss common wordings such as "rattachée à X", "I work under X", "X, mon N+1, …" and
     "My boss, X, …".
   - Signals: precision 100 % (15/15), recall 44 % [29, 61].
-- So the meeting patterns were fitted to the demo's wording. Set 1 drives a broadening of the
-  patterns and lexicon, and is therefore no longer held-out. The result is measured on a fresh
-  set 2.
+- So the meeting patterns were fitted to the demo's wording. Set 1 was then used to broaden the
+  patterns and the lexicon, so it is no longer held-out.
+- **Set 2** was written afterwards the same way, from 15 other accounts. It measures the
+  broadened rules on text they were not fitted to.
+
+  | Set 2, 15 unseen meetings | Before | After broadening |
+  |---|---|---|
+  | Known themes, precision / recall | 68 % / 50 % | 72 % [57, 83] / 67 % [53, 79] |
+  | Reports-to, links missing from the CRM | 1 of 10 | **1 of 10** |
+  | Signals, recall | 2 of 20 | 7 of 20 (35 % [18, 57]) |
+  | False statements or signals | 0 | 0 |
+
+  For comparison, set 1 after broadening reached 8 of 9 links, 32 of 34 signals and themes at
+  95 % / 88 %. Those figures are fitted to set 1, so they are not a measure of quality.
+- **Conclusion.** The meeting patterns are precise but do not generalise: each new wording
+  needs a new rule. Org suggestions from meetings therefore have low recall on real speech. The
+  quotes are exact and a person still accepts every link.
+- A scorer flaw was found and fixed on the way. The workspace's own synthetic meetings already
+  state many of the same links, and a proposal keeps only the first quote. So the scorer now
+  runs the app's extraction code on the set's transcripts only.
 
 ## K. Open
 1. CRM scope, TamTam, AI key: as in M2a (the PO is testing).
