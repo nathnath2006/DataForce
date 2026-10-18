@@ -129,6 +129,11 @@ function ThemeCard({ theme: t }: { theme: ThemeOut }) {
       </p>
       <ErrorNote error={a.error} />
       <div><button disabled={a.busy} onClick={test}>Test against win rate</button></div>
+      <p className="muted small">
+        A screening test, not proof: the theme was found in these same meetings, testing themes one
+        by one raises the odds of a lucky result, and deals differ in how often (and with whom)
+        they were met. Treat a "verified" difference as a lead to check.
+      </p>
     </article>
   );
 }

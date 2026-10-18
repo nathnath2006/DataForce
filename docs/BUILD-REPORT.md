@@ -1,14 +1,15 @@
-# DataForce — build report (M1, M1b, M2a)
+# DataForce — build report (M1, M1b, M2a, M2b)
 
-**Status (17 October 2026):**
+**Status (18 October 2026):**
 
 | Milestone | What it added | State |
 |---|---|---|
 | **M1** ("jalon 1") | Data, CRM and statistics engine | complete and ratified |
 | **M1b** | A local web interface, "Connect TamTam" over MCP, the 350-deal demo | complete, reviewed and fixed |
 | **M2a** | Your feedback: drag-and-drop **analysis flows** with a pivot, statistics and model blocks; a **Companies** tab with the public French registry; an **AI model** in Settings with an **Ask** panel; a **light / dark** theme | complete, reviewed and fixed |
+| **M2b** | Job titles normalised; org-chart **suggestions** from titles and from what people said in meetings (a person accepts them); **meeting transcripts** with known sales themes and discovered topics | complete, reviewed (security and methods) and fixed |
 
-Every part was built by Sonnet agents, independently reviewed for security, fixed and re-verified. **953 automated tests pass** (905 backend, 48 frontend).
+Every part was built by Sonnet agents, independently reviewed for security, fixed and re-verified. **1,165 automated tests pass** (1,101 backend, 64 frontend).
 
 **Sources of truth.**
 
@@ -18,6 +19,8 @@ Every part was built by Sonnet agents, independently reviewed for security, fixe
 | `docs/ARCHITECTURE.md` | the M1 contract |
 | `docs/UI-CONTRACT.md` | the M1b contract |
 | `docs/M2A-CONTRACT.md` | the M2a contract |
+| `docs/M2B-CONTRACT.md` | the M2b contract |
+| `docs/review/M2b-methods-review.md` | the independent, held-out check of the M2b methods |
 | `docs/BUILD-REPORT.md` | the source of this PDF, rendered by `docs/tools/build_pdf.py` |
 
 ## 1. In one page
@@ -48,13 +51,15 @@ The AI never computes numbers. Any number it writes that is not in the data is f
 | **Analysis flows (M2a)** | Drag-and-drop canvas. Datasets come from the CRM, an uploaded CSV / Excel file or a read-only PostgreSQL database. Blocks: filter, sort, columns, group, join, **pivot**, stats test, chart, train/test split, linear and logistic regression, k-means |
 | Statistics engine | Win rate, cycle length and deal size with 95 % confidence intervals and the "not verified" gates, reused by the stats and model blocks |
 | **AI model and Ask (M2a)** | Gemini or Anthropic key entered in Settings, stored encrypted. The Ask panel on an account or company answers from its data, cites it, and flags numbers and quotes it cannot back |
+| **Job titles (M2b)** | Every title mapped to a function and a seniority by a French / English dictionary; unknown titles optionally classified once by your AI model (title text only), flagged for review |
+| **Org-chart suggestions (M2b)** | Managers proposed from titles (same account, next level up) and from meeting sentences ("I report to…"), plus champion / blocker / decision-maker signals, each with its evidence; nothing becomes a fact until a person accepts it |
+| **Meetings and themes (M2b)** | Transcripts (PDF, Markdown, text) on accounts and deals; known sales themes found by keywords with exact quotes, other recurring topics discovered; "Themes vs win rate" as a screening flow. All local |
 | Connect TamTam (M1b) | Sign in on TamTam's page. The token is encrypted; paid lookups happen only after a confirmed click |
-| Synthetic demo | 350 deals with planted effects (seed 42) and a pure-noise twin (seed 1), now with companies and a year of dated notes |
+| Synthetic demo | 350 deals with planted effects (seed 42) and a pure-noise twin (seed 1), with companies, a year of dated notes, half the org charts left to rediscover, and 160 meetings with planted themes |
 | Command line and notebook | `dataforce …`; a proof notebook run against the answer key |
 
 **Not delivered yet (by plan).**
 
-- M2b: title normalisation, the inferred org chart, meeting-transcript themes.
 - M3: the MCP server and API for outside AI agents, login and hosting.
 
 ## 2. How it was built
@@ -72,10 +77,11 @@ The team works the same way for every milestone:
 | M1 | foundation, generator, stats engine, LLM clean-up, integration | SR4, SR5, statistics ratification | 3 fixers |
 | M1b | API and CRM, TamTam connector, frontend, 350-deal demo | SR6 (API), SR7 (OAuth), SR8 (frontend) | 2 fixers + tech lead |
 | **M2a** | flow engine, flow API and data sources, companies and registry, AI assistant, flow-editor UI, companies/AI/theme UI | SR9 (flows and data), SR10 (companies and AI), SR11 (frontend) | 3 fixers + tech lead |
+| **M2b** | titles, org proposals, transcripts and themes, demo meetings, org/titles UI, meetings UI; then a second and third theme method and realistic demo transcripts | SR12 (backend), SR13 (frontend), an **independent methods review** on held-out data | 2 fixers + tech lead |
 
-**During M2a** the agents hit a usage limit mid-build. They were resumed where they stopped once it reset, with no work lost.
+**During M2a and M2b** the agents hit usage limits mid-build. They were resumed where they stopped once the limit reset, with no work lost.
 
-**Version control.** Logical commits on `main`, with the tags `m1` and `m1b`. Pushing to a private GitHub repository is waiting for you to sign in to GitHub once (`gh auth login`).
+**Version control.** Logical commits on `main`, with the tags `m1`, `m1b`, `m2a` and `m2b`, in the private GitHub repository `nathnath2006/DataForce`; new commits are pushed when you ask.
 
 ## 3. Product decisions (and why)
 
@@ -94,6 +100,10 @@ The team works the same way for every milestone:
 | **The AI key is entered in Settings**, encrypted and never shown back. | Simple for you. The old "never paste the key" rule meant never paste it *into a chat*. |
 | **The Ask panel says what it sends** (CRM names, titles, deals, notes; never emails or mobiles) and stores nothing. | You decide what goes to Google or Anthropic. |
 | **Local only, no login yet.** | Login and hosting are M3. |
+| **Titles, links and themes: dictionary first** (M2b). Code with fixed French / English vocabularies does the work; the AI is used only for what the dictionary does not know, and is flagged. | Explainable, cheap, private. The same pattern as the statistics: code computes, the AI names. |
+| **Suggestions are never facts** (M2b). A rule or a meeting may only *suggest* a manager or a signal; a person accepts or rejects it. | An org chart is about people; a wrong "reports to" must never appear as certain. |
+| **Meeting text stays on the computer** (M2b). Themes are found locally; the AI only names discovered topics, from top words and short excerpts with names masked. | Transcripts are the most sensitive data in the tool. |
+| **Erasing a person erases them from transcripts too** (M2b). Their turns and their name are replaced by same-length placeholders. | GDPR erasure must not leave their words behind. |
 | **350 demo deals; noise demo on seed 1.** | Your choices. Seed 42 of the noise twin is one of the ~4 % that show a chance finding. |
 
 ## 4. How the statistics work (plain language)
@@ -150,6 +160,44 @@ Medians are used so one giant deal does not distort the picture.
 
 Coefficients are labelled "associations, not causes".
 
+## 4b. Titles, org chart and meetings (M2b, plain language)
+
+**Titles.**
+- "Dir. commercial", "VP Sales" and "Ingénieur d'affaires" become *sales · head*, *sales · vp* and *sales · individual*.
+- The dictionary expands abbreviations and repairs typos.
+- A title it does not know is either sent once to your AI model (only the title, never the person's name) and flagged "classified by AI", or left "unknown" for you to set.
+
+**Org chart.** For contacts without a manager, the rules look for the next level up in the same function, then the CEO, inside the same account. When two people fit, the rules list both and do not guess. Meeting sentences such as "I report to Soline Pellegrand" or "c'est Quentin qui signe" become suggestions, with the exact sentence as evidence.
+
+**Themes.** We tried pure topic discovery (TF-IDF + NMF) first, and it failed on realistic transcripts: it returned small talk ("next week", "send the documents") and people's names.
+
+The working method is the same as for titles:
+1. A French / English catalog of common sales themes (price, competitor, security, integration, timing, legal, onboarding, support) is matched sentence by sentence, with exact quotes.
+2. Competitor names are spotted when they recur near words like "similar offer".
+3. Discovery then looks only at the remaining sentences. Its topics stay *exploratory*.
+
+**How good is it?** There are two kinds of numbers:
+- **In-sample**: on the synthetic demo, whose vocabulary the dictionary shares, so these flatter;
+- **Held-out**: from an independent reviewer's own titles, sentences and org charts.
+
+| Method | Demo (in-sample) | Held-out | Verdict |
+|---|---|---|---|
+| Titles | 99.6 % function, 99.7 % seniority | 75.8 % function, 86.3 % seniority; 41 % left unknown or flagged, but **90 of 90 right when it answers** | ratified with caveats |
+| Org rules | 95 % precision, 81 % recall | 88.5 % precision, 59 % recall; abstains rather than guesses | ratified with caveats |
+| Meeting links and signals | 100 % precision, 44 % recall; signals 74 of 74 | narrow on paraphrases; a few false positives, fixed | ratified with caveats |
+| Known themes | F1 0.82–0.98 | precision 0.64–0.89, recall 0.35–0.70 | **exploratory only**: no accuracy claim |
+
+The review's fixes were applied afterwards, so its held-out set has now been seen. A fresh one is needed for the next measurement.
+
+**Themes and deal outcomes.**
+- On the demo, deals whose meetings mention price objections won **16.7 %** of the time, against **57.1 %** for the others: −40.5 points, verified.
+- Deals with no meeting are left out, not counted as "no mention".
+- This is a screening result:
+  - the theme was found on the same meetings;
+  - each theme is tested on its own;
+  - deals differ in how often, and with whom, they were met.
+- The app says so next to the button.
+
 ## 5. The synthetic demo data
 
 **What the generator builds** for a realistic small company:
@@ -157,7 +205,8 @@ Coefficients are labelled "associations, not causes".
 - 30 companies grouping 122 accounts, with invented addresses in real French cities and no SIREN, so they never collide with real firms;
 - 755 contacts with org charts;
 - 350 deals;
-- a year of dated notes and comments.
+- a year of dated notes and comments;
+- **M2b:** half of the accounts lose their manager links in the CRM, so the true tree stays in the answer key for the rules to rediscover; there are 160 meetings (60 % French), varied enough that 85 % of the customer sentences are distinct. They have planted themes (price objection in 65 % of lost-deal meetings vs 20 % of the others), "I report to…" sentences and champion / blocker / decision-maker signals.
 
 Everything is invented and deterministic: the same seed always gives the same data.
 
@@ -221,6 +270,8 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 | `connector_credential`, `oauth_pending`, `contact_channel` | TamTam connection; sign-ins in progress; confirmed emails and mobiles (encrypted) |
 | `uploaded_file`, `data_connection`, `flow` (M2a) | CSV/Excel files; PostgreSQL connections (password encrypted); saved flows |
 | `llm_credential` (M2a) | the workspace's AI provider, model and encrypted key |
+| `title_cache`, `org_proposal` (M2b) | AI title classifications (cached once); suggested links and signals with their evidence and status |
+| `document`, `document_chunk`, `theme`, `theme_assignment` (M2b) | transcript text (cleaned, the file itself is not kept) and speaker turns with exact offsets; themes and which turns carry them |
 
 **Technology.**
 
@@ -229,6 +280,7 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 | Python 3.13, FastAPI, SQLAlchemy 2, PostgreSQL 16 | Mature, typed, one database for everything |
 | numpy, scipy, **pandas, scikit-learn, openpyxl** (M2a) | Reference implementations for statistics, tables, models and Excel files |
 | React 19 + Vite + TypeScript, **@xyflow/react** for the canvas (M2a) | Small, fast, no UI kit; the canvas is loaded only when a flow is opened |
+| **pypdf** in a separate process with a time limit (M2b) | Reads PDF transcripts; a crafted PDF cannot hold the app or exhaust its memory |
 | Fernet encryption | Tokens, keys, passwords and enriched values are unreadable in the database and in backups |
 | Hashed lock files (pip-tools, `package-lock.json`) | Reproducible, tamper-evident installs |
 
@@ -251,8 +303,17 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 | **SR9** (M2a) | flows, uploads, PostgreSQL | **1 high**, 7 medium, 6 low, 1 info | high and every medium fixed with tests; 3 low/info accepted with a reason |
 | **SR10** (M2a) | companies, registry, AI assistant | 1 medium, 5 low, 2 info | all 8 fixed with tests |
 | **SR11** (M2a) | frontend, npm supply chain | 1 low, 1 info | low fixed |
+| **SR12** (M2b) | titles, org proposals, transcripts, PDFs, erasure | **1 high**, 2 medium, 6 low, 3 info | all fixed with tests |
+| **SR13** (M2b) | frontend (transcript viewer, suggestions) | 3 low, 1 info | all fixed |
+| **Methods review** (M2b) | accuracy of titles, rules, meeting statements and themes on held-out data | no blocker; 6 should-fix | fixed (see section 4b) |
 
 **The M2a high finding.** A crafted PostgreSQL query could end the read-only transaction and write to the connected database. The cause was a hand-written statement splitter, fooled by `$$` quoting. The query now runs as a *prepared statement*, which the database server itself refuses to split into two commands, whatever the quoting. Regression tests try every quoting trick; a watchdog also cancels any query that runs past its time limit.
+
+**The M2b high finding.** Erasing a contact failed when someone's validated manager link came from a proposal naming them, so the right to erasure was blocked. Erasure now clears those links and proposals first.
+
+**M2b medium findings fixed.**
+- A crafted PDF page held a worker for minutes, because the time budget was only checked between pages. Extraction now runs in a separate process that is stopped at 30 seconds (with a memory cap where the operating system enforces it).
+- An erased person's turns and name stayed in transcripts. They are now redacted.
 
 **M2a medium findings fixed.**
 
@@ -279,19 +340,27 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 - **Timed-out runs.** A run that times out keeps its worker until the current computation step ends. It holds its slot meanwhile, so runs cannot pile up.
 - **Encryption key.** One key, kept in `backend/.env`, with no rotation yet. Losing it means re-entering the AI key and reconnecting TamTam.
 - **Unverified assumptions.** TamTam's tool list and prices, and live AI answers, are unverified until you connect real accounts.
+- **Mentions in other people's notes.** An erased person's name can remain in other people's notes (append-only).
+- **Memory cap on macOS.** The PDF memory cap is not enforced on macOS; the time limit is.
+- **Untested on real meetings.** Themes and meeting patterns have not been measured on real transcripts yet.
 
 ## 8. Verification results
 
 | Check | Result |
 |---|---|
-| Backend tests | **905 pass**: CRM, statistics, demo, LLM, TamTam, API, flows (every block, against hand-computed values), sources (PostgreSQL attacks against a real local database), companies, registry, assistant |
-| Frontend tests | **48 pass**: org-chart tree, formatting, sign-in address check, flow graph rules, pivot rendering, answer citations, theme; type check and build clean |
-| Lint, migrations | ruff clean; models and migrations identical; dev database at `0005_m2a` |
+| Backend tests | **1,101 pass**: CRM, statistics, demo, LLM, TamTam, API, flows, sources, companies, registry, assistant, **titles, org proposals, transcripts and PDFs, themes, erasure redaction** |
+| Frontend tests | **64 pass**: everything earlier, plus the suggested-links overlay, transcript highlighting and the theme template; type check and build clean |
+| Lint, migrations | ruff clean; models and migrations identical; dev database at `0006_m2b` |
+| M2b against the answer key | titles, rule and meeting links, signals, themes and the price-vs-win-rate test scored through the running app on the seed-42 demo (section 4b) |
 | End to end, through the running app | one flow using all 12 block types on the demo. Inbound and outbound verified, referral not verified (as in M1); the logistic model verified (AUC 0.85); clusters returned; the leakage and join traps caught |
 | Screens | every page opened in a headless browser, in light and dark mode, with no console error; a real registry search for "Dataiku" returned the public record |
 | Notebook | re-run: planted seed 42 finds 5 of 5; noise seed 1 verifies nothing out of 93 comparisons |
 
 **Caught during the verification itself.**
+
+- **M2b themes failed twice before working.** First, small talk and people's names came out as themes. Second, the demo transcripts were too repetitive to judge anything: 25 % distinct sentences, now 85 %. The keyword-first method came out of these measurements.
+- **The first "themes vs win rate" table counted deals with no meeting as "not mentioned"**, which biased the comparison. Those deals are now left out.
+- **An independent reviewer found the demo accuracy flattering**, and the report now shows the held-out numbers next to the demo ones.
 
 - **Every demo company showed "last interaction: today".** The demo notes had no dates. They now carry a year of synthetic history, which needed a checked "original date" option for imported notes.
 - **Dates showed a stray "02:00".** Dates are now shown without a time.
@@ -315,13 +384,15 @@ make ui                                      # then open http://127.0.0.1:8800
 | **Companies** | type "alder", or search the registry for any French company |
 | **Analysis** | *New flow* → a template, then *Run all* and click a block to see its result |
 | **Settings → AI model** | paste a Gemini or Anthropic key, *Test*, then *Ask* on a company |
+| **Contacts** | *Normalize titles*, then *Review titles* |
+| **An account** | *Suggest links* in the org chart; accept or reject with the evidence; upload a transcript under *Meetings* |
+| **Meetings** | *Find themes*, then *Test against win rate* on the price theme |
 | **Theme** | the button in the header |
 
 ## 10. What comes next
 
 | Milestone | Content |
 |---|---|
-| **M2b** | Title normalisation (FR/EN dictionary, AI only for unknown titles); org-chart rules with their evidence; transcript import and meeting themes counted by code, named by the AI with verified quotes |
 | **M3** | MCP server and API so outside AI agents get exact results; login; hosting; flow results saved and shared |
 
 **Open questions for you.**
@@ -330,7 +401,8 @@ make ui                                      # then open http://127.0.0.1:8800
 2. **TamTam.** After connecting, does *Check connection* list the tools we expect, and what are your real credit prices?
 3. **AI.** After adding your key, are the Ask answers useful? Should the assistant also be able to *run* a flow for you, for example "pivot my deals by segment"?
 4. **Blocks.** Which block do you miss most: export to CSV, time series, a decision tree, or a cohort view?
-5. **GitHub.** Type `! gh auth login` once, and the build is pushed to a private repository.
+5. **Real transcripts.** Can you share 5–10 real (anonymised) transcripts? They would give the themes and meeting patterns their first real measurement.
+6. **GitHub.** Should the M2b commits be pushed to the private repository now?
 
 ## Glossary
 
@@ -343,6 +415,8 @@ make ui                                      # then open http://127.0.0.1:8800
 | Baseline | What a model that learnt nothing would score; a model must beat it |
 | AUC | How well a model ranks wins above losses: 0.5 is a coin toss, 1.0 perfect |
 | R² | Share of the variation a regression explains: 0 is nothing |
+| In-sample / held-out | Measured on the data the method was built with (flattering) / on new data it never saw (honest) |
+| Lexicon | A fixed list of words and phrases per theme, matched by code |
 | Pivot | A table with one dimension in rows, another in columns, and a sum or count in each cell |
 | SIREN | The 9-digit French company identifier |
 | Prepared statement | A query the database checks as one single command before running it |

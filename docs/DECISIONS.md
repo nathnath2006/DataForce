@@ -209,10 +209,70 @@ org chart, transcript themes) move to M2b.
 - **Noise demo seed [PO].** The noise demo uses seed 1, which verifies nothing. Seed 42 remains
   documented as one of the ~4% chance cases.
 
-## J. Open
-1. CRM scope: the PO is testing the CRM, Companies and flows in the UI.
-2. TamTam: connect a real account from the UI, then confirm the tool list and the real credit
-   prices (still assumed: email about 1, mobile about 10).
-3. The PO adds the Gemini or Anthropic key in Settings > AI model and tries the Ask panel; there
-   is no live AI test yet.
-4. GitHub: push to a private repository once the PO has run `gh auth login`.
+## J. M2b: titles, org-chart proposals, meetings and themes (2026-10-17) [build, per §B/§C]
+Spec: `docs/M2B-CONTRACT.md`.
+
+**Titles.**
+- A French/English dictionary maps each title to a function and a seniority. It expands
+  abbreviations, repairs typos, and flags ambiguous and missing titles.
+- Only titles it does not know go to the workspace's AI model: the title text alone, once, then
+  cached and flagged "classified by AI". There is a per-run and a per-day cap.
+- A manual classification always wins.
+
+**Org-chart proposals.** Rules and meetings may only *suggest*; a person accepts or rejects.
+- Rules work on normalised titles inside one account: the next level up in the same function,
+  then the CEO. They abstain when several managers fit and list the candidates instead.
+- Meeting statements ("I report to X", "c'est X qui signe", "je vais pousser le dossier") are
+  found by fixed FR/EN patterns. The exact sentence is kept, checked against the transcript.
+- Accepted links keep their origin and evidence.
+
+**Transcripts.**
+- PDF, Markdown or text, on an account and optionally a deal.
+- Only the cleaned text is kept. PDF reading runs in a separate process with a time and memory
+  limit.
+
+**Themes: known sales themes by keywords, discovery for the rest** [build, after measurement].
+- Unsupervised topic modelling alone (TF-IDF + NMF) returned conversational filler and people's
+  names on realistic text: planted-theme F1 0.38–0.69.
+- So, as for titles, a FR/EN catalog of common sales themes (price, competitor, security,
+  integration, timing, legal, onboarding, support) is matched per sentence by code, with exact
+  quotes.
+- Competitor names are detected when they recur near competitor cues.
+- Discovery runs only on the remaining sentences, with names masked. Its topics are
+  "exploratory", and only those are named by the AI.
+- Everything runs locally: transcript text never leaves the computer for theme analysis.
+
+**Themes and outcomes.**
+- Flows get `deal_theme_flags`, one row per deal and theme. `mentioned` is *unknown*, not
+  false, for a deal without a meeting.
+- A "Themes vs win rate" template runs the stats block with the usual gates.
+- On the demo, the planted price-objection effect is verified: 16.7 % vs 57.1 % win rate.
+- A mention is an association, not a cause. Each theme is tested on its own (no correction
+  across themes), so it is a screening step.
+
+**GDPR erasure.**
+- Erasing a contact also redacts their turns and their name in transcripts and in proposal
+  excerpts, with same-length placeholders so offsets stay valid.
+- Mentions in other people's notes remain (M1 residual).
+
+**Measured** (`docs/review/M2b-methods-review.md`). The demo numbers are *in-sample*: the
+generator, dictionary and keywords share their vocabulary, so they flatter. The independent
+held-out tests used the reviewer's own titles, sentences and org charts:
+
+| Method | Demo (seed 42, in-sample) | Held-out (reviewer) | Verdict |
+|---|---|---|---|
+| Titles | 99.6 % function, 99.7 % seniority | 75.8 % function, 86.3 % seniority. 41 % left unknown or flagged; when it answers, 90 of 90 correct | ratified with caveats |
+| Org rules | 95 % precision, 81 % recall | 88.5 % precision, 59 % recall; abstains rather than guesses | ratified with caveats |
+| Meeting links and signals | 100 % precision, 44 % recall; signals 74 of 74 | narrow recall on paraphrases, a few false positives (fixed after review) | ratified with caveats |
+| Known themes | F1 0.82–0.98 | precision 0.64–0.89, recall 0.35–0.70 | exploratory only, no accuracy claim |
+
+The review's should-fix items (title vocabulary gaps, lexicon false positives, conditional
+statements, the screening caveat on "Themes vs win rate") were fixed afterwards. The held-out
+set has therefore been seen and is no longer clean: a fresh one is needed for the next
+measurement.
+
+## K. Open
+1. CRM scope, TamTam, AI key: as in M2a (the PO is testing).
+2. Themes on real transcripts: the keyword catalog is generic sales vocabulary, but it has
+   only been measured on synthetic meetings and on the methods reviewer's held-out sentences.
+3. Next milestone: M3 (MCP server and API for AI agents, login, hosting).

@@ -10,7 +10,8 @@ The demo data is **synthetic, generated with a known ground truth, and announced
 
 Design and build contract: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (M1) and
 [`docs/UI-CONTRACT.md`](docs/UI-CONTRACT.md) (M1b: local UI, TamTam connect) and
-[`docs/M2A-CONTRACT.md`](docs/M2A-CONTRACT.md) (M2a: flows, Company 360, AI assistant). Decisions:
+[`docs/M2A-CONTRACT.md`](docs/M2A-CONTRACT.md) (M2a: flows, Company 360, AI assistant) and
+[`docs/M2B-CONTRACT.md`](docs/M2B-CONTRACT.md) (M2b: titles, org-chart proposals, meetings). Decisions:
 [`docs/DECISIONS.md`](docs/DECISIONS.md). What was built and why, for non-developers:
 [`docs/DataForce-build-report.pdf`](docs/DataForce-build-report.pdf).
 
@@ -53,6 +54,17 @@ M3: anyone who can run programs on this computer can use it, nobody else can.
 - **AI model** (M2a): in *Settings > AI model*, pick Gemini or Anthropic and paste your API key.
   It is stored encrypted and never shown again. The *Ask* panel on an account or company answers
   from that record's data, cites it, and flags any number it could not find in the data.
+- **Job titles** (M2b): *Contacts > Normalize titles* maps every title to a function and a
+  seniority with a French / English dictionary; unknown titles can go to your AI model (title text
+  only, cached, flagged). *Review titles* lists what needs a look; your corrections always win.
+- **Org chart suggestions** (M2b): on an account, *Suggest links* proposes managers from the job
+  titles (same account, next level up) and from what people said in meetings ("I report to…",
+  "c'est X qui signe"), each with its evidence. Nothing becomes a fact until you *Accept* it.
+- **Meetings** (M2b): upload transcripts (PDF, Markdown or text) on an account, optionally tied
+  to a deal. *Meetings > Find themes* tags known sales themes (price, competitor, security,
+  integration, timing, legal, onboarding, support) by keywords, with exact quotes, then looks for
+  other recurring topics. All of it runs locally. *Test against win rate* opens a flow that
+  compares deals whose meetings mention a theme with the others: a screening test, not proof.
 - **Theme**: the *Theme* button in the header cycles System / Light / Dark.
 - `make ui-dev` runs the same app with the Vite dev server (hot reload) on 127.0.0.1:5173.
 
@@ -101,7 +113,9 @@ any drift (then `make db-reset-test`).
 | `backend/app/connectors/` | TamTam OAuth over MCP (discovery, registration, PKCE, sealed tokens) |
 | `backend/app/flows/` | analysis flow engine, blocks, data sources (CRM, files, PostgreSQL) |
 | `backend/app/registry/`, `backend/app/assistant/` | public company registry client; AI Ask assistant |
-| `backend/alembic/` | migrations (`0001_initial` ... `0005_m2a`) |
+| `backend/app/titles/`, `backend/app/orgchart/` | title normalisation; org-chart rules and meeting statements |
+| `backend/app/transcripts/`, `backend/app/themes/` | transcript import and parsing; known themes and topic discovery |
+| `backend/alembic/` | migrations (`0001_initial` ... `0006_m2b`) |
 | `frontend/` | React UI (Vite + TypeScript), built into `frontend/dist` by `make ui` |
 | `docs/` | architecture, decisions, security reports |
 
