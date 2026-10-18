@@ -7,6 +7,7 @@ import { McpPanel } from "../agent/McpPanel";
 import type { AiProvider } from "../types";
 import { useWs } from "../context";
 import { formatDateTime, isSafeAuthorizeUrl, tamtamReason } from "../lib";
+import { meetingOrgNotice } from "../orgchart/model";
 import { Confirm, ErrorNote, Loading, Tag, useAction, useLoad } from "../ui";
 
 export function SettingsPage() {
@@ -169,6 +170,14 @@ function AiSection() {
           <button className="danger" disabled={act.busy || !d.configured}
             onClick={() => void act.run(async () => { await aiApi.remove(ws.slug); setState(null); setKey(""); setReplace(false); s.reload(); })}>Remove</button>
         </div>
+        <label className="check">
+          <input type="checkbox" checked={d.allow_meeting_org} disabled={act.busy || !d.configured || !d.model}
+            onChange={(e) => void act.run(async () => { setState(await aiApi.setMeetingOrg(ws.slug, e.target.checked)); })} />
+          <span>
+            Read meeting sentences for org statements
+            <span className="muted small"> {meetingOrgNotice(d.provider, d.model)}</span>
+          </span>
+        </label>
         {d.last_test_at && (
           <p className="small">Last test {formatDateTime(d.last_test_at)}: {d.last_test_ok
             ? <Tag kind="ok">worked</Tag> : <Tag kind="bad">failed</Tag>}{d.last_error ? <span className="pre"> {d.last_error}</span> : null}</p>

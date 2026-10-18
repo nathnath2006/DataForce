@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import uuid
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -16,9 +16,12 @@ from app.domain.enums import ProposalKind, ProposalOrigin, ProposalStatus, RunKi
 from app.orgchart import meetings as meeting_patterns
 from app.orgchart import rules
 from app.services import contacts as contact_service
-from app.services import runs
+from app.services import org_ai, runs
 from app.services._common import require, require_account, require_user
 from app.services.errors import AlreadyExistsError, InvalidInputError
+
+if TYPE_CHECKING:
+    from app.config import Settings
 
 CONTRADICTS = "contradicts_current_link"
 AMBIGUOUS_KEY = "ambiguous"
@@ -97,7 +100,12 @@ def _rule_rows(
 
 
 def _meeting_rows(
-    session: Session, ws_id: uuid.UUID, account_id: uuid.UUID, contacts: Sequence[Contact], blocked
+    session: Session,
+    ws_id: uuid.UUID,
+    account_id: uuid.UUID,
+    contacts: Sequence[Contact],
+    blocked,
+    ai: org_ai.AiPass | None = None,
 ) -> list[dict[str, Any]]:
     docs = {
         d.id: d.text
@@ -126,32 +134,46 @@ def _meeting_rows(
     links = {c.id: c.reports_to_id for c in contacts}
     rows: list[dict[str, Any]] = []
     seen: set[tuple] = set()
-    for f in meeting_patterns.extract(chunks, refs, docs):
-        key = (f.contact_id, f.kind, f.manager_id)
-        if key in seen or key in blocked:
-            continue
-        rule: str | None = f.pattern
-        if f.kind == ProposalKind.REPORTS_TO.value:
-            assert f.manager_id is not None
-            current = links.get(f.contact_id)
-            if current == f.manager_id:
-                continue  # already true
-            if rules.would_cycle(parents, f.contact_id, f.manager_id):
-                continue
+
+    def add(kind, contact_id, manager_id, pattern, evidence, *, from_ai: bool) -> None:
+        key = (contact_id, kind, manager_id)
+        # Pattern findings come first, so they win on the same (contact, kind, manager).
+        if key in seen:
+            return
+        if key in blocked:
+            ai_dropped(from_ai)
+            return
+        rule: str | None = pattern
+        if kind == ProposalKind.REPORTS_TO.value:
+            assert manager_id is not None
+            current = links.get(contact_id)
+            if current == manager_id or rules.would_cycle(parents, contact_id, manager_id):
+                ai_dropped(from_ai)  # already true, or it would close a loop
+                return
             if current is not None:
                 rule = CONTRADICTS
         seen.add(key)
         rows.append(
             {
-                "kind": f.kind,
-                "contact_id": f.contact_id,
-                "manager_id": f.manager_id,
+                "kind": kind,
+                "contact_id": contact_id,
+                "manager_id": manager_id,
                 "rule": rule,
-                "evidence": {**f.evidence, BASELINE: _baseline(links.get(f.contact_id))},
+                "evidence": {**evidence, BASELINE: _baseline(links.get(contact_id))},
                 "candidates": None,
                 "status": ProposalStatus.PROPOSED.value,
             }
         )
+
+    def ai_dropped(from_ai: bool) -> None:
+        if from_ai and ai is not None:
+            ai.stats.dropped += 1
+
+    for f in meeting_patterns.extract(chunks, refs, docs):
+        add(f.kind, f.contact_id, f.manager_id, f.pattern, f.evidence, from_ai=False)
+    if ai is not None:
+        for v in ai.find(docs, chunks, refs):
+            add(v.kind, v.contact_id, v.manager_id, "ai", ai.stamp(v), from_ai=True)
     return rows
 
 
@@ -160,6 +182,10 @@ def propose(
     ws_id: uuid.UUID,
     account_id: uuid.UUID | None,
     origins: Sequence[ProposalOrigin],
+    *,
+    use_ai: bool = False,
+    settings: Settings | None = None,
+    factory: Callable[..., Any] | None = None,
 ) -> dict[str, Any]:
     """(Re)generate proposals for one account, or for every account of the workspace. A rerun
     replaces the proposed and ambiguous proposals of the requested origins; accepted and
@@ -183,6 +209,18 @@ def propose(
     by_kind: Counter[str] = Counter()
     ambiguous = 0
     created = 0
+    ai: org_ai.AiPass | None = None
+    if (
+        use_ai
+        and settings is not None
+        and ProposalOrigin.MEETING.value in origin_values
+        and org_ai.enabled(session, ws_id)
+    ):
+        if factory is None:
+            from app.llm.registry import get_chat_llm
+
+            factory = get_chat_llm
+        ai = org_ai.AiPass(session, ws_id, settings, factory)
     for acc_id in account_ids:
         contact_service._lock_org_chart(session, acc_id)  # noqa: SLF001
         contacts = contact_service.list_contacts(session, ws_id, acc_id)
@@ -206,7 +244,7 @@ def propose(
             batches.append(
                 (
                     ProposalOrigin.MEETING.value,
-                    _meeting_rows(session, ws_id, acc_id, contacts, blocked),
+                    _meeting_rows(session, ws_id, acc_id, contacts, blocked, ai),
                 )
             )
         for origin, rows in batches:
@@ -225,6 +263,7 @@ def propose(
         "created": created,
         "by_kind": dict(by_kind),
         "ambiguous": ambiguous,
+        "ai": ai.stats.as_dict() if ai is not None else None,
     }
     runs.finish_run(
         session,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOverlay, classLabel, formatEvidence, originBadge, signalLabel, sourceLabel, type ChartNode, type ProposalOut } from "./model";
+import { aiBadge, buildOverlay, classLabel, meetingOrgNotice, suggestNotice, formatEvidence, originBadge, signalLabel, sourceLabel, type ChartNode, type ProposalOut } from "./model";
 
 const n = (id: string, mgr: string | null): ChartNode => ({ id, full_name: id, title: null, reports_to_id: mgr, source: "manual" });
 const ref = (id: string) => ({ id, full_name: id, title: null });
@@ -67,5 +67,24 @@ describe("formatEvidence", () => {
   });
   it("handles missing evidence", () => {
     expect(formatEvidence({ origin: "rule", rule: null, evidence: null }).kind).toBe("none");
+  });
+});
+
+describe("found by AI", () => {
+  const ai = { found_by: "ai", provider: "gemini", model: "gemini-2.5-flash", excerpt: "Ann is my boss", speaker: "Bob" };
+  it("tags proposals the AI pass found, and only those", () => {
+    expect(aiBadge({ evidence: ai })).toBe("found by AI");
+    expect(aiBadge({ evidence: { excerpt: "x", pattern: "en_i_report_to" } })).toBeNull();
+    expect(aiBadge({ evidence: null })).toBeNull();
+  });
+  it("shows provider and model in the evidence, not for patterns", () => {
+    expect(formatEvidence({ origin: "meeting", rule: "ai", evidence: ai }).ai).toBe("found by AI · gemini · gemini-2.5-flash");
+    expect(formatEvidence({ origin: "meeting", rule: "x", evidence: { excerpt: "x" } }).ai).toBeNull();
+    expect(formatEvidence({ origin: "rule", rule: null, evidence: null }).ai).toBeNull();
+  });
+  it("says what is sent", () => {
+    expect(meetingOrgNotice("gemini", "gemini-2.5-flash")).toBe(
+      "Sends only sentences that name one of the account's contacts or contain an org phrase, with the account's contact names, to gemini gemini-2.5-flash. Full transcripts are never sent. Off by default.");
+    expect(suggestNotice("anthropic", "claude-haiku-5-5")).toContain("anthropic claude-haiku-5-5");
   });
 });

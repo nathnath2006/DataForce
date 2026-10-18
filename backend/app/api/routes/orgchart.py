@@ -7,7 +7,8 @@ from collections.abc import Sequence
 
 from fastapi import APIRouter
 
-from app.api.deps import CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.routes.ai import Factory
 from app.api.schemas_orgchart import (
     AcceptIn,
     ProposalContact,
@@ -59,8 +60,18 @@ def _out(db: Db, ws_id: uuid.UUID, rows: Sequence[OrgProposal]) -> list[Proposal
 
 
 @router.post("/w/{ws}/orgchart/propose", response_model=ProposeOut)
-def propose(body: ProposeIn, db: Db, ws: CurrentWorkspace) -> ProposeOut:
-    result = org_proposals.propose(db, ws.id, body.account_id, body.origins)
+def propose(
+    body: ProposeIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory
+) -> ProposeOut:
+    result = org_proposals.propose(
+        db,
+        ws.id,
+        body.account_id,
+        body.origins,
+        use_ai=body.use_ai,
+        settings=settings,
+        factory=factory,
+    )
     db.commit()
     return ProposeOut(**result)
 

@@ -18,8 +18,8 @@ The patterns stay. They run first, need no AI and win on duplicates.
   - The pass sends only the speaker turns that contain a candidate sentence (§2), each capped at
     600 characters, plus the account's contact **names**.
   - It never sends whole transcripts, titles, emails, phones, notes or deal data.
-  - Text sent is wrapped with `app/llm/untrusted.wrap_sources`. The system prompt says it is
-    data, never instructions.
+  - Text sent, the names included, is wrapped with `app/llm/untrusted.wrap_sources`. The
+    system prompt says it is data, never instructions.
 - **Nothing unverified becomes a suggestion** (§3).
 - **Exactness.** The stored excerpt is an exact slice of the document text, as for patterns.
 - **Budget.**
@@ -65,7 +65,8 @@ A finding is kept only if all of these hold:
 2. `contact`, and `manager` when present, each resolve to exactly one contact of the account
    with the same alias rules; `contact != manager`.
 3. The quote mentions the contact or the manager by an alias, or the turn's speaker is the
-   contact (first person).
+   contact (first person). For reports_to, the manager must also be named in the turn itself:
+   a manager is never inferred.
 4. The quote has no hypothetical word (the patterns' `_HYPOTHETICAL`).
 5. For reports_to: the link is not already true in the CRM, would not create a cycle (`rules.
    would_cycle`), and is not blocked by an earlier rejection.

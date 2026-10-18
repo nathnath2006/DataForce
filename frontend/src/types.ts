@@ -171,7 +171,7 @@ export type AiProvider = "gemini" | "anthropic";
 export interface AiSettingsOut {
   configured: boolean; provider: AiProvider | null; model: string | null;
   updated_at: string | null; last_test_at: string | null; last_test_ok: boolean | null;
-  last_error: string | null; suggested_models: Record<string, string[]>; data_notice: string;
+  last_error: string | null; allow_meeting_org: boolean; suggested_models: Record<string, string[]>; data_notice: string;
 }
 export interface AiSettingsIn { provider: AiProvider; model: string; api_key?: string }
 export interface AskScope { kind: "account" | "company"; id: string }

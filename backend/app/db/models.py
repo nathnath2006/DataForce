@@ -478,6 +478,10 @@ class LlmCredential(Base):
     last_test_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_test_ok: Mapped[bool | None] = mapped_column(Boolean)
     last_error: Mapped[str | None] = mapped_column(Text)  # sanitised, never holds the key
+    # Opt-in: the AI may read candidate sentences of meeting transcripts for org statements.
+    allow_meeting_org: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _updated()
 
@@ -636,3 +640,26 @@ class ThemeAssignment(Base):
     )
     workspace_id: Mapped[uuid.UUID] = _workspace_fk()
     weight: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class MeetingOrgAiCache(Base):
+    """Verified AI findings for one transcript, per (text hash, provider, model): a rerun sends
+    nothing again. Deleted with the document (FK cascade) and when an account contact is erased."""
+
+    __tablename__ = "meeting_org_ai_cache"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id", "text_sha256", "provider", "model", name="uq_meeting_org_ai_cache"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("document.id", ondelete="CASCADE"), nullable=False
+    )
+    text_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    findings: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _created()

@@ -20,6 +20,15 @@ class ProposeIn(_In):
     origins: list[ProposalOrigin] = Field(
         default_factory=lambda: [ProposalOrigin.RULE, ProposalOrigin.MEETING], min_length=1
     )
+    use_ai: bool = False  # the AI pass also needs the workspace switch (Settings -> AI model)
+
+
+class AiPassOut(BaseModel):
+    used: bool
+    calls: int
+    capped: int
+    failed: int
+    dropped: int
 
 
 class ProposeOut(BaseModel):
@@ -27,6 +36,7 @@ class ProposeOut(BaseModel):
     created: int
     by_kind: dict[str, int]
     ambiguous: int
+    ai: AiPassOut | None = None
 
 
 class AcceptIn(_In):

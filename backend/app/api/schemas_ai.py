@@ -43,8 +43,13 @@ class AiSettingsOut(BaseModel):
     last_test_at: datetime | None = None
     last_test_ok: bool | None = None
     last_error: str | None = None
+    allow_meeting_org: bool = False
     suggested_models: dict[str, list[str]]
     data_notice: str
+
+
+class MeetingOrgIn(_In):
+    enabled: bool
 
 
 class AskScope(_In):

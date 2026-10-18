@@ -70,6 +70,18 @@ export function buildOverlay(nodes: ChartNode[], proposals: ProposalOut[]): Over
 export function originBadge(o: LinkOrigin | null | undefined): string | null {
   return o === "rule" ? "from rule" : o === "meeting" ? "from meeting" : null;
 }
+/** "found by AI" tag text for a proposal whose evidence says the AI pass found it, else null. */
+export function aiBadge(p: Pick<ProposalOut, "evidence">): string | null {
+  return p.evidence?.found_by === "ai" ? "found by AI" : null;
+}
+/** What the AI pass sends (Settings checkbox text). */
+export function meetingOrgNotice(provider: string | null, model: string | null): string {
+  return `Sends only sentences that name one of the account's contacts or contain an org phrase, with the account's contact names, to ${provider ?? "the provider"} ${model ?? "model"}. Full transcripts are never sent. Off by default.`;
+}
+/** Under "Suggest links" when the switch is on. */
+export function suggestNotice(provider: string | null, model: string | null): string {
+  return `AI is on: candidate sentences from meetings and the contact names are sent to ${provider ?? "the provider"} ${model ?? "model"}. Every suggestion is checked against the transcript and still needs your approval.`;
+}
 const SIGNALS = new Map([["champion", "Champion"], ["blocker", "Blocker"], ["decision_maker", "Decision maker"]]);
 export function signalLabel(s: string): string { return SIGNALS.get(s) ?? s.replace(/_/g, " "); }
 export function signalKind(s: string): "ok" | "bad" | "warn" { return s === "champion" ? "ok" : s === "blocker" ? "bad" : "warn"; }
@@ -88,6 +100,8 @@ export interface EvidenceView {
   lines: string[];
   excerpt: string | null;
   meeting: string | null;
+  /** "found by AI" when the AI pass found it (with provider and model), else null. */
+  ai: string | null;
 }
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v : null);
 
@@ -101,7 +115,8 @@ export function formatEvidence(p: Pick<ProposalOut, "origin" | "evidence" | "rul
     const speaker = str(ev.speaker);
     const lines = speaker ? [`Said by ${speaker}`] : [];
     if (ev.document_deleted === true) lines.push("The transcript was deleted, so the quote is gone.");
-    return { kind: "meeting", lines, excerpt: str(ev.excerpt), meeting };
+    const by = ev.found_by === "ai" ? ["found by AI", str(ev.provider), str(ev.model)].filter(Boolean).join(" · ") : null;
+    return { kind: "meeting", lines, excerpt: str(ev.excerpt), meeting, ai: by };
   }
   const lines: string[] = [];
   const ct = str(ev.contact_title), mt = str(ev.manager_title);
@@ -110,5 +125,5 @@ export function formatEvidence(p: Pick<ProposalOut, "origin" | "evidence" | "rul
   const ex = str(ev.explanation);
   if (ex) lines.push(ex);
   if (p.rule === "contradicts_current_link") lines.push("This contradicts the current link.");
-  return { kind: lines.length ? "rule" : "none", lines, excerpt: null, meeting: null };
+  return { kind: lines.length ? "rule" : "none", lines, excerpt: null, meeting: null, ai: null };
 }

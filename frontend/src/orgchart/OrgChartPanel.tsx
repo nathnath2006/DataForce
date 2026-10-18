@@ -5,9 +5,10 @@ import { useWs } from "../context";
 import type { OrgChartNode } from "../types";
 import type { OrgTreeNode } from "../lib";
 import { Confirm, Empty, ErrorNote, Tag, useAction, useLoad } from "../ui";
+import { aiApi } from "../assistant/api";
 import { orgApi } from "./api";
 import {
-  buildOverlay, classLabel, formatEvidence, kindLabel, originBadge, signalKind, signalLabel,
+  aiBadge, buildOverlay, classLabel, formatEvidence, kindLabel, originBadge, signalKind, signalLabel, suggestNotice,
   type ChartNode, type Overlay, type ProposalOut,
 } from "./model";
 import "./orgchart.css";
@@ -20,6 +21,7 @@ function Evidence({ p }: { p: ProposalOut }) {
       {v.lines.map((l, i) => <div key={i}>{l}</div>)}
       {v.excerpt && <blockquote>{v.excerpt}</blockquote>}
       {v.meeting && <div className="muted">Meeting: {v.meeting}</div>}
+      {v.ai && <div className="muted">{v.ai}</div>}
     </div>
   );
 }
@@ -78,6 +80,7 @@ function ProposalItem({ p, onDone }: { p: ProposalOut; onDone: () => void }) {
           ? <> reports to <strong>{p.manager?.full_name ?? "(choose below)"}</strong></>
           : <> is a <strong>{kindLabel(p.kind).toLowerCase()}</strong></>}
         {" "}<Tag kind="mute">suggested</Tag> <Tag>{p.origin === "rule" ? "from rule" : "from meeting"}</Tag>
+        {aiBadge(p) && <> <Tag kind="warn">{aiBadge(p)}</Tag></>}
         {p.rule && p.origin === "rule" && <span className="muted small"> {p.rule.replace(/_/g, " ")}</span>}
       </div>
       <Evidence p={p} />
@@ -120,6 +123,8 @@ export function OrgChartPanel(props: { accountId: string; nodes: OrgChartNode[];
   const { ws } = useWs();
   const props_ = useLoad(() => orgApi.proposals(ws.slug, props.accountId), [ws.slug, props.accountId]);
   const act = useAction();
+  const aiSettings = useLoad(() => aiApi.get(ws.slug), [ws.slug]);
+  const useAi = aiSettings.data?.configured === true && aiSettings.data.allow_meeting_org;
   const [msg, setMsg] = useState("");
   const nodes = props.nodes as ChartNode[];
   const open = useMemo(() => (props_.data ?? []).filter((p) => p.status === "proposed" || p.status === "ambiguous"), [props_.data]);
@@ -136,11 +141,13 @@ export function OrgChartPanel(props: { accountId: string; nodes: OrgChartNode[];
       <div className="row between wrap">
         <h3>Suggested links ({open.length})</h3>
         <button disabled={act.busy} onClick={() => void act.run(async () => {
-          const r = await orgApi.propose(ws.slug, props.accountId);
-          setMsg(`${r.created} suggestion(s) created, ${r.ambiguous} ambiguous.`);
+          const r = await orgApi.propose(ws.slug, props.accountId, useAi);
+          const ai = r.ai ? ` AI: ${r.ai.calls} call(s), ${r.ai.capped} capped, ${r.ai.failed} failed, ${r.ai.dropped} dropped by checks.` : "";
+          setMsg(`${r.created} suggestion(s) created, ${r.ambiguous} ambiguous.${ai}`);
           props_.reload();
         })}>Suggest links</button>
       </div>
+      {useAi && <p className="muted small">{suggestNotice(aiSettings.data?.provider ?? null, aiSettings.data?.model ?? null)}</p>}
       <ErrorNote error={act.error} />
       <ErrorNote error={props_.error} />
       {msg && <p className="muted small" role="status">{msg}</p>}

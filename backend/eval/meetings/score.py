@@ -5,7 +5,11 @@ a theme run (no AI) and the meeting org-statement extraction, then compares with
 speaker matching, known themes per meeting, reports-to links and signals. Rerunning replaces
 the set's earlier imports. Run from backend/:
 
-    .venv/bin/python eval/meetings/score.py eval/meetings/set1 [--ws test-data]
+    .venv/bin/python eval/meetings/score.py eval/meetings/set1 [--ws test-data] [--ai]
+
+`--ai` adds the opt-in AI pass (docs/ORG-AI-CONTRACT.md) after the pattern findings, on this
+set's transcripts only, in-process, with the AI model saved in the workspace's Settings. Calls go
+only to that provider; the key is never printed. Without saved AI settings it exits with code 2.
 """
 
 from __future__ import annotations
@@ -53,13 +57,41 @@ def load_patterns(path: pathlib.Path | None) -> ModuleType:
     return module
 
 
+def open_ai(slug: str):
+    """(session, AiPass) from the workspace's saved AI settings; exits with 2 when there are none.
+    The pass builds the provider itself from the sealed credential: the key stays inside."""
+    from sqlalchemy import select
+
+    from app.cli._common import session_factory
+    from app.config import get_settings
+    from app.db.models import Workspace
+    from app.llm.registry import get_chat_llm
+    from app.services import llm_settings, org_ai
+
+    session = session_factory()()
+    ws_id = session.scalar(select(Workspace.id).where(Workspace.slug == slug))
+    cred = llm_settings.get_credential(session, ws_id) if ws_id else None
+    if cred is None:
+        session.close()
+        print(
+            f"--ai needs an AI model saved in Settings -> AI model of workspace '{slug}'. "
+            "Nothing was imported and nothing was sent.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    print(f"AI pass: {cred.provider} {cred.model} (candidate sentences and contact names only).")
+    return session, org_ai.AiPass(session, ws_id, get_settings(), get_chat_llm)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("set_dir", type=pathlib.Path)
     ap.add_argument("--base", default="http://127.0.0.1:8800")
     ap.add_argument("--ws", default="test-data")
     ap.add_argument("--patterns", type=pathlib.Path, help="another version of meetings.py")
+    ap.add_argument("--ai", action="store_true", help="also run the opt-in AI pass (sends text)")
     a = ap.parse_args()
+    ai_ctx = open_ai(a.ws) if a.ai else None
     key = json.loads((a.set_dir / "key.json").read_text())
     brief = {b["account"]: b for b in json.loads((a.set_dir / "brief.json").read_text())}
     prefix = f"Eval {a.set_dir.name} "
@@ -121,12 +153,15 @@ def main() -> None:
     # the first quote found, so reading proposals back would hide what this set contributed.
     patterns = load_patterns(a.patterns)
     found: list[tuple[str, str, str | None]] = []
+    ai_only: list[tuple[str, str, str | None]] = []
     for acc_id in accounts_ids:
         people = c.get(f"{api}/contacts", params={"account_id": acc_id, "limit": 200}).json()
         people = people["items"]
         name = {p["id"]: p["full_name"] for p in people}
         current = {p["id"]: p["reports_to_id"] for p in people}
         refs = [patterns.ContactRef(uuid.UUID(p["id"]), p["full_name"]) for p in people]
+        acc_texts: dict[uuid.UUID, str] = {}
+        acc_chunks: list = []
         for d in docs.values():
             if d["account_id"] != acc_id:
                 continue
@@ -144,11 +179,55 @@ def main() -> None:
                 )
                 for ch in full["chunks"]
             ]
+            acc_texts[doc_id] = text
+            acc_chunks += chunks
             for f in patterns.extract(chunks, refs, {doc_id: text}):
                 who, boss = str(f.contact_id), str(f.manager_id) if f.manager_id else None
                 if f.kind == "reports_to" and current.get(who) == boss:
                     continue  # already in the CRM: the app does not propose it
                 found.append((f.kind, name[who], name.get(boss) if boss else None))
+        if ai_ctx is not None:
+            _session, ai_pass = ai_ctx
+            from app.orgchart import meetings as app_meetings
+            from app.orgchart import rules
+
+            app_refs = [app_meetings.ContactRef(r.id, r.full_name) for r in refs]
+            app_chunks = [
+                app_meetings.ChunkRec(
+                    ch.document_id,
+                    ch.chunk_id,
+                    ch.speaker,
+                    ch.contact_id,
+                    ch.char_start,
+                    ch.char_end,
+                    ch.text,
+                )
+                for ch in acc_chunks
+            ]
+            parents = {uuid.UUID(k): uuid.UUID(v) if v else None for k, v in current.items()}
+            for v in ai_pass.find(acc_texts, app_chunks, app_refs):
+                who, boss = str(v.contact_id), str(v.manager_id) if v.manager_id else None
+                item = (v.kind, name[who], name.get(boss) if boss else None)
+                if v.kind == "reports_to" and (
+                    current.get(who) == boss
+                    or rules.would_cycle(parents, v.contact_id, v.manager_id)
+                ):
+                    ai_pass.stats.dropped += 1  # rule 5, as in the app
+                elif item in found:
+                    continue  # the pattern found it first
+                else:
+                    found.append(item)
+                    ai_only.append(item)
+    if ai_ctx is not None:
+        session, ai_pass = ai_ctx
+        session.commit()  # keeps the per-transcript cache: a rerun sends nothing again
+        session.close()
+        st = ai_pass.stats
+        print(
+            f"\nAI pass: {st.calls} call(s), {st.capped} capped, {st.failed} failed, "
+            f"{st.dropped} finding(s) dropped by verification, {len(set(ai_only))} added "
+            "beyond the patterns."
+        )
     props = [
         {"kind": k, "contact": {"full_name": n}, "manager": {"full_name": m} if m else None}
         for k, n, m in set(found)

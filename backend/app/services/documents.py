@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db.models import AppUser, Contact, Document, DocumentChunk, OrgProposal
 from app.domain.enums import ProposalStatus
+from app.services import org_ai
 from app.services._common import like_contains, require, require_account, require_deal
 from app.services.errors import InvalidInputError, NotFoundError
 from app.services.textclean import scrub_text
@@ -246,6 +247,7 @@ def redact_contact(session: Session, ws_id: uuid.UUID, contact: Contact) -> None
     length, their name (full, or first + last) becomes "[name]" padded likewise, in `document.text`
     and in every chunk, and the excerpts of the remaining org proposals follow. Notes written by
     other people that mention them are out of scope (see the SR12 resolution)."""
+    org_ai.purge_account_cache(session, ws_id, contact.account_id)
     rx = name_pattern(contact.full_name)
     own = list(
         session.scalars(

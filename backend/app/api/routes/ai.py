@@ -19,6 +19,7 @@ from app.api.schemas_ai import (
     AskIn,
     AskOut,
     Citation,
+    MeetingOrgIn,
     QuoteCheck,
 )
 from app.assistant.ask import run_turn
@@ -30,7 +31,7 @@ from app.domain.ports import ChatMessage, ChatProvider
 from app.enrichment.errors import EnrichmentError
 from app.llm.errors import LLMError
 from app.llm.registry import get_chat_llm
-from app.services import llm_settings
+from app.services import llm_settings, org_ai
 from app.services.llm_usage import DbUsageRecorder
 
 router = APIRouter(tags=["ai"])
@@ -61,6 +62,7 @@ def _out(cred: LlmCredential | None) -> AiSettingsOut:
         last_test_at=cred.last_test_at,
         last_test_ok=cred.last_test_ok,
         last_error=cred.last_error,
+        allow_meeting_org=cred.allow_meeting_org,
         **base,
     )
 
@@ -112,6 +114,14 @@ def put_ai(
         api_key=body.api_key,
         settings=settings,
     )
+    db.commit()
+    return _out(cred)
+
+
+@router.put("/w/{ws}/ai/meeting-org", response_model=AiSettingsOut)
+def put_meeting_org(body: MeetingOrgIn, db: Db, ws: CurrentWorkspace) -> AiSettingsOut:
+    """The opt-in switch of the AI pass over meeting sentences (409 without AI settings)."""
+    cred = org_ai.set_allow(db, ws.id, body.enabled)
     db.commit()
     return _out(cred)
 
