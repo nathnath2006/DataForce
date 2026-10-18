@@ -1,4 +1,4 @@
-# DataForce — build report (M1, M1b, M2a, M2b)
+# DataForce — build report (M1, M1b, M2a, M2b, M3a)
 
 **Status (18 October 2026):**
 
@@ -8,8 +8,9 @@
 | **M1b** | A local web interface, "Connect TamTam" over MCP, the 350-deal demo | complete, reviewed and fixed |
 | **M2a** | Your feedback: drag-and-drop **analysis flows** with a pivot, statistics and model blocks; a **Companies** tab with the public French registry; an **AI model** in Settings with an **Ask** panel; a **light / dark** theme | complete, reviewed and fixed |
 | **M2b** | Job titles normalised; org-chart **suggestions** from titles and from what people said in meetings (a person accepts them); **meeting transcripts** with known sales themes and discovered topics | complete, reviewed (security and methods) and fixed |
+| **M3a** | An **MCP server**: Claude Desktop, Claude Code or another AI assistant on this computer queries one workspace read-only and gets exact results. Three **independent transcript tests**. An **opt-in AI pass** for org statements in meetings | complete, reviewed (SR14, SR15) and fixed; the AI pass awaits a live measurement |
 
-Every part was built by Sonnet agents, independently reviewed for security, fixed and re-verified. **1,165 automated tests pass** (1,101 backend, 64 frontend).
+Every part was built by Sonnet agents, independently reviewed for security, fixed and re-verified. **1,489 automated tests pass** (1,417 backend, 72 frontend).
 
 **Sources of truth.**
 
@@ -21,6 +22,9 @@ Every part was built by Sonnet agents, independently reviewed for security, fixe
 | `docs/M2A-CONTRACT.md` | the M2a contract |
 | `docs/M2B-CONTRACT.md` | the M2b contract |
 | `docs/review/M2b-methods-review.md` | the independent, held-out check of the M2b methods |
+| `docs/M3A-CONTRACT.md` | the M3a contract (MCP server and agent tools) |
+| `docs/ORG-AI-CONTRACT.md` | the contract of the opt-in AI pass on meeting sentences |
+| `backend/eval/meetings/` | the independently written transcript sets, their answer keys and the scorer |
 | `docs/BUILD-REPORT.md` | the source of this PDF, rendered by `docs/tools/build_pdf.py` |
 
 ## 1. In one page
@@ -189,6 +193,26 @@ The working method is the same as for titles:
 
 The review's fixes were applied afterwards, so its held-out set has now been seen. A fresh one is needed for the next measurement.
 
+**Independent transcript tests (18 October).** Each set holds 15 French and English meetings, written by a separate agent that saw only a brief of the accounts (people, titles, true managers) and never the code. Each comes with an answer key: the topics really discussed, who reports to whom, champions, blockers and decision makers, plus decoys that must not count.
+
+| Measure | Set 1, before | Set 2, unseen, after broadening | Set 3, unseen, after broadening |
+|---|---|---|---|
+| Speakers matched to a person | 95 % | 100 % | 100 % |
+| Known themes, precision / recall | 74 % / 83 % | 72 % / 67 % | 89 % / 85 % |
+| "Who reports to whom" found | 0 of 9 | 1 of 10 | **0 of 12** |
+| Champion, blocker, decision maker found | 15 of 34 | 7 of 20 | 8 of 27 |
+| False statements or signals | 0 | 0 | 0 |
+
+What this says:
+- The meeting patterns never invented a statement.
+- They only recognise wordings someone wrote a rule for. Set 1 was used to broaden them, and the gain did not carry over to sets 2 and 3.
+- So you chose an opt-in AI pass:
+  - Off by default per workspace.
+  - It sends only the sentences that name a contact or contain an org phrase, plus the account's contact names, to your own model.
+  - Code keeps a finding only if its quote is word for word in the transcript, the names are contacts of the account, any manager is named in the quote, and it is not hypothetical, negated, already true, circular or rejected.
+  - Findings are tagged *found by AI*, and a person still accepts each one.
+- Its live accuracy will be measured on set 3 once an AI key is saved on the test workspace.
+
 **Themes and deal outcomes.**
 - On the demo, deals whose meetings mention price objections won **16.7 %** of the time, against **57.1 %** for the others: −40.5 points, verified.
 - Deals with no meeting are left out, not counted as "no mention".
@@ -197,6 +221,27 @@ The review's fixes were applied afterwards, so its held-out set has now been see
   - each theme is tested on its own;
   - deals differ in how often, and with whom, they were met.
 - The app says so next to the button.
+
+## 4c. Connecting an AI assistant (M3a, plain language)
+
+**What it does.** You add one line to Claude Desktop or Claude Code (*Settings → AI assistants (MCP)* shows it). The assistant can then ask DataForce questions about one workspace:
+
+- the overview and pipeline;
+- a company or account;
+- deals, with filters;
+- group comparisons ("does lead source change the win rate?");
+- a saved flow;
+- meetings, themes and a text search.
+
+**Why the answers can be trusted.**
+- Every number in an answer comes from SQL or the statistics engine, tagged `computed_by: code`.
+- Comparisons keep their *verified* / *not verified* label and the reasons, and the assistant is told never to present *not verified* as a fact.
+
+**What it cannot do.**
+- It is read-only, bound to one workspace, and has no network port: the assistant starts DataForce itself on this computer.
+- It never receives emails, phone numbers, keys or passwords.
+- Everything a customer wrote (notes, transcripts, names, titles, column headers) is marked as data, and the assistant is told not to follow instructions inside it.
+- Each call is logged under *Recent calls*, without the data.
 
 ## 5. The synthetic demo data
 
@@ -306,10 +351,18 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 | **SR12** (M2b) | titles, org proposals, transcripts, PDFs, erasure | **1 high**, 2 medium, 6 low, 3 info | all fixed with tests |
 | **SR13** (M2b) | frontend (transcript viewer, suggestions) | 3 low, 1 info | all fixed |
 | **Methods review** (M2b) | accuracy of titles, rules, meeting statements and themes on held-out data | no blocker; 6 should-fix | fixed (see section 4b) |
+| **SR14** (M3a) | MCP server and agent tools | 2 medium, 4 low, 2 info | all fixed with tests |
+| **SR15** (M3a) | opt-in AI pass on meeting sentences | 3 medium, 3 low, 1 info | all fixed with tests |
 
 **The M2a high finding.** A crafted PostgreSQL query could end the read-only transaction and write to the connected database. The cause was a hand-written statement splitter, fooled by `$$` quoting. The query now runs as a *prepared statement*, which the database server itself refuses to split into two commands, whatever the quoting. Regression tests try every quoting trick; a watchdog also cancels any query that runs past its time limit.
 
 **The M2b high finding.** Erasing a contact failed when someone's validated manager link came from a proposal naming them, so the right to erasure was blocked. Erasure now clears those links and proposals first.
+
+**M3a medium findings fixed.**
+- **Names reaching the assistant.** Names, titles, labels and flow column headers reached the assistant as ordinary fields, so a customer could plant an instruction in a job title or a CSV header. All customer strings are now declared as data, and flow results never use a customer string as a field name.
+- **Flows reaching DataForce's own database.** A flow on a PostgreSQL connection pointed at DataForce's own database could return sealed values and other workspaces' rows. Such connections are now refused when saved and when run, and columns that look like emails, phones or keys are blanked for the assistant.
+- **The AI pass: quotes picked to hide meaning.** The model could pick a short quote that hid an "if" or a "not", or that did not name the manager. Checks now run on the whole sentence, and a "reports to" quote must name the manager.
+- **The AI pass: daily cap and consent.** Concurrent runs could exceed the daily call cap, now enforced atomically. Changing the AI provider or model kept the switch on; it now switches off, so you consent again for the new provider.
 
 **M2b medium findings fixed.**
 - A crafted PDF page held a worker for minutes, because the time budget was only checked between pages. Extraction now runs in a separate process that is stopped at 30 seconds (with a memory cap where the operating system enforces it).
@@ -342,15 +395,19 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 - **Unverified assumptions.** TamTam's tool list and prices, and live AI answers, are unverified until you connect real accounts.
 - **Mentions in other people's notes.** An erased person's name can remain in other people's notes (append-only).
 - **Memory cap on macOS.** The PDF memory cap is not enforced on macOS; the time limit is.
-- **Untested on real meetings.** Themes and meeting patterns have not been measured on real transcripts yet.
+- **Untested on real meetings.** Themes and meeting patterns have been measured on three independently written synthetic sets, never on real transcripts.
+- **AI pass, live.** The opt-in AI pass has only run against a fake model so far.
+- **Assistants read customer text.** Prompt injection toward a connected assistant cannot be excluded entirely. Its tools are read-only and it never sees keys or contact channels.
 
 ## 8. Verification results
 
 | Check | Result |
 |---|---|
-| Backend tests | **1,101 pass**: CRM, statistics, demo, LLM, TamTam, API, flows, sources, companies, registry, assistant, **titles, org proposals, transcripts and PDFs, themes, erasure redaction** |
-| Frontend tests | **64 pass**: everything earlier, plus the suggested-links overlay, transcript highlighting and the theme template; type check and build clean |
-| Lint, migrations | ruff clean; models and migrations identical; dev database at `0006_m2b` |
+| Backend tests | **1,417 pass**: CRM, statistics, demo, LLM, TamTam, API, flows, sources, companies, registry, assistant, titles, org proposals, transcripts and PDFs, themes, erasure redaction, **the 14 agent tools, the MCP server (including a real stdio session), the AI pass with a fake model, and one regression test per SR14 and SR15 finding** |
+| Frontend tests | **72 pass**: everything earlier, plus the AI assistants panel, the *found by AI* tag and the AI switch notice; type check and build clean |
+| Lint, migrations | ruff clean; models and migrations identical; dev database at `0007_org_ai` |
+| AI assistant, live | the MCP server started from `/` the way Claude Desktop starts it; 14 tools listed; overview, comparison, text search and meetings answered on *Test data*, with customer text only in untrusted fields |
+| Independent transcripts | three sets of 15, scored through the running app (section 4b) |
 | M2b against the answer key | titles, rule and meeting links, signals, themes and the price-vs-win-rate test scored through the running app on the seed-42 demo (section 4b) |
 | End to end, through the running app | one flow using all 12 block types on the demo. Inbound and outbound verified, referral not verified (as in M1); the logistic model verified (AUC 0.85); clusters returned; the leakage and join traps caught |
 | Screens | every page opened in a headless browser, in light and dark mode, with no console error; a real registry search for "Dataiku" returned the public record |
@@ -372,9 +429,9 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 ```
 make db-up                                   # local Postgres
 make migrate                                 # schema (after the one-time Python setup, see README)
-backend/.venv/bin/dataforce demo generate --variant planted --seed 42 --replace
-backend/.venv/bin/dataforce demo generate --variant noise   --seed 1  --replace
+make testdata                                # the synthetic "Test data" workspace (seed 42)
 make ui                                      # then open http://127.0.0.1:8800
+backend/.venv/bin/dataforce mcp config --workspace test-data   # snippet for Claude Desktop
 ```
 
 **Try:**
@@ -388,12 +445,14 @@ make ui                                      # then open http://127.0.0.1:8800
 | **An account** | *Suggest links* in the org chart; accept or reject with the evidence; upload a transcript under *Meetings* |
 | **Meetings** | *Find themes*, then *Test against win rate* on the price theme |
 | **Theme** | the button in the header |
+| **Claude Desktop / Claude Code** | paste the snippet from *Settings → AI assistants (MCP)*, then ask "what is the win rate by lead source, and which differences are verified?" |
+| **Settings → AI model** | tick *Read meeting sentences for org statements*, then *Suggest links* on an account with meetings |
 
 ## 10. What comes next
 
 | Milestone | Content |
 |---|---|
-| **M3** | MCP server and API so outside AI agents get exact results; login; hosting; flow results saved and shared |
+| **M3b** | Login (email and password, invite-only) and hosting; flow results saved and shared |
 
 **Open questions for you.**
 
@@ -401,8 +460,9 @@ make ui                                      # then open http://127.0.0.1:8800
 2. **TamTam.** After connecting, does *Check connection* list the tools we expect, and what are your real credit prices?
 3. **AI.** After adding your key, are the Ask answers useful? Should the assistant also be able to *run* a flow for you, for example "pivot my deals by segment"?
 4. **Blocks.** Which block do you miss most: export to CSV, time series, a decision tree, or a cohort view?
-5. **Real transcripts.** Can you share 5–10 real (anonymised) transcripts? They would give the themes and meeting patterns their first real measurement.
-6. **GitHub.** Should the M2b commits be pushed to the private repository now?
+5. **Real transcripts.** Can you share 5–10 real (anonymised) transcripts? They would give the themes, meeting patterns and the AI pass their first real measurement.
+6. **AI pass.** Once your key is saved on *Test data*, the AI pass is measured on set 3. Is a "found by AI" suggestion something you would accept after reading its quote?
+7. **Assistant.** After connecting Claude Desktop or Claude Code, which questions did it answer well, and which tool was missing?
 
 ## Glossary
 
