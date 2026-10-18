@@ -164,3 +164,59 @@ def test_context_rules_remove_false_positives():
     assert "integration" in _themes("We need an integration with Salesforce.")
     assert "support" in _themes("What support do you offer?")
     assert "price" in _themes("The price is too high.")
+
+
+@pytest.mark.parametrize(
+    ("text", "absent"),
+    [
+        ("Désolé, j'ai dix minutes de retard sur mon agenda.", "timing"),
+        ("Valère nous rejoint dans cinq minutes, il est en retard.", "timing"),
+        ("Busy, as usual. End of quarter is coming, you know.", "timing"),
+        ("Le budget de l'événement interne de décembre est validé.", "price"),
+        ("The budget for our internal offsite is already stretched.", "price"),
+        ("The price has gone up fourteen percent versus last year.", "competitor"),
+        ("Océane signe tous les contrats supérieurs à cinq mille euros.", "legal"),
+        ("What about the full contract? Is there a 24/7 option?", "legal"),
+        ("She signs the larger contracts.", "legal"),
+        ("Our legal and compliance people will ask.", "legal"),
+        ("Est-ce que c'est écrit dans le contrat, ce délai ?", "legal"),
+        ("Et le chiffrement, pour les exports ?", "integration"),
+    ],
+)
+def test_known_misfires_are_gone(text, absent):
+    assert absent not in ids(text)
+
+
+@pytest.mark.parametrize(
+    ("text", "theme"),
+    [
+        ("Le projet a pris du retard, le lancement est décalé.", "timing"),
+        ("Our project is delayed and the decision is for Q1.", "timing"),
+        ("Pas avant septembre, et pas cette année.", "timing"),
+        ("Budget freeze until next quarter.", "timing"),
+        ("Le budget de la solution dépasse l'enveloppe.", "price"),
+        ("We have no budget for this licence.", "price"),
+        ("Ils sont moins chers versus vous.", "competitor"),
+        ("Nous utilisons actuellement un autre outil.", "competitor"),
+        ("We're also looking at other vendors and our current tool works.", "competitor"),
+        ("Leur solution est déjà en place chez nous.", "competitor"),
+        ("They want to switch from the incumbent.", "competitor"),
+        ("Legal will review the contract terms and the liability clause.", "legal"),
+        ("Notre équipe juridique relit le contrat.", "legal"),
+        ("Les clauses de résiliation du contrat nous inquiètent.", "legal"),
+        ("We need a DPA signed.", "legal"),
+        ("Un export CSV vers Excel est-il possible ?", "integration"),
+        ("Can we export data to our BI tool?", "integration"),
+        ("Qui assure la prise en main des équipes ?", "onboarding"),
+        ("How long does the implementation and onboarding take?", "onboarding"),
+        ("Who will train our team on launch?", "onboarding"),
+        ("Avez-vous un interlocuteur dédié et un service client ?", "support"),
+        ("Is there 24/7 coverage and a ticket system?", "support"),
+    ],
+)
+def test_real_themes_still_found(text, theme):
+    assert theme in ids(text)
+
+
+def test_late_to_meeting_but_real_delay_in_same_text():
+    assert "timing" in ids("Je suis en retard, désolé. Le lancement est décalé à janvier.")
