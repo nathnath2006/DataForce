@@ -60,11 +60,28 @@ M3: anyone who can run programs on this computer can use it, nobody else can.
 - **Org chart suggestions** (M2b): on an account, *Suggest links* proposes managers from the job
   titles (same account, next level up) and from what people said in meetings ("I report to…",
   "c'est X qui signe"), each with its evidence. Nothing becomes a fact until you *Accept* it.
+  - The meeting patterns are exact but miss most other wordings (`docs/DECISIONS.md` §J).
+  - *Settings > AI model > Read meeting sentences for org statements* is off by default. When
+    on, it also sends the sentences that name a contact, or say something like "my boss…",
+    plus the account's contact names, to your model. Full transcripts are never sent.
+  - Code keeps an AI finding only if its quote is word for word in the transcript and the
+    names are contacts of the account. The suggestion is tagged *found by AI*.
 - **Meetings** (M2b): upload transcripts (PDF, Markdown or text) on an account, optionally tied
   to a deal. *Meetings > Find themes* tags known sales themes (price, competitor, security,
   integration, timing, legal, onboarding, support) by keywords, with exact quotes, then looks for
   other recurring topics. All of it runs locally. *Test against win rate* opens a flow that
   compares deals whose meetings mention a theme with the others: a screening test, not proof.
+- **Connect an AI assistant** (M3a): Claude Desktop, Claude Code or another MCP client on this
+  computer can query one workspace and get exact results.
+  - It gets counts from SQL, comparisons from the stats engine with their *verified* / *not
+    verified* labels, saved flows, meetings and themes.
+  - *Settings > AI assistants (MCP)* shows the snippet to paste. You can also print it with
+    `backend/.venv/bin/dataforce mcp config --workspace test-data --client claude-desktop`
+    (or `--client claude-code`).
+  - The assistant starts `dataforce mcp --workspace SLUG` itself, over stdio: there is no
+    network port. Access is read-only and limited to that workspace.
+  - Customer text is marked as untrusted. Emails, phones and keys are never returned.
+  - Each call is logged under *Recent calls*.
 - **Theme**: the *Theme* button in the header cycles System / Light / Dark.
 - `make ui-dev` runs the same app with the Vite dev server (hot reload) on 127.0.0.1:5173.
 

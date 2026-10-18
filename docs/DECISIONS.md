@@ -305,9 +305,70 @@ measurement.
 - A scorer flaw was found and fixed on the way. The workspace's own synthetic meetings already
   state many of the same links, and a proposal keeps only the first quote. So the scorer now
   runs the app's extraction code on the set's transcripts only.
+- **Set 3** was written the same way from 15 more accounts and is kept outside the repo until the
+  AI pass is measured on it. With the broadened patterns only:
+  - themes reach precision 89 % [76, 96] and recall 85 % [71, 93];
+  - reports-to: **0 of 12**;
+  - signals: 8 of 27, with none false. Four "false" signals were true statements the writer
+    left out of the key; the key was corrected and the corrections are marked.
+
+**Opt-in AI pass for meeting org statements** [PO, 2026-10-18] (`docs/ORG-AI-CONTRACT.md`).
+- The PO chose this over keeping rules only.
+- Off by default per workspace. Patterns run first.
+- It sends only candidate speaker turns and the account's contact names, wrapped as data, to
+  the workspace's model.
+- Code keeps a finding only when:
+  - its quote is an exact slice of the transcript;
+  - the names resolve to one contact each;
+  - a reports-to manager is named in the turn;
+  - it is not hypothetical, already true, cyclic or rejected.
+- Findings stay suggestions tagged "found by AI".
+- Live accuracy is not measured yet: it needs the PO's key on `test-data`, then
+  `score.py <set3> --ai`.
 
 ## K. Open
 1. CRM scope, TamTam, AI key: as in M2a (the PO is testing).
-2. Themes on real transcripts: the keyword catalog is generic sales vocabulary, but it has
-   only been measured on synthetic meetings and on the methods reviewer's held-out sentences.
-3. Next milestone: M3 (MCP server and API for AI agents, login, hosting).
+2. Themes on real transcripts: the keyword catalog is generic sales vocabulary. It has been
+   measured on synthetic meetings, the methods reviewer's held-out sentences and three
+   independently written sets (§J), never on real calls.
+3. M3b: login (email + password, invite-only) and hosting.
+
+## L. M3a: MCP server for AI assistants (2026-10-18) [PO + build]
+Spec: `docs/M3A-CONTRACT.md`. The PO chose to start M3 with the MCP server and agent API;
+login and hosting come next (M3b).
+
+**Shape.**
+- `dataforce mcp --workspace SLUG` is a local stdio server. The assistant (Claude Desktop,
+  Claude Code…) starts it. There is no network port, and one process serves one workspace.
+- 14 read-only tools cover the overview, companies, accounts, deals, pipeline, group
+  comparison, scan, flows, meetings, themes and text search.
+- Every result is an envelope:
+  - `computed_by = "code"`;
+  - counts are tagged `exact_count`;
+  - statistics keep their *verified* / *not verified* status and reasons;
+  - `untrusted_fields` lists the customer text.
+
+**Safety.**
+- **Read-only.** Read tools run in READ ONLY transactions. The scan and flow tools write only
+  their own run rows.
+- **Isolation.** No tool takes a workspace argument; ids from another workspace give "not
+  found".
+- **What is never returned.** Contact channel values (enriched emails and mobiles), sealed
+  secrets, connection passwords and AI keys.
+- **Customer text is data.** The server instructions say so, and notes, transcripts and other
+  free text come back in `*_untrusted` fields.
+- **Limits and audit.** Caps and paging, a 30 s statement timeout, and one audited
+  `agent_call` run per call, holding no row data.
+
+**Security review** (`docs/security/SR14-m3a.md`): 0 high, 2 medium, 4 low.
+- Medium:
+  - names, labels and flow column headers reached the assistant as plain fields;
+  - a saved PostgreSQL connection that points at DataForce's own database could expose sealed
+    values through a flow.
+- Low: response size, scan rate, the timeout after commit, and per-row queries.
+- All are fixed; the resolution is in the report.
+- A PostgreSQL connection to the application database is now refused, which also matters for
+  hosting (M3b).
+
+**Not in M3a.** No write tools, no network transport and no login: anyone who can run programs
+on this computer can already read the database.
