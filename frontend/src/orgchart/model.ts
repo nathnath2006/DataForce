@@ -99,7 +99,9 @@ export function formatEvidence(p: Pick<ProposalOut, "origin" | "evidence" | "rul
     const date = str(ev.meeting_date);
     const meeting = [title, date].filter(Boolean).join(", ") || null;
     const speaker = str(ev.speaker);
-    return { kind: "meeting", lines: speaker ? [`Said by ${speaker}`] : [], excerpt: str(ev.excerpt), meeting };
+    const lines = speaker ? [`Said by ${speaker}`] : [];
+    if (ev.document_deleted === true) lines.push("The transcript was deleted, so the quote is gone.");
+    return { kind: "meeting", lines, excerpt: str(ev.excerpt), meeting };
   }
   const lines: string[] = [];
   const ct = str(ev.contact_title), mt = str(ev.manager_title);

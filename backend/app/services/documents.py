@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.db.models import AppUser, Contact, Document, DocumentChunk, OrgProposal
+from app.domain.enums import ProposalStatus
 from app.services._common import like_contains, require, require_account, require_deal
 from app.services.errors import InvalidInputError, NotFoundError
 from app.services.textclean import scrub_text
@@ -158,8 +159,29 @@ def require_document(session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID) -> D
 
 
 def delete_document(session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID) -> None:
-    session.delete(require_document(session, ws_id, doc_id))
+    doc = require_document(session, ws_id, doc_id)
+    _forget_quotes(session, ws_id, doc_id)
+    session.delete(doc)
     session.flush()
+
+
+_QUOTE_KEYS = ("excerpt", "speaker", "chunk_id", "char_start", "char_end")
+
+
+def _forget_quotes(session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID) -> None:
+    """Org proposals quoting a deleted transcript: open ones go, since their only evidence is
+    gone; decided ones keep the decision but lose the quote and the speaker."""
+    for prop in session.scalars(
+        select(OrgProposal).where(
+            OrgProposal.workspace_id == ws_id,
+            OrgProposal.evidence["document_id"].astext == str(doc_id),
+        )
+    ):
+        if prop.status in (ProposalStatus.PROPOSED.value, ProposalStatus.AMBIGUOUS.value):
+            session.delete(prop)
+        else:
+            ev = {k: v for k, v in prop.evidence.items() if k not in _QUOTE_KEYS}
+            prop.evidence = {**ev, "document_deleted": True}
 
 
 def count_documents(session: Session, ws_id: uuid.UUID) -> int:

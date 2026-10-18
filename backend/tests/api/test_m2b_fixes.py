@@ -234,3 +234,25 @@ def test_title_daily_cap(client, ws, app, api_settings, monkeypatch):
     flags = [i["flag"] for i in client.get(f"{ws}/titles/review").json()]
     assert "unknown title (AI call limit reached)" in flags
     title_service.reset_ai_limits()
+
+
+# --- deleting a transcript drops the quotes taken from it ------------------------------------
+def test_delete_transcript_forgets_its_quotes(client, ws):
+    acc = account(client, ws)
+    for name in ("Xavier Xu", "Yvonne Yu", "Zoe Zed"):
+        person(client, ws, acc, name)
+    first = upload(client, ws, acc, "Xavier Xu: I report to Yvonne Yu.\n")
+    second = upload(client, ws, acc, "Zoe Zed: I report to Yvonne Yu.\n")
+    propose(client, ws, acc, ["meeting"])
+    ps = {p["contact"]["full_name"]: p for p in proposals(client, ws, acc)}
+    accept = client.post(f"{ws}/org-proposals/{ps['Xavier Xu']['id']}/accept", json={})
+    assert accept.status_code == 200
+    assert "Yvonne Yu" in ps["Zoe Zed"]["evidence"]["excerpt"]
+    for doc in (first, second):
+        assert client.delete(f"{ws}/documents/{doc['id']}").status_code == 204
+    left = proposals(client, ws, acc)
+    assert [p["contact"]["full_name"] for p in left] == ["Xavier Xu"]  # the open one is gone
+    ev = left[0]["evidence"]
+    assert left[0]["status"] == "accepted" and ev["document_deleted"] is True
+    assert not {"excerpt", "speaker", "char_start", "char_end"} & set(ev)
+    assert "Yvonne Yu" not in str(ev)

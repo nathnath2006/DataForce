@@ -60,6 +60,11 @@ describe("formatEvidence", () => {
     expect(v.excerpt).toBe("<b>I report to Ann</b>");
     expect(v.meeting).toBe("Kickoff, 2026-01-02");
   });
+  it("says when the transcript behind a decided suggestion was deleted", () => {
+    const v = formatEvidence({ origin: "meeting", rule: null, evidence: { document_deleted: true, meeting_title: "Kickoff" } });
+    expect(v.excerpt).toBeNull();
+    expect(v.lines).toEqual(["The transcript was deleted, so the quote is gone."]);
+  });
   it("handles missing evidence", () => {
     expect(formatEvidence({ origin: "rule", rule: null, evidence: null }).kind).toBe("none");
   });
