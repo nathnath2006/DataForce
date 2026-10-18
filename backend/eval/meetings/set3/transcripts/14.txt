@@ -1,0 +1,26 @@
+Anselme Thistlegrove: Hello, everyone. Soline, Rosalind, Maëlle, thanks for the time.
+Soline Calderwick: Hi Anselme. Quick warning, I have to drop at half past, sorry.
+Anselme Thistlegrove: Understood. I'll be quick. Where are we on the security questionnaire?
+Maëlle Holloway-Finch: Still reviewing. Our compliance people want details on data residency and key management.
+Anselme Thistlegrove: Everything stays in Frankfurt, keys are managed per customer.
+Rosalind Ankerwood: I've been telling anyone who'll listen that this is the right platform, so I hope legal doesn't kill it.
+Maëlle Holloway-Finch: Legal isn't killing anything, but I'll block it unless the indemnity terms change.
+Maëlle Holloway-Finch: Sorry, I cut you off, please go ahead.
+Anselme Thistlegrove: We can discuss the indemnity wording. What exactly worries you?
+Soline Calderwick: Thanks, that helps a lot.
+Maëlle Holloway-Finch: Unlimited liability for data loss, that's a hard no.
+Rosalind Ankerwood: Right, right, makes sense.
+Maëlle Holloway-Finch: Mm-hm, I'm with you, carry on.
+Soline Calderwick: At the end of the day, Soline G. Casterel decides, and she reads the contract herself.
+Maëlle Holloway-Finch: And how was your weekend, by the way?
+Rosalind Ankerwood: My sister reports to the CFO at Brightwave, which is a totally different company, and she hates it.
+Soline Calderwick: Yeah, absolutely.
+Rosalind Ankerwood: Hang on, let me grab my notes, one second.
+Soline Calderwick: Ha, my boss? Honestly my cat runs the department, he reports to nobody.
+Anselme Thistlegrove: Ha ha. On competitors, I hear you looked at Stackwell Cloud.
+Soline Calderwick: Um, what was I saying? Oh right.
+Rosalind Ankerwood: Yes, a quick demo, but their security story was thin.
+Rosalind Ankerwood: Sorry, you're breaking up a little, can you repeat that?
+Anselme Thistlegrove: Understood. I'll send revised indemnity language by Thursday.
+Maëlle Holloway-Finch: Perfect, we're aligned then.
+Maëlle Holloway-Finch: Thank you.

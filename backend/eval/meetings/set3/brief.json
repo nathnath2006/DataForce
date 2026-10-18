@@ -1,0 +1,833 @@
+[
+ {
+  "account": "Axiora Industries",
+  "segment": "enterprise",
+  "industry": "manufacturing",
+  "deal": {
+   "name": "Axiora Industries - Renouvellement",
+   "stage": "closed_won",
+   "amount_eur": 136938.12,
+   "created_on": "2025-06-05",
+   "closed_on": "2025-09-02",
+   "owner (our sales rep)": "Lachlan Dunsmoor"
+  },
+  "contacts": [
+   {
+    "full_name": "Roxane Z. Ankerwood",
+    "title": "dg",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Callum A. Ankerwood",
+    "title": "VP Sales",
+    "true_manager": "Roxane Z. Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Bryce Hartlemoor",
+    "title": "Chief Marketing Officer",
+    "true_manager": "Roxane Z. Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Thaddeus Quercival",
+    "title": "Sales Manager",
+    "true_manager": "Callum A. Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Soline Quercival",
+    "title": "Account Executive",
+    "true_manager": "Thaddeus Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Tiphaine Hautecourt",
+    "title": "Directeur administratif et financier",
+    "true_manager": "Roxane Z. Ankerwood",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Planeta Partners",
+  "segment": "midmarket",
+  "industry": "energy",
+  "deal": {
+   "name": "Planeta Partners - Licence",
+   "stage": "closed_lost",
+   "amount_eur": 13724.86,
+   "created_on": "2025-07-03",
+   "closed_on": null,
+   "owner (our sales rep)": "Anselme Penhallow"
+  },
+  "contacts": [
+   {
+    "full_name": "Soline Thistlegrove",
+    "title": "Managing Director",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Lachlan Penhallow",
+    "title": "Directrice des ventes",
+    "true_manager": "Soline Thistlegrove",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Odette Fairbourne",
+    "title": "Marketing Director",
+    "true_manager": "Soline Thistlegrove",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Evrard Montbelair",
+    "title": "Head of Sales",
+    "true_manager": "Lachlan Penhallow",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Anselme Moriceau-Daul",
+    "title": "Ingénieur d'affaires",
+    "true_manager": "Evrard Montbelair",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Axiora Technologies",
+  "segment": "smb",
+  "industry": "retail",
+  "deal": {
+   "name": "Axiora Technologies - Licence",
+   "stage": "closed_lost",
+   "amount_eur": 8141.85,
+   "created_on": "2026-06-05",
+   "closed_on": "2026-07-15",
+   "owner (our sales rep)": "Anselme Thistlegrove"
+  },
+  "contacts": [
+   {
+    "full_name": "Odette Greywell",
+    "title": "CEO",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Mireille V. Ankerwood",
+    "title": "Directeur commercial",
+    "true_manager": "Odette Greywell",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Maëlle Hautecourt",
+    "title": "Marketing Director",
+    "true_manager": "Odette Greywell",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Tabitha Ferrandaz",
+    "title": "Resp. commercial",
+    "true_manager": "Mireille V. Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Axelle Eastlowe",
+    "title": "Commercial grands comptes",
+    "true_manager": "Tabitha Ferrandaz",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Ixelis Retail",
+  "segment": "midmarket",
+  "industry": "finance",
+  "deal": {
+   "name": "Ixelis Retail - Renouvellement",
+   "stage": "qualification",
+   "amount_eur": 16235.3,
+   "created_on": "2026-09-24",
+   "closed_on": null,
+   "owner (our sales rep)": "Anselme Thistlegrove"
+  },
+  "contacts": [
+   {
+    "full_name": "Imogen D. Ankerwood",
+    "title": "dg",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Rosalind Lavandrier",
+    "title": "VP Sales",
+    "true_manager": "Imogen D. Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Tabitha Pellegrand",
+    "title": "CMO",
+    "true_manager": "Imogen D. Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Odilon Wexcombe",
+    "title": "resp. commercial",
+    "true_manager": "Rosalind Lavandrier",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Harriet Ferrandaz",
+    "title": " Chargé d'affaires ",
+    "true_manager": "Odilon Wexcombe",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Fabrion Partners",
+  "segment": "enterprise",
+  "industry": "energy",
+  "deal": {
+   "name": "Fabrion Partners - Platform",
+   "stage": "qualification",
+   "amount_eur": 63715.32,
+   "created_on": "2026-06-18",
+   "closed_on": null,
+   "owner (our sales rep)": "Ingrid Hautecourt"
+  },
+  "contacts": [
+   {
+    "full_name": "Wilhelmina Bramwell-Ode",
+    "title": "PDG",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Noémie A. Calderwick",
+    "title": "Sales Director",
+    "true_manager": "Wilhelmina Bramwell-Ode",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Marlowe Quercival",
+    "title": "CMO",
+    "true_manager": "Wilhelmina Bramwell-Ode",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Liora Lavandrier",
+    "title": "Sales Manager",
+    "true_manager": "Noémie A. Calderwick",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Aurélien Oakenshaw",
+    "title": "Account Executive",
+    "true_manager": "Liora Lavandrier",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Planeta Solutions 51",
+  "segment": "midmarket",
+  "industry": "logistics",
+  "deal": {
+   "name": "Planeta Solutions 51 - Expansion",
+   "stage": "closed_lost",
+   "amount_eur": 10654.65,
+   "created_on": "2026-08-07",
+   "closed_on": "2026-09-15",
+   "owner (our sales rep)": "Lachlan Dunsmoor"
+  },
+  "contacts": [
+   {
+    "full_name": "Philippa Valmorin",
+    "title": "CEO",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Fenwick Ardenvale",
+    "title": "Directrice des ventes",
+    "true_manager": "Philippa Valmorin",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Anselme Valmorin",
+    "title": "directrice marketing",
+    "true_manager": "Philippa Valmorin",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Corentin Strathmoor",
+    "title": "Head of Sales",
+    "true_manager": "Fenwick Ardenvale",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Marlowe Thistlegrove",
+    "title": null,
+    "true_manager": "Corentin Strathmoor",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Imogen Brouvenne",
+    "title": "CFO",
+    "true_manager": "Philippa Valmorin",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Aurélien Montbelair",
+    "title": "Business Developer Junior",
+    "true_manager": "Corentin Strathmoor",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Wilhelmina Strathmoor",
+    "title": "Content Manager",
+    "true_manager": "Anselme Valmorin",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Dexter Merriwick",
+    "title": " RESP. LOGISTIQUE ",
+    "true_manager": "Imogen Brouvenne",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Elysor Industries 95",
+  "segment": "midmarket",
+  "industry": "logistics",
+  "deal": {
+   "name": "Elysor Industries 95 - Licence",
+   "stage": "closed_won",
+   "amount_eur": 24221.46,
+   "created_on": "2026-07-02",
+   "closed_on": "2026-08-31",
+   "owner (our sales rep)": "Anselme Penhallow"
+  },
+  "contacts": [
+   {
+    "full_name": "Corentin Pellegrand",
+    "title": "Managing Director",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Ingrid Greywell",
+    "title": "VP Sales",
+    "true_manager": "Corentin Pellegrand",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Thaddeus B. Ankerwood",
+    "title": "Dir. marketing",
+    "true_manager": "Corentin Pellegrand",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Roxane Dunsmoor",
+    "title": "Resp. commercial",
+    "true_manager": "Ingrid Greywell",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Tiphaine Thistlegrove",
+    "title": "Account Executive",
+    "true_manager": "Roxane Dunsmoor",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Aurélien E. Valmorin",
+    "title": "DAF",
+    "true_manager": "Corentin Pellegrand",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Harriet F. Oakenshaw",
+    "title": "SALES DEVELOPMENT REP",
+    "true_manager": "Roxane Dunsmoor",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Odilon Montbelair",
+    "title": null,
+    "true_manager": "Thaddeus B. Ankerwood",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Lumeris Retail",
+  "segment": "enterprise",
+  "industry": "consulting",
+  "deal": {
+   "name": "Lumeris Retail - Platform",
+   "stage": "proposal",
+   "amount_eur": 107781.58,
+   "created_on": "2026-03-26",
+   "closed_on": null,
+   "owner (our sales rep)": "Soline Valmorin"
+  },
+  "contacts": [
+   {
+    "full_name": "Roxane E. Quercival",
+    "title": "Directeur Général",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Axelle F. Tessendre",
+    "title": "vice president sales",
+    "true_manager": "Roxane E. Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Rowan Holloway-Finch",
+    "title": "Dir. marketing",
+    "true_manager": "Roxane E. Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Maëlle Lavandrier",
+    "title": "HEAD OF SALES",
+    "true_manager": "Axelle F. Tessendre",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Tabitha I. Montbelair",
+    "title": "Chargé d'affaires",
+    "true_manager": "Maëlle Lavandrier",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Gaspard Eastlowe",
+    "title": "Dir. financier",
+    "true_manager": "Roxane E. Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Philippa Strathmoor",
+    "title": "SDR",
+    "true_manager": "Maëlle Lavandrier",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Lorvik Labs",
+  "segment": "smb",
+  "industry": "finance",
+  "deal": {
+   "name": "Lorvik Labs - Renouvellement",
+   "stage": "closed_won",
+   "amount_eur": 15905.69,
+   "created_on": "2026-03-19",
+   "closed_on": "2026-04-02",
+   "owner (our sales rep)": "Ingrid Hautecourt"
+  },
+  "contacts": [
+   {
+    "full_name": "Thaddeus Casterel",
+    "title": "Chief Executive Officer",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Soline Lavandrier",
+    "title": null,
+    "true_manager": "Thaddeus Casterel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Noémie Ankerwood",
+    "title": "Directrice marketing",
+    "true_manager": "Thaddeus Casterel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Rosalind Penhallow",
+    "title": "Responsable des ventes",
+    "true_manager": "Soline Lavandrier",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Océane Eastlowe",
+    "title": "Business Developer",
+    "true_manager": "Rosalind Penhallow",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Imogen Dunsmoor",
+    "title": "Directeur administratif et financier",
+    "true_manager": "Thaddeus Casterel",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Dorvane Partners",
+  "segment": "enterprise",
+  "industry": "manufacturing",
+  "deal": {
+   "name": "Dorvane Partners - Pilot",
+   "stage": "closed_won",
+   "amount_eur": 38882.05,
+   "created_on": "2026-03-09",
+   "closed_on": "2026-06-29",
+   "owner (our sales rep)": "Anselme Thistlegrove"
+  },
+  "contacts": [
+   {
+    "full_name": "Océane Oakenshaw",
+    "title": "Managing Director",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Océane Holloway-Finch",
+    "title": "Directrice des ventes",
+    "true_manager": "Océane Oakenshaw",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Océane Dalmasse",
+    "title": null,
+    "true_manager": "Océane Oakenshaw",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Rosalind Fairbourne",
+    "title": "Responsable des ventes",
+    "true_manager": "Océane Holloway-Finch",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Soline Eastlowe",
+    "title": "Account Eexcutive",
+    "true_manager": "Rosalind Fairbourne",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Basile G. Lavandrier",
+    "title": "DIR. FINANCIER",
+    "true_manager": "Océane Oakenshaw",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Lachlan H. Dunsmoor",
+    "title": "Assistant commercial",
+    "true_manager": "Rosalind Fairbourne",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Philippa Penhallow",
+    "title": "Content Manager",
+    "true_manager": "Océane Dalmasse",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Axiora Logistique",
+  "segment": "smb",
+  "industry": "energy",
+  "deal": {
+   "name": "Axiora Logistique - Expansion",
+   "stage": "closed_lost",
+   "amount_eur": 17502.36,
+   "created_on": "2026-07-21",
+   "closed_on": "2026-08-18",
+   "owner (our sales rep)": "Philippa Montbelair"
+  },
+  "contacts": [
+   {
+    "full_name": "Quentin Brouvenne",
+    "title": "chief executive officer",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Soline Strathmoor",
+    "title": "Directeur commercial",
+    "true_manager": "Quentin Brouvenne",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Imogen Ferrandaz",
+    "title": "dir. marketing",
+    "true_manager": "Quentin Brouvenne",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Thaddeus Thistlegrove",
+    "title": "Sales Manager",
+    "true_manager": "Soline Strathmoor",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Mireille Ardenvale",
+    "title": "Business Developer",
+    "true_manager": "Thaddeus Thistlegrove",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Clémence Greywell",
+    "title": "Dir. financier",
+    "true_manager": "Quentin Brouvenne",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Odette Oakenshaw",
+    "title": "SALES DEVELOPMENT REP",
+    "true_manager": "Thaddeus Thistlegrove",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Nivelle Digital",
+  "segment": "midmarket",
+  "industry": "retail",
+  "deal": {
+   "name": "Nivelle Digital - Pilot",
+   "stage": "negotiation",
+   "amount_eur": 17197.7,
+   "created_on": "2026-07-17",
+   "closed_on": null,
+   "owner (our sales rep)": "Ingrid Hautecourt"
+  },
+  "contacts": [
+   {
+    "full_name": "Rosalind Wexcombe",
+    "title": "PDG",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Roxane Oakenshaw",
+    "title": "Dir. commercial",
+    "true_manager": "Rosalind Wexcombe",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Ingrid Calderwick",
+    "title": "CHIEF MARKETING OFFICER",
+    "true_manager": "Rosalind Wexcombe",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Gaspard Ferrandaz",
+    "title": "Sales Manager",
+    "true_manager": "Roxane Oakenshaw",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Clémence Hartlemoor",
+    "title": "Chargé d'affaires",
+    "true_manager": "Gaspard Ferrandaz",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Océane Lavandrier",
+    "title": "dir. financier",
+    "true_manager": "Rosalind Wexcombe",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Roxane Eastlowe",
+    "title": "Sales Development Rep",
+    "true_manager": "Gaspard Ferrandaz",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Basile Thistlegrove",
+    "title": "Chargée de communication",
+    "true_manager": "Ingrid Calderwick",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Aurélien Hartlemoor",
+    "title": "Responsable des opérations",
+    "true_manager": "Océane Lavandrier",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Cobaltis Logistique",
+  "segment": "enterprise",
+  "industry": "logistics",
+  "deal": {
+   "name": "Cobaltis Logistique - Expansion",
+   "stage": "closed_lost",
+   "amount_eur": 90890.58,
+   "created_on": "2026-01-15",
+   "closed_on": "2026-04-16",
+   "owner (our sales rep)": "Philippa Montbelair"
+  },
+  "contacts": [
+   {
+    "full_name": "Mireille Quercival",
+    "title": "chief executive officer",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Philippa Ferrandaz",
+    "title": "Dir. commercial",
+    "true_manager": "Mireille Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Rosalind V. Oakenshaw",
+    "title": "Marketing Director",
+    "true_manager": "Mireille Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Mireille Roussevel",
+    "title": "Responsable des ventes",
+    "true_manager": "Philippa Ferrandaz",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Aurélien Bramwell-Ode",
+    "title": " Commercial grands cmoptes ",
+    "true_manager": "Mireille Roussevel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Odette Merriwick",
+    "title": "Finance Director",
+    "true_manager": "Mireille Quercival",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Evrard Hautecourt",
+    "title": "Business Developer Junior",
+    "true_manager": "Mireille Roussevel",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Mendara Conseil",
+  "segment": "enterprise",
+  "industry": "energy",
+  "deal": {
+   "name": "Mendara Conseil - Expansion",
+   "stage": "closed_lost",
+   "amount_eur": 32312.25,
+   "created_on": "2026-01-29",
+   "closed_on": "2026-06-08",
+   "owner (our sales rep)": "Anselme Thistlegrove"
+  },
+  "contacts": [
+   {
+    "full_name": "Soline G. Casterel",
+    "title": "pdg",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Soline Calderwick",
+    "title": "DIRECTEUR COMMERCIAL",
+    "true_manager": "Soline G. Casterel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Rosalind Ankerwood",
+    "title": "Marketing Director",
+    "true_manager": "Soline G. Casterel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Quentin Ankerwood",
+    "title": "Resp. commercial",
+    "true_manager": "Soline Calderwick",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Callum Ankerwood",
+    "title": "account executive",
+    "true_manager": "Quentin Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Maëlle Holloway-Finch",
+    "title": "Finance Director",
+    "true_manager": "Soline G. Casterel",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Mireille M. Calderwick",
+    "title": "Assistant commercial",
+    "true_manager": "Quentin Ankerwood",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Valère Roussevel",
+    "title": "Marketing Manager",
+    "true_manager": "Rosalind Ankerwood",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ },
+ {
+  "account": "Helvora Santé",
+  "segment": "enterprise",
+  "industry": "healthcare",
+  "deal": {
+   "name": "Helvora Santé - Expansion",
+   "stage": "qualification",
+   "amount_eur": 41428.18,
+   "created_on": "2026-05-23",
+   "closed_on": null,
+   "owner (our sales rep)": "Ingrid Hautecourt"
+  },
+  "contacts": [
+   {
+    "full_name": "Rowan Calderwick",
+    "title": "Managing Director",
+    "true_manager": null,
+    "manager_link_missing_in_crm": false
+   },
+   {
+    "full_name": "Rowan Ardenvale",
+    "title": "Vice President Sales",
+    "true_manager": "Rowan Calderwick",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Wilhelmina Sarrenac",
+    "title": "Dir. marketing",
+    "true_manager": "Rowan Calderwick",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Tabitha Thistlegrove",
+    "title": "responsable des ventes",
+    "true_manager": "Rowan Ardenvale",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Basile Wexcombe",
+    "title": "business developer",
+    "true_manager": "Tabitha Thistlegrove",
+    "manager_link_missing_in_crm": true
+   },
+   {
+    "full_name": "Evrard Lavandrier",
+    "title": "DAF",
+    "true_manager": "Rowan Calderwick",
+    "manager_link_missing_in_crm": true
+   }
+  ]
+ }
+]

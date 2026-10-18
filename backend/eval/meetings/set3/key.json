@@ -1,0 +1,486 @@
+[
+ {
+  "file": "01.md",
+  "account": "Axiora Industries",
+  "language": "fr",
+  "topics": [
+   "price",
+   "competitor",
+   "legal"
+  ],
+  "decoys": [
+   "Le prix de l'essence m'a coûté une fortune pour venir ce matin",
+   "mon concurrent au squash m'a encore battu hier soir"
+  ],
+  "reports_to": [
+   {
+    "contact": "Callum A. Ankerwood",
+    "manager": "Roxane Z. Ankerwood",
+    "sentence": "moi je rapporte directement à Roxane Z. Ankerwood, la DG"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Tiphaine Hautecourt",
+    "kind": "decision_maker",
+    "sentence": "au final c'est moi qui signe le bon de commande"
+   },
+   {
+    "contact": "Thaddeus Quercival",
+    "kind": "blocker",
+    "sentence": "c'est un vrai point bloquant pour moi"
+   }
+  ],
+  "org_decoys": [
+   "Si je rapportais à Roxane Z. Ankerwood, je crois que je ne dormirais plus la nuit"
+  ]
+ },
+ {
+  "file": "02.txt",
+  "account": "Planeta Partners",
+  "language": "en",
+  "topics": [
+   "security",
+   "integration"
+  ],
+  "decoys": [
+   "The security guard downstairs locked me out of the car park this morning",
+   "The integration of our two sales teams after the merger was painful enough"
+  ],
+  "reports_to": [
+   {
+    "contact": "Evrard Montbelair",
+    "manager": "Lachlan Penhallow",
+    "sentence": "Evrard Montbelair answers to Lachlan Penhallow, by the way, not to me"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Odette Fairbourne",
+    "kind": "champion",
+    "sentence": "I've been pushing this internally since the spring"
+   },
+   {
+    "contact": "Evrard Montbelair",
+    "kind": "blocker",
+    "sentence": "I think this whole thing is a distraction and I'm going to say so at the next board meeting"
+   },
+   {
+    "contact": "Soline Thistlegrove",
+    "kind": "decision_maker",
+    "sentence": "nothing gets bought here unless Soline Thistlegrove puts her name on it"
+   }
+  ],
+  "org_decoys": [
+   "My old colleague Dana reported to the CFO at her last company"
+  ]
+ },
+ {
+  "file": "03.md",
+  "account": "Axiora Technologies",
+  "language": "fr",
+  "topics": [
+   "timing",
+   "support",
+   "price"
+  ],
+  "decoys": [
+   "Le support de mon vélo d'appartement s'est cassé ce matin",
+   "Le timing de la série hier soir était parfait"
+  ],
+  "reports_to": [
+   {
+    "contact": "Tabitha Ferrandaz",
+    "manager": "Mireille V. Ankerwood",
+    "sentence": "Tabitha Ferrandaz dépend de Mireille V. Ankerwood pour tout le terrain"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Odette Greywell",
+    "kind": "decision_maker",
+    "sentence": "C'est Odette Greywell qui tranche en dernier"
+   },
+   {
+    "contact": "Maëlle Hautecourt",
+    "kind": "champion",
+    "sentence": "Je porte ce dossier auprès de la direction depuis des mois"
+   }
+  ],
+  "org_decoys": [
+   "Je ne rapporte plus à Odette Greywell depuis la réorganisation"
+  ]
+ },
+ {
+  "file": "04.txt",
+  "account": "Ixelis Retail",
+  "language": "en",
+  "topics": [
+   "onboarding",
+   "price"
+  ],
+  "decoys": [
+   "The price of coffee in this building is outrageous"
+  ],
+  "reports_to": [
+   {
+    "contact": "Harriet Ferrandaz",
+    "manager": "Odilon Wexcombe",
+    "sentence": "Harriet Ferrandaz sits in my team, so yeah, she reports into me"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Tabitha Pellegrand",
+    "kind": "champion",
+    "sentence": "I'm basically this project's cheerleader on the exec floor"
+   },
+   {
+    "contact": "Rosalind Lavandrier",
+    "kind": "decision_maker",
+    "sentence": "Rosalind Lavandrier has the final say on anything over fifteen grand",
+    "added_by": "evaluator (missing from the writer's key)"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "05.md",
+  "account": "Fabrion Partners",
+  "language": "fr",
+  "topics": [
+   "integration",
+   "security",
+   "competitor"
+  ],
+  "decoys": [
+   "la sécurité à l'accueil m'a fait la leçon",
+   "L'intégration de mon fils à la crèche a pris moins de temps que votre ERP"
+  ],
+  "reports_to": [
+   {
+    "contact": "Liora Lavandrier",
+    "manager": "Noémie A. Calderwick",
+    "sentence": "mon n+1, c'est Noémie A. Calderwick"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Noémie A. Calderwick",
+    "kind": "blocker",
+    "sentence": "je m'opposerai à tout déploiement avant l'audit de sécurité complet"
+   }
+  ],
+  "org_decoys": [
+   "Chez notre filiale allemande, le directeur commercial dépend du CMO"
+  ]
+ },
+ {
+  "file": "06.txt",
+  "account": "Planeta Solutions 51",
+  "language": "en",
+  "topics": [
+   "legal",
+   "timing"
+  ],
+  "decoys": [
+   "Good timing, the coffee just arrived",
+   "It's not exactly legal to park where I parked this morning"
+  ],
+  "reports_to": [
+   {
+    "contact": "Dexter Merriwick",
+    "manager": "Imogen Brouvenne",
+    "sentence": "Dexter Merriwick, our logistics lead, reports up to me on the finance side"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Imogen Brouvenne",
+    "kind": "decision_maker",
+    "sentence": "I sign every contract above ten thousand"
+   },
+   {
+    "contact": "Fenwick Ardenvale",
+    "kind": "blocker",
+    "sentence": "Fenwick Ardenvale has been dead against this expansion since day one"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "07.md",
+  "account": "Elysor Industries 95",
+  "language": "fr",
+  "topics": [
+   "support",
+   "onboarding",
+   "competitor"
+  ],
+  "decoys": [
+   "Je suis supporter de Toulouse depuis toujours",
+   "L'onboarding de mon chiot chez le toiletteur a duré deux heures"
+  ],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Roxane Dunsmoor",
+    "kind": "champion",
+    "sentence": "C'est moi qui ai poussé pour qu'on prenne votre solution"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "08.txt",
+  "account": "Lumeris Retail",
+  "language": "en",
+  "topics": [
+   "price",
+   "security",
+   "timing"
+  ],
+  "decoys": [
+   "the price of my flat in Lisbon is bothering me more than yours"
+  ],
+  "reports_to": [
+   {
+    "contact": "Maëlle Lavandrier",
+    "manager": "Axelle F. Tessendre",
+    "sentence": "Maëlle is my head of sales, she reports to me directly"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Axelle F. Tessendre",
+    "kind": "champion",
+    "sentence": "I'll go to bat for this at the steering committee"
+   },
+   {
+    "contact": "Maëlle Lavandrier",
+    "kind": "blocker",
+    "sentence": "I'd rather we didn't go ahead this quarter"
+   }
+  ],
+  "org_decoys": [
+   "I used to report to the old VP, Gerald, before the restructure"
+  ]
+ },
+ {
+  "file": "09.md",
+  "account": "Lorvik Labs",
+  "language": "fr",
+  "topics": [
+   "legal",
+   "integration"
+  ],
+  "decoys": [
+   "J'ai regardé Légalement blonde hier soir",
+   "l'intégration de la nouvelle cafetière dans la cuisine"
+  ],
+  "reports_to": [
+   {
+    "contact": "Océane Eastlowe",
+    "manager": "Rosalind Penhallow",
+    "sentence": "Océane Eastlowe, c'est la business developer qui est rattachée à Rosalind Penhallow"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Thaddeus Casterel",
+    "kind": "decision_maker",
+    "sentence": "Thaddeus Casterel, notre CEO, décide seul au bout du compte"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "10.txt",
+  "account": "Dorvane Partners",
+  "language": "fr",
+  "topics": [
+   "onboarding",
+   "support",
+   "timing"
+  ],
+  "decoys": [
+   "Mon support de téléphone pour la voiture est tombé en route"
+  ],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Océane Dalmasse",
+    "kind": "champion",
+    "sentence": "Moi je répète à tout le monde que c'est la bonne solution"
+   },
+   {
+    "contact": "Océane Holloway-Finch",
+    "kind": "decision_maker",
+    "sentence": "C'est mon budget, donc la décision m'appartient"
+   },
+   {
+    "contact": "Rosalind Fairbourne",
+    "kind": "blocker",
+    "sentence": "Moi je suis contre, franchement",
+    "added_by": "evaluator (missing from the writer's key)"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "11.md",
+  "account": "Axiora Logistique",
+  "language": "en",
+  "topics": [
+   "competitor",
+   "legal",
+   "security"
+  ],
+  "decoys": [
+   "The competitor in my pub quiz team always cheats",
+   "I need a legal pad to write all this down"
+  ],
+  "reports_to": [
+   {
+    "contact": "Thaddeus Thistlegrove",
+    "manager": "Soline Strathmoor",
+    "sentence": "Thaddeus Thistlegrove is one of my guys, he reports to me"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Thaddeus Thistlegrove",
+    "kind": "blocker",
+    "sentence": "I will fight this at every meeting"
+   },
+   {
+    "contact": "Quentin Brouvenne",
+    "kind": "decision_maker",
+    "sentence": "Quentin Brouvenne makes the call, always has",
+    "added_by": "evaluator (missing from the writer's key)"
+   }
+  ],
+  "org_decoys": [
+   "If I reported to Quentin Brouvenne I'd have quit by now"
+  ]
+ },
+ {
+  "file": "12.txt",
+  "account": "Nivelle Digital",
+  "language": "fr",
+  "topics": [
+   "price",
+   "support"
+  ],
+  "decoys": [
+   "Le prix Goncourt de cette année m'a laissée indifférente",
+   "J'ai cassé le papier support de l'imprimante ce matin"
+  ],
+  "reports_to": [
+   {
+    "contact": "Clémence Hartlemoor",
+    "manager": "Gaspard Ferrandaz",
+    "sentence": "Clémence Hartlemoor est sous ma responsabilité, c'est moi son chef"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Gaspard Ferrandaz",
+    "kind": "champion",
+    "sentence": "J'ai vendu ce pilote à toute la direction"
+   },
+   {
+    "contact": "Rosalind Wexcombe",
+    "kind": "decision_maker",
+    "sentence": "le dernier mot revient à Rosalind Wexcombe, notre PDG",
+    "added_by": "evaluator (missing from the writer's key)"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "13.md",
+  "account": "Cobaltis Logistique",
+  "language": "fr",
+  "topics": [
+   "integration",
+   "timing",
+   "onboarding"
+  ],
+  "decoys": [
+   "Le timing du train SNCF ce matin, c'était un désastre"
+  ],
+  "reports_to": [
+   {
+    "contact": "Mireille Roussevel",
+    "manager": "Philippa Ferrandaz",
+    "sentence": "Mireille Roussevel fait partie de mon équipe, je suis sa responsable"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Odette Merriwick",
+    "kind": "blocker",
+    "sentence": "je voterai contre tant qu'on n'a pas de preuve"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "14.txt",
+  "account": "Mendara Conseil",
+  "language": "en",
+  "topics": [
+   "security",
+   "legal",
+   "competitor"
+  ],
+  "decoys": [],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Rosalind Ankerwood",
+    "kind": "champion",
+    "sentence": "I've been telling anyone who'll listen that this is the right platform"
+   },
+   {
+    "contact": "Soline G. Casterel",
+    "kind": "decision_maker",
+    "sentence": "Soline G. Casterel decides, and she reads the contract herself"
+   }
+  ],
+  "org_decoys": [
+   "My sister reports to the CFO at Brightwave",
+   "my cat runs the department, he reports to nobody"
+  ]
+ },
+ {
+  "file": "15.md",
+  "account": "Helvora Santé",
+  "language": "fr",
+  "topics": [
+   "price",
+   "integration",
+   "support"
+  ],
+  "decoys": [
+   "Le prix du parking de l'hôpital est bien plus choquant que votre devis",
+   "il a promis de s'intégrer à mon planning"
+  ],
+  "reports_to": [
+   {
+    "contact": "Basile Wexcombe",
+    "manager": "Tabitha Thistlegrove",
+    "sentence": "Basile Wexcombe, il remonte à moi, je suis sa responsable directe"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Rowan Calderwick",
+    "kind": "decision_maker",
+    "sentence": "Rowan Calderwick signe tout ce qui dépasse quarante mille euros"
+   }
+  ],
+  "org_decoys": []
+ }
+]

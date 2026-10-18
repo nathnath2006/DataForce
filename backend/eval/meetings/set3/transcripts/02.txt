@@ -1,0 +1,30 @@
+Anselme Penhallow: Morning everyone, thanks for making the time, I know it's a busy week.
+Odette Fairbourne: Morning Anselme. Yes, we're all a bit frazzled, the quarter close is eating us alive.
+Anselme Penhallow: Understood. Shall we start with the security review you sent over?
+Lachlan Penhallow: Sure. Our IT lead wants SSO and audit logs before anything else. Non-negotiable.
+Anselme Penhallow: Both are in the enterprise tier, and the audit logs are exportable.
+Anselme Penhallow: Okay, let's keep moving, I have another call at eleven.
+Anselme Penhallow: Mm-hm, I'm with you, carry on.
+Evrard Montbelair: I'll be honest, I think this whole thing is a distraction and I'm going to say so at the next board meeting.
+Evrard Montbelair: And how was your weekend, by the way?
+Odette Fairbourne: Come on Evrard, don't start. I've been pushing this internally since the spring, so please give it a fair hearing.
+Evrard Montbelair: Fair enough, fair enough. What about the CRM integration, though? Ours is a patched-up mess.
+Anselme Penhallow: We have a native connector, and for the older fields there's a REST endpoint.
+Lachlan Penhallow: Right, right, makes sense.
+Odette Fairbourne: Sorry, you're breaking up a little, can you repeat that?
+Lachlan Penhallow: Um, what was I saying? Oh right.
+Lachlan Penhallow: Well, I mean, you know how it goes.
+Odette Fairbourne: Just so everyone's on the same page, Evrard Montbelair answers to Lachlan Penhallow, by the way, not to me.
+Anselme Penhallow: Perfect, we're aligned then.
+Lachlan Penhallow: Right, and nothing gets bought here unless Soline Thistlegrove puts her name on it, so we need a clean pitch for her.
+Evrard Montbelair: The security guard downstairs locked me out of the car park this morning, I'm still annoyed.
+Anselme Penhallow: Sorry, I cut you off, please go ahead.
+Evrard Montbelair: Hang on, let me grab my notes, one second.
+Anselme Penhallow: Ha, that's the worst. Anyway, on integration, can we get a sandbox going?
+Evrard Montbelair: Thanks, that helps a lot.
+Anselme Penhallow: Yeah, absolutely.
+Lachlan Penhallow: The integration of our two sales teams after the merger was painful enough, so yes, let's test before committing.
+Anselme Penhallow: Sorry, let me rephrase, that came out wrong.
+Evrard Montbelair: Ha, yes, that is fair.
+Odette Fairbourne: My old colleague Dana reported to the CFO at her last company and she says nothing ever got decided there.
+Anselme Penhallow: I'll set up the sandbox and send credentials Friday.
