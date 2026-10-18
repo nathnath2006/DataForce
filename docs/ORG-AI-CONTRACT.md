@@ -60,16 +60,28 @@ The model returns a list of `{kind, contact, manager, quote, confidence}`:
 
 A finding is kept only if all of these hold:
 
-1. `quote` is an exact substring of one candidate turn that was sent. Its document offsets are
-   computed by code, and the excerpt is the document slice at those offsets.
+1. `quote` (at least 12 characters) is an exact substring of one candidate turn that was sent.
+   The **stored excerpt is the full sentence(s) of that turn containing the quote**, an exact
+   slice of the document; offsets are computed by code.
 2. `contact`, and `manager` when present, each resolve to exactly one contact of the account
    with the same alias rules; `contact != manager`.
 3. The quote mentions the contact or the manager by an alias, or the turn's speaker is the
-   contact (first person). For reports_to, the manager must also be named in the turn itself:
-   a manager is never inferred.
-4. The quote has no hypothetical word (the patterns' `_HYPOTHETICAL`).
+   contact (first person). When the contact is not named in the stored excerpt (first-person
+   route), the excerpt must contain an org cue and, if the speaker is the contact, no alias of
+   another contact of the account. For reports_to, the manager must be named in the excerpt; it
+   may widen backward by at most one immediately preceding sentence of the same turn that names
+   the manager (pronoun case), otherwise the finding is dropped. A manager is never inferred.
+4. The whole excerpt has no hypothetical word (the patterns' `_HYPOTHETICAL`), and, for
+   reports_to, champion and decision_maker, none of the patterns' past/negation words
+   (`_PAST_OR_NEG`, `_NEGATION`). **Residual:** for blocker the negation guard is skipped, because
+   a negation is often the meaning ("n'est pas convaincue"); only the hypothetical check applies.
 5. For reports_to: the link is not already true in the CRM, would not create a cycle (`rules.
    would_cycle`), and is not blocked by an earlier rejection.
+
+Prompt contents: the names of the batch's speakers and of contacts whose alias occurs in the
+batch text, at most 200; verification still resolves names against all contacts of the account.
+Budget: the per-run and per-day allowances are checked and spent atomically. Changing the
+provider or model switches the opt-in off (a key rotation keeps it).
 
 Everything else is dropped and counted in `ai.dropped`, with no text logged. Pattern findings
 win on the same (contact, kind, manager).

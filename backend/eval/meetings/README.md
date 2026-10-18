@@ -27,3 +27,8 @@ Each figure comes with a Wilson 95 % interval.
 A set is held-out only until its misses have been used to change the rules. On 2026-10-18,
 `set1` was used to broaden the rules, and `set2` then measured that change. Both are now seen,
 so the next measurement needs a set 3. Results are in `docs/DECISIONS.md` §J.
+
+`--ai` is an explicit opt-in for the evaluation: it ignores the workspace switch "Read meeting
+sentences for org statements" on purpose, and sends the candidate sentences of the eval
+transcripts to the provider saved in Settings. It still needs saved AI settings and exits 2
+without them.

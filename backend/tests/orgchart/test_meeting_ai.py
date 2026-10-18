@@ -173,7 +173,8 @@ def test_rule3_quote_names_a_party_or_speaker_is_the_contact():
 def test_rule4_no_hypothetical_word():
     t = turn(text="If I had to say, Bob Martin-Lévy is the one I answer to.")
     assert check(item(quote="If I had to say, Bob Martin-Lévy is the one I answer to."), t)[1] == 1
-    assert check(item(quote="Bob Martin-Lévy is the one I answer to."), t)[1] == 0
+    # SR15-01: a sub-quote cannot hide the hypothesis; the whole sentence is checked.
+    assert check(item(quote="Bob Martin-Lévy is the one I answer to."), t)[1] == 1
 
 
 def test_duplicates_are_merged_not_dropped():
@@ -187,3 +188,85 @@ def test_injected_instruction_without_support_yields_nothing():
     # The model complies, but Alice is not a contact and the quote is not what it quoted.
     assert check(item(contact="Alice", manager="Bob", quote=inj), t) == ([], 1)
     assert check(item(contact="Ana Dupont", manager="Bob Martin-Lévy", quote=inj + "!"), t)[1] == 1
+
+
+# --- SR15 regressions -----------------------------------------------------------------------
+def one(kind, contact, quote, text, manager=None, who=ANA):
+    it = AiItem(kind=kind, contact=contact, manager=manager, quote=quote)
+    return meeting_ai.verify([it], [Turn(DOC, uuid.uuid4(), "Ana", who, 100, text)], CONTACTS)
+
+
+def test_sr15_01_hypothetical_and_negation_outside_the_quote():
+    t = "If I reported to Bob Martin-Lévy, I would quit tomorrow."
+    assert one("reports_to", "Ana", "reported to Bob Martin-Lévy", t, "Bob Martin-Lévy")[1] == 1
+    t = "Bob Martin-Lévy is definitely not my boss at all."
+    q = "Bob Martin-Lévy is definitely not my boss"
+    assert one("reports_to", "Ana", q, t, "Bob Martin-Lévy")[1] == 1
+    t = "Zoé Bernard n'a pas le dernier mot sur ce sujet."
+    assert one("decision_maker", "Zoé", "Zoé Bernard n'a pas le dernier", t)[1] == 1
+
+
+def test_sr15_01_blocker_keeps_negation_but_not_hypothesis():
+    t = "Zoé Bernard n'est pas convaincue par le projet."
+    assert one("blocker", "Zoé", "Zoé Bernard n'est pas convaincue", t)[1] == 0
+    t = "Si on avance, Zoé Bernard bloque le projet."
+    assert one("blocker", "Zoé", "Zoé Bernard bloque le projet", t)[1] == 1
+
+
+def test_sr15_01_excerpt_is_the_full_sentence_and_manager_must_be_in_it():
+    t = "I report to the CFO every week. Bob Martin-Lévy is great."
+    q = "I report to the CFO every week."
+    assert one("reports_to", "Ana", q, t, "Bob Martin-Lévy")[1] == 1
+    t = "Honestly, Zoé Bernard has the final say here. Next topic."
+    (v,), _ = one("decision_maker", "Zoé", "Zoé Bernard has the final", t)
+    ev = v.evidence
+    assert ev["excerpt"] == "Honestly, Zoé Bernard has the final say here."
+    assert t[ev["char_start"] - 100 : ev["char_end"] - 100] == ev["excerpt"]
+
+
+def test_sr15_01_pronoun_widens_to_one_preceding_sentence_naming_the_manager():
+    t = "Bob Martin-Lévy runs sales. I have answered to him since I joined."
+    (v,), _ = one(
+        "reports_to", "Ana", "I have answered to him since I joined.", t, "Bob Martin-Lévy"
+    )
+    assert v.evidence["excerpt"] == t
+    t = "Bob Martin-Lévy runs sales. Fine. I have answered to him since I joined."
+    assert (
+        one("reports_to", "Ana", "I have answered to him since I joined.", t, "Bob Martin-Lévy")[1]
+        == 1
+    )
+
+
+def test_sr15_04_third_party_statement_and_generic_quote_are_dropped():
+    t = "Bob Martin-Lévy opposes the whole project, he blocks everything."
+    assert one("blocker", "Ana", "Bob Martin-Lévy opposes the whole project", t)[1] == 1
+    assert (
+        one("decision_maker", "Ana", "the budget today", "We talked about the budget today.")[1]
+        == 1
+    )
+    assert (
+        one("champion", "Ana", "I will push this project", "I will push this project hard.")[1] == 0
+    )
+    assert meeting_ai.MIN_QUOTE_CHARS == 12
+
+
+def test_sr15_05_prompt_lists_only_speakers_and_names_in_the_batch():
+    t = Turn(DOC, uuid.uuid4(), "Ana", ANA, 0, "Bob Martin-Lévy is my boss")
+    p = meeting_ai.build_user_prompt([t], CONTACTS)
+    assert "Ana Dupont" in p and "Bob Martin-Lévy" in p
+    assert "Zoé Bernard" not in p and "Marie Durand" not in p
+    many = [ContactRef(uuid.uuid4(), f"Person{i} Name{i}") for i in range(300)]
+    big = Turn(DOC, uuid.uuid4(), "x", many[0].id, 0, " ".join(c.full_name for c in many))
+    names = meeting_ai.build_user_prompt([big], many).split('<source id="contacts">')[1]
+    assert names.split("</source>")[0].count("Person") <= meeting_ai.MAX_PROMPT_NAMES
+
+
+def test_sr15_06_any_exception_is_a_failure_not_a_crash():
+    import asyncio
+
+    class Boom:
+        async def generate_structured(self, **kw):
+            raise RuntimeError("provider bug")
+
+    out = asyncio.run(meeting_ai.run_document(Boom(), [turn()], CONTACTS, lambda: True))
+    assert (out.calls, out.failed) == (1, 1) and not out.complete

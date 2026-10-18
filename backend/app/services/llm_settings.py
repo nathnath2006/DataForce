@@ -87,6 +87,8 @@ def save_settings(
         if provider != cred.provider and key is None:
             raise InvalidInputError("changing the provider requires a new API key")
         changed = provider != cred.provider or model != cred.model or key is not None
+        if provider != cred.provider or model != cred.model:
+            cred.allow_meeting_org = False  # consent was given for that provider and model
         cred.provider = provider
         cred.model = model
         if key is not None:

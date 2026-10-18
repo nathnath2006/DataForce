@@ -44,18 +44,6 @@ def _day() -> int:
     return int(time.time() // 86_400)
 
 
-def _daily_remaining(ws_id: uuid.UUID, settings: Settings) -> int:
-    with _LOCK:
-        for key in [k for k in _DAILY if k[1] != _day()]:
-            del _DAILY[key]
-        return max(0, settings.org_ai_max_calls_per_day - _DAILY.get((ws_id, _day()), 0))
-
-
-def _spend(ws_id: uuid.UUID) -> None:
-    with _LOCK:
-        _DAILY[(ws_id, _day())] = _DAILY.get((ws_id, _day()), 0) + 1
-
-
 def _recently_failed(key: tuple[uuid.UUID, uuid.UUID, str]) -> bool:
     with _LOCK:
         at = _FAILED.get(key)
@@ -67,6 +55,9 @@ def _recently_failed(key: tuple[uuid.UUID, uuid.UUID, str]) -> bool:
 
 def _remember_failure(key: tuple[uuid.UUID, uuid.UUID, str]) -> None:
     with _LOCK:
+        now = time.monotonic()
+        for k in [k for k, at in _FAILED.items() if now - at > FAILURE_TTL_S]:
+            del _FAILED[k]
         _FAILED[key] = time.monotonic()
 
 
@@ -138,14 +129,19 @@ class AiPass:
         self.session, self.ws_id, self.settings, self.factory = session, ws_id, settings, factory
         self.provider_name, self.model = cred.provider, cred.model
         self.stats = AiStats()
-        self._left = min(settings.org_ai_max_calls_per_run, _daily_remaining(ws_id, settings))
+        self._left = settings.org_ai_max_calls_per_run
 
     def _take(self) -> bool:
-        if self._left <= 0:
-            return False
-        self._left -= 1
-        _spend(self.ws_id)
-        return True
+        """Check and spend the per-run and the per-day allowance under one lock."""
+        with _LOCK:
+            for key in [k for k in _DAILY if k[1] != _day()]:
+                del _DAILY[key]
+            k = (self.ws_id, _day())
+            if self._left <= 0 or _DAILY.get(k, 0) >= self.settings.org_ai_max_calls_per_day:
+                return False
+            self._left -= 1
+            _DAILY[k] = _DAILY.get(k, 0) + 1
+            return True
 
     def _open(self) -> Any:
         cred = llm_settings.require_credential(self.session, self.ws_id)
@@ -236,7 +232,7 @@ class AiPass:
                 if res.failed:
                     _remember_failure((self.ws_id, doc_id, sha))
                 if res.complete:
-                    self.session.add(
+                    self._cache(
                         MeetingOrgAiCache(
                             workspace_id=self.ws_id,
                             document_id=doc_id,
@@ -261,6 +257,14 @@ class AiPass:
                     await aclose()
         self.session.flush()
         return out
+
+    def _cache(self, row: MeetingOrgAiCache) -> None:
+        """Insert in a savepoint: a cache error never aborts the request after calls were spent."""
+        try:
+            with self.session.begin_nested():
+                self.session.add(row)
+        except Exception:  # noqa: S110 - the cache is best effort; findings are still returned
+            pass
 
     def stamp(self, v: meeting_ai.Verified) -> dict[str, Any]:
         return self._evidence(v.evidence)

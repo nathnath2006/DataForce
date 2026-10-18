@@ -16,14 +16,22 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from app.llm.errors import LLMError
 from app.llm.untrusted import wrap_sources
-from app.orgchart.meetings import _HYPOTHETICAL, ChunkRec, ContactRef, aliases, fold
+from app.orgchart.meetings import (
+    _HYPOTHETICAL,
+    _NEGATION,
+    _PAST_OR_NEG,
+    ChunkRec,
+    ContactRef,
+    aliases,
+    fold,
+)
 
 MAX_TURN_CHARS = 600
 MAX_TURNS_PER_CALL = 40
 MAX_CHARS_PER_CALL = 12_000
-MIN_QUOTE_CHARS = 8
+MIN_QUOTE_CHARS = 12
+MAX_PROMPT_NAMES = 200
 KINDS = ("reports_to", "champion", "blocker", "decision_maker")
 
 # Recall filter, not a classifier: word-start stems, FR + EN, matched on folded text.
@@ -178,16 +186,26 @@ def batches(turns: Sequence[Turn]) -> list[list[Turn]]:
 
 
 def build_user_prompt(batch: Sequence[Turn], contacts: Sequence[ContactRef]) -> str:
-    """Sent to the model: the contacts' full names, and per turn the speaker's name (a contact)
-    and the turn text (at most 600 characters), all inside <source> blocks. Nothing else."""
+    """Sent to the model: the names of the batch's speakers and of the contacts whose alias
+    occurs in the batch text (at most 200), and per turn the speaker's name and the turn text
+    (at most 600 characters), all inside <source> blocks. Nothing else."""
     names = {c.id: c.full_name for c in contacts}
+    listed: dict[uuid.UUID, str] = {}
+    for t in batch:
+        if t.contact_id in names:
+            listed.setdefault(t.contact_id, names[t.contact_id])
+    folded = fold("\n".join(t.text for t in batch))
+    for alias, cid in aliases(contacts).items():
+        if cid not in listed and (rx := _alias_regex([alias])) and rx.search(folded):
+            listed[cid] = names[cid]
+    shown = list(listed.values())[:MAX_PROMPT_NAMES]
     sources = {
         f"t{i}": f"Speaker: {names.get(t.contact_id, '')}\n---\n{t.text}"
         for i, t in enumerate(batch, 1)
     }
     return (
         "Contact names, one per line (copy them exactly):\n"
-        + wrap_sources({"contacts": "\n".join(c.full_name for c in contacts)})
+        + wrap_sources({"contacts": "\n".join(shown)})
         + "\n\nExcerpts:\n\n"
         + wrap_sources(sources)
     )
@@ -241,21 +259,42 @@ def _verify_one(
     if turn is None:
         return None
     at = turn.text.find(quote)
-    start = turn.char_start + at
-    # Rule 3: the quote names the contact or the manager, or the speaker is the contact.
-    names = [a for a, i in alias.items() if i in (contact_id, manager_id)]
-    rx = _alias_regex(names)
-    folded = fold(quote)
-    if not (rx and rx.search(folded)) and turn.contact_id != contact_id:
+    # The stored excerpt is the full containing sentence(s) of the quote (SR15-01).
+    spans = sentences(turn.text)
+    hit = [i for i, (a, b) in enumerate(spans) if a < at + len(quote) and b > at]
+    if not hit:
         return None
-    # A manager is never inferred: the turn itself must name them.
+    s, e = spans[hit[0]][0], spans[hit[-1]][1]
+    mrx = None
     if manager_id is not None:
         mrx = _alias_regex([a for a, i in alias.items() if i == manager_id])
-        if not (mrx and mrx.search(fold(turn.text))):
+        # A manager is never inferred: named in the excerpt, or in the one sentence before it.
+        if not (mrx and mrx.search(fold(turn.text[s:e]))):
+            if hit[0] > 0 and mrx and mrx.search(fold(turn.text[slice(*spans[hit[0] - 1])])):
+                s = spans[hit[0] - 1][0]
+            else:
+                return None
+    excerpt = turn.text[s:e]
+    folded = fold(excerpt)
+    # Rule 3: the quote names the contact or the manager, or the speaker is the contact.
+    both = _alias_regex([a for a, i in alias.items() if i in (contact_id, manager_id)])
+    if not (both and both.search(fold(quote))) and turn.contact_id != contact_id:
+        return None
+    own = _alias_regex([a for a, i in alias.items() if i == contact_id])
+    if not (own and own.search(folded)):
+        # First-person route: needs an org cue and no other contact of the account.
+        if turn.contact_id == contact_id and not CUES.search(folded):
             return None
-    # Rule 4: no hypothetical word.
+        other = _alias_regex([a for a, i in alias.items() if i not in (contact_id, manager_id)])
+        if turn.contact_id == contact_id and other and other.search(folded):
+            return None
+    # Rule 4 on the whole sentence(s); past/negation guard too, except for blockers, where a
+    # negation is often the meaning ("not convinced").
     if _HYPOTHETICAL.search(folded):
         return None
+    if it.kind != "blocker" and (_PAST_OR_NEG.search(folded) or _NEGATION.search(folded)):
+        return None
+    start = turn.char_start + s
     return Verified(
         it.kind,
         contact_id,
@@ -263,10 +302,10 @@ def _verify_one(
         {
             "document_id": str(turn.document_id),
             "chunk_id": str(turn.chunk_id),
-            "excerpt": quote,
+            "excerpt": excerpt,
             "speaker": turn.speaker,
             "char_start": start,
-            "char_end": start + len(quote),
+            "char_end": start + len(excerpt),
             "pattern": "ai",
             "found_by": "ai",
         },
@@ -300,7 +339,7 @@ async def run_document(
         out.calls += 1
         try:
             answer = await ask(provider, batch, contacts)
-        except LLMError:
+        except Exception:  # provider bug or LLMError: counted, never fatal
             out.failed += 1
             continue
         kept, dropped = verify(answer.findings, batch, contacts)
