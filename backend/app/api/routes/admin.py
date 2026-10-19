@@ -125,6 +125,8 @@ def ai_usage(
     caps = {
         "title_classification": settings.titles_max_llm_calls_per_day,
         "explanation": settings.org_ai_max_calls_per_day,
+        "deal_summary": settings.genai_max_calls_per_day,
+        "action_items": settings.genai_max_calls_per_day,
     }
     today = [
         {"purpose": p, "calls": counts.get(p, 0), "daily_cap": caps.get(p)}

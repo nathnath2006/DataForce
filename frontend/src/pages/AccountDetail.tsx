@@ -14,6 +14,7 @@ import { DetailHeader, Summary3 } from "../shell/DetailHeader";
 import { pickRoadmapDeal } from "../shell/logic";
 import { useRegisterScope } from "../shell/scope";
 import { Timeline } from "../activity/Timeline";
+import { DealAiPanel } from "../genai";
 
 export function AccountDetailPage() {
   const { id = "" } = useParams();
@@ -108,6 +109,11 @@ export function AccountDetailPage() {
         {chart.data && (
           <OrgChartPanel accountId={a.id} nodes={chart.data.nodes} base={base} onChanged={chart.reload} />
         )}
+      </div>
+
+      <div className="card stack">
+        <h2>AI assistance</h2>
+        <DealAiPanel ws={ws.slug} accountId={a.id} />
       </div>
 
       <div className="card stack">

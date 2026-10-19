@@ -1,0 +1,8 @@
+/* GenAI panel. Tokens only. */
+.genai { display: flex; flex-direction: column; gap: .7rem; min-width: 0; }
+.genai-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.genai-sum { border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--surface); padding: .6rem .8rem; overflow-wrap: anywhere; }
+.genai-sum p { margin: .4rem 0 0; }
+.genai-cite { display: inline-block; margin-left: .3rem; font-size: .75rem; color: var(--muted); border: 1px solid var(--hairline); border-radius: var(--r-pill); padding: 0 .4rem; white-space: nowrap; }
+.genai-note { font-size: .85rem; color: var(--muted); margin: 0; }
+.genai-consent { overflow-wrap: anywhere; }

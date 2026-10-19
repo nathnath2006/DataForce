@@ -305,6 +305,9 @@ class Settings(BaseSettings):
     transcript_max_pages: int = Field(default=300, ge=1, le=2_000)  # PDF
     transcript_max_chars: int = Field(default=1_000_000, ge=1_000, le=10_000_000)
     themes_default_k: int = Field(default=12, ge=2, le=30)  # v2: formulas need topics too
+    # Opt-in GenAI on a deal or account (summary, suggested tasks): text budget and daily cap.
+    genai_max_source_chars: int = Field(default=20_000, ge=1_000, le=200_000)
+    genai_max_calls_per_day: int = Field(default=200, ge=0, le=50_000)  # per workspace
 
     # --- validators -----------------------------------------------------------------------
     # Field validators (not a model validator) on purpose: they see the already-wrapped

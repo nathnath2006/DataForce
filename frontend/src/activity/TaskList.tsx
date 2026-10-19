@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useWs } from "../context";
 import { formatDate } from "../lib";
-import { Empty, ErrorNote, Loading, useAction, useLoad } from "../ui";
+import { AiBadge, Empty, ErrorNote, Loading, useAction, useLoad } from "../ui";
 import { activityApi } from "./api";
 import "./activity.css";
 
 /** Small task list with checkboxes (open tasks first). */
-export function TaskList({ dealId, onChanged }: { dealId: string; onChanged?: () => void }) {
+export function TaskList({ dealId, onChanged, refreshKey = 0 }: { dealId: string; onChanged?: () => void; refreshKey?: number }) {
   const { ws, actingAs } = useWs();
-  const list = useLoad(() => activityApi.listTasks(ws.slug, { deal_id: dealId }), [ws.slug, dealId]);
+  const list = useLoad(() => activityApi.listTasks(ws.slug, { deal_id: dealId }), [ws.slug, dealId, refreshKey]);
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
   const act = useAction();
@@ -31,7 +31,9 @@ export function TaskList({ dealId, onChanged }: { dealId: string; onChanged?: ()
             {t.status === "suggested" ? (
               <>
                 <span className="tag warn">Suggested</span>
+                {t.source === "ai_suggested" && <AiBadge>AI</AiBadge>}
                 <span>{t.title}</span>
+                {typeof t.evidence?.quote === "string" && <q className="tl-meta">{t.evidence.quote}</q>}
                 <button type="button" onClick={() => void act.run(() => activityApi.acceptTask(ws.slug, t.id)).then(done)}>Accept</button>
                 <button type="button" onClick={() => void act.run(() => activityApi.updateTask(ws.slug, t.id, { status: "dismissed" })).then(done)}>Dismiss</button>
               </>

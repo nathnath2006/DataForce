@@ -24,6 +24,8 @@ const PURPOSES: Record<string, string> = {
   assistant: "Assistant questions",
   theme_naming: "Theme names",
   embedding: "Embeddings",
+  deal_summary: "Deal summaries",
+  action_items: "Suggested tasks",
 };
 export function purposeLabel(p: string): string {
   return PURPOSES[p] ?? p;

@@ -33,7 +33,13 @@ class LLMProvider(Protocol):
         system: str,
         user: str,
         schema: type[T],
-        purpose: Literal["title_classification", "theme_naming", "explanation"],
+        purpose: Literal[
+            "title_classification",
+            "theme_naming",
+            "explanation",
+            "deal_summary",
+            "action_items",
+        ],
         max_output_tokens: int = 4096,
     ) -> T: ...
 

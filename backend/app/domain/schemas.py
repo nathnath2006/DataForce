@@ -249,6 +249,8 @@ LLMPurpose = Literal[
     "title_classification",
     "theme_naming",
     "explanation",
+    "deal_summary",
+    "action_items",
     "embedding",
     "assistant",
     "connection_test",

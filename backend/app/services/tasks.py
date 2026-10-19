@@ -145,3 +145,23 @@ def list_tasks(
     )
     stmt = stmt.order_by(rank, Task.due_on.asc().nulls_last(), Task.created_at.desc(), Task.id)
     return list(session.scalars(stmt.limit(limit).offset(offset)))
+
+
+def create_suggested(
+    session: Session,
+    ws_id: uuid.UUID,
+    *,
+    title: str,
+    evidence: dict[str, Any],
+    deal_id: uuid.UUID | None = None,
+    account_id: uuid.UUID | None = None,
+) -> Task:
+    """An AI-suggested task: status `suggested`, source `ai_suggested`, the quoted sentence in
+    `evidence`. It becomes `open` only through `accept_task` (a person)."""
+    row = create_task(
+        session, ws_id, title=title, deal_id=deal_id, account_id=account_id, source="ai_suggested"
+    )
+    row.status = "suggested"
+    row.evidence = evidence
+    session.flush()
+    return row
