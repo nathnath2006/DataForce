@@ -1,0 +1,27 @@
+Anselme Penhallow: Bonjour Odilon, bonjour à vous deux. Vous me recevez bien ?
+Odilon Fairbourne: Bonjour Anselme, oui, forte et claire. Je suis dans le train, mais ça passe.
+Quentin Greywell: Bonjour. Moi je suis au bureau, j'ai dû fermer la porte à cause des travaux à côté.
+Marlowe Dunsmoor: Bonjour à tous. Je finis un mail et je suis à vous, deux secondes.
+Anselme Penhallow: Prenez votre temps. On parle de l'extension, et on a trois points : le juridique, la prise en main, et les connexions avec vos outils.
+Marlowe Dunsmoor: Voilà, je suis là. Pour le juridique, nos avocats veulent revoir les clauses, notamment la durée.
+Anselme Penhallow: Bien sûr. Quel point précisément ?
+Marlowe Dunsmoor: Je ne laisserai pas passer une clause de reconduction tacite sur trois ans. C'est une ligne rouge pour moi, tant que ce n'est pas supprimé je ne signe rien.
+Odilon Fairbourne: Marlowe, on avait dit qu'on ne partait pas en guerre pour ça, hein.
+Anselme Penhallow: Pas de guerre, je peux proposer une reconduction annuelle expresse.
+Marlowe Dunsmoor: Voilà, ça, c'est audible. D'ailleurs, ce n'est pas très légal de se garer devant le bâtiment et pourtant tout le monde le fait, c'est le même genre d'habitudes.
+Quentin Greywell: Ha ha. Passons à la prise en main, ça m'intéresse plus. Combien de temps pour former les commerciaux ?
+Anselme Penhallow: Une demi-journée d'atelier par groupe de dix, puis un accompagnement sur le terrain pendant un mois.
+Quentin Greywell: Parfait. J'ai testé l'outil deux semaines, et je suis totalement convaincu, c'est un gros oui de ma part.
+Odilon Fairbourne: Et au passage, Quentin Greywell, il est directement sous ma responsabilité, donc je suis son dossier de près.
+Marlowe Dunsmoor: Moi aussi je gère mon monde. Mireille P. Strathmoor, je l'encadre moi-même, elle est aux opérations.
+Odilon Fairbourne: Pour l'onboarding, je voudrais une personne fixe chez vous, pas un nouvel interlocuteur à chaque fois.
+Anselme Penhallow: Entendu, un référent unique, c'est possible.
+Marlowe Dunsmoor: Il faudra aussi parler de l'onboarding de la nouvelle machine à café, parce que le budget formation a servi à ça cette année, ha ha.
+Quentin Greywell: Ha ha, ne dis pas ça devant le comité. Pour les connexions, on utilise un ERP assez ancien.
+Anselme Penhallow: Pas de souci, on a un connecteur standard et un export planifié si l'API manque.
+Odilon Fairbourne: Bon. Pour être transparent, sur ce dossier c'est moi qui tranche, et je ne délègue pas ça...
+Odilon Fairbourne: ... enfin, pardon, je m'emballe, les clauses, on les verra avec les avocats.
+Marlowe Dunsmoor: Exact. Et Quentin Montbelair ne dépend pas de moi, hein, c'est un tout autre service, au cas où vous auriez vu ça quelque part.
+Anselme Penhallow: Merci pour la précision. Je vous renvoie une version du contrat et le planning de formation d'ici vendredi.
+Odilon Fairbourne: Très bien. L'intégration du nouveau bâtiment dans le plan de la ville me prend aussi la tête cette semaine, ha ha. Bon, à vendredi.
+Anselme Penhallow: À vendredi, merci à tous.

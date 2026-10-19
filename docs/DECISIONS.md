@@ -342,6 +342,24 @@ measurement.
   only through a pronoun, are dropped on purpose, and the candidate filter skips some wordings
   ("go to bat for this"). Raising recall further means relaxing one of these guards: a decision
   for the PO, not a tuning step. Set 3 has now been seen.
+- **Guards relaxed by the PO (2026-10-19).**
+  - A manager named anywhere earlier in the meeting now counts; the evidence then carries a
+    second exact quote, where the manager was named.
+  - The candidate filter is wider: more stance cues, and the first person with a stance word.
+  - Measured on **set 4**, 14 meetings written afterwards from accounts no set had used, with a
+    key that records incidental statements. 14 Gemini calls; verification dropped 12 findings.
+
+  | Set 4, 14 unseen meetings | Patterns only | Patterns + relaxed AI pass |
+  |---|---|---|
+  | Reports-to (links missing from the CRM) | 1 of 16 | **14 of 16**, all correct |
+  | Signals | 5 of 34 | **17 of 34**, all correct |
+  | Known themes, precision / recall | — | 79 % / 84 % |
+
+  - Six of the 16 reports-to statements used a pronoun, with the manager named turns earlier:
+    the case the relaxation was for.
+  - Signal recall stays at about half on this set: the misses are mostly blockers and decision
+    makers phrased indirectly.
+  - Set 4 is now seen.
 
 ## K. Open
 1. CRM scope, TamTam, AI key: as in M2a (the PO is testing).

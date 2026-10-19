@@ -28,7 +28,7 @@ A set is held-out only until its misses have been used to change the rules. On 2
 `set1` was used to broaden the rules, and `set2` then measured that change. Both are now seen,
 so the next measurement needs a set 3. Results are in `docs/DECISIONS.md` §J.
 
-`set3` is still held-out: see `set3/HELD-OUT.md` before using it.
+Sets 1 to 4 have all been used to measure or change the rules (§J); the next change needs a new set.
 
 `--ai` is an explicit opt-in for the evaluation: it ignores the workspace switch "Read meeting
 sentences for org statements" on purpose, and sends the candidate sentences of the eval

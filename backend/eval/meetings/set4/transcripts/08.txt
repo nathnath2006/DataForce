@@ -1,0 +1,26 @@
+Ingrid Hautecourt: Bonjour Soline, bonjour Jade, bonjour Quentin. Merci d'avoir décalé votre déjeuner.
+Soline Pellegrand: Bonjour Ingrid. Pas de problème, j'ai mangé un sandwich devant l'écran, comme d'habitude.
+Jade Q. Pellegrand: Bonjour. Moi aussi, un déjeuner raté, mais bon. Allons-y.
+Quentin S. Tessendre: Salut tout le monde. Désolé, j'ai un peu de retard, j'étais encore avec un client.
+Ingrid Hautecourt: Pas de souci. On est en négociation sur le renouvellement, et il reste trois points : le prix, un volet juridique, et les connexions.
+Soline Pellegrand: Commençons par le prix. Vous nous proposez six mille cinq cents euros, c'est ça ?
+Ingrid Hautecourt: C'est ça, pour douze mois, avec la maintenance incluse.
+Jade Q. Pellegrand: C'est un peu plus que l'année dernière. Quentin, tu avais calculé quelque chose avec les volumes, non ?
+Quentin S. Tessendre: Oui, euh, d'après mes chiffres, on a doublé le nombre de dossiers, donc ça se justifie à peu près.
+Ingrid Hautecourt: Exactement. Et je peux faire un geste de cinq pour cent si vous signez avant la fin du mois.
+Jade Q. Pellegrand: Je préfère être honnête : je ne suis pas à l'aise, je préfère qu'on attende l'an prochain.
+Soline Pellegrand: Jade, on en reparlera ensemble. Ce qui compte pour moi, c'est la clarté juridique, vu qu'on traite des dossiers de santé.
+Ingrid Hautecourt: Sur ce point, nous avons un accord de sous-traitance conforme, avec hébergeur certifié.
+Soline Pellegrand: Très bien. Notre juriste, euh, notre conseil externe voudra le relire.
+Jade Q. Pellegrand: Pour les nouveaux venus : Quentin S. Tessendre est dans mon équipe depuis trois ans. Et avant, il était rattaché à la direction financière, mais ça n'est plus le cas depuis 2024.
+Quentin S. Tessendre: Deux ans et demi, Jade, ne chipote pas.
+Soline Pellegrand: Bon, on s'égare. Concernant les connexions, notre logiciel de facturation est assez ancien.
+Ingrid Hautecourt: On a un connecteur pour les trois principaux logiciels de facturation. Lequel est le vôtre ?
+Quentin S. Tessendre: C'est un logiciel qui s'appelle Facturix, vous connaissez ?
+Ingrid Hautecourt: Je vérifie, mais je pense que l'export en fichier suffira dans un premier temps.
+Soline Pellegrand: Bien. Pour qu'il n'y ait pas de malentendu, je suis la seule à pouvoir dire oui ou non sur ce renouvellement.
+Quentin S. Tessendre: Pour le calendrier, notre facturation clôture le dix de chaque mois.
+Jade Q. Pellegrand: Oui, il faudra caler l'export sur cette date.
+Ingrid Hautecourt: Je vous propose d'envoyer l'accord de sous-traitance, la liste des connecteurs et le devis à cinq pour cent de remise.
+Soline Pellegrand: Parfait. Retour sous dix jours.
+Ingrid Hautecourt: Merci à tous, bonne fin de journée.

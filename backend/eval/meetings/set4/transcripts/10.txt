@@ -1,0 +1,27 @@
+Anselme Penhallow: Bonjour à tous les trois. Merci d'avoir accepté ce débrief, je sais que le dossier est clos.
+Bryce Sarrenac: Bonjour Anselme. Aucun souci, c'est même sympa de votre part de demander notre avis.
+Marlowe Ankerwood: Bonjour. Oui, un retour franc peut servir à tout le monde.
+Odilon Q. Brouvenne: Bonjour. Moi je suis dispo une demi-heure, pas plus, j'ai un audit après.
+Anselme Penhallow: Parfait. Dites-moi d'abord ce qui a fait pencher la balance pour l'autre solution.
+Bryce Sarrenac: Honnêtement, on est partis chez Nimbalyse. Ils nous ont fait un prix très agressif.
+Odilon Q. Brouvenne: Dix mille euros, nous, on était à plus de dix mille quatre cents chez vous. Ça paraît peu, mais pour nous la différence comptait.
+Anselme Penhallow: Je comprends. Et sur le fond, le produit, qu'en pensiez-vous ?
+Marlowe Ankerwood: Honnêtement, le produit était meilleur chez vous. Mais Nimbalyse proposait des licences illimitées pour les commerciaux.
+Anselme Penhallow: Ah, ça, c'est une vraie différence de modèle. On facture par poste.
+Bryce Sarrenac: Oui. C'est aussi une question de calendrier : on voulait démarrer en septembre et vous proposiez octobre.
+Anselme Penhallow: C'est vrai, notre équipe de déploiement était complète jusqu'à fin septembre.
+Marlowe Ankerwood: Un mois de retard, ça paraît peu mais pour une rentrée commerciale, c'est énorme.
+Odilon Q. Brouvenne: Et le timing de la blague du directeur technique à la réunion de rentrée n'a pas aidé non plus, tout le monde riait au mauvais moment, ha.
+Bryce Sarrenac: Ha ha, ne remets pas ça sur la table. En tout cas, j'ai tranché moi-même, c'était ma décision et je l'assume.
+Anselme Penhallow: Merci de votre franchise, Bryce. Cela m'aide beaucoup.
+Odilon Q. Brouvenne: Et pour être complet, c'est moi qui ai bloqué au final, le coût total était trop élevé pour nous.
+Marlowe Ankerwood: Pour ma part, j'aurais voulu continuer avec vous, je vous ai soutenus jusqu'au bout.
+Anselme Penhallow: Je le sais, Marlowe, et je vous en remercie.
+Bryce Sarrenac: Cela dit, rien n'est définitif. Si Nimbalyse déçoit, on pourrait vous rappeler dans six mois.
+Anselme Penhallow: Je serais ravi. Je peux vous préparer une grille tarifaire par volume d'ici là.
+Odilon Q. Brouvenne: Pourquoi pas. À condition que le tarif soit fixé pour deux ans.
+Anselme Penhallow: C'est faisable. Je note aussi l'idée d'un calendrier de déploiement garanti.
+Marlowe Ankerwood: Ça, ça aurait pesé dans la balance.
+Bryce Sarrenac: Bon, on ne va pas refaire l'histoire. Merci Anselme.
+Anselme Penhallow: Merci à vous trois. Je reste disponible, bonne continuation.
+Odilon Q. Brouvenne: Bonne journée.

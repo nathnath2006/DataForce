@@ -1,0 +1,28 @@
+Lachlan Dunsmoor: Morning, everybody. Thanks for jumping on, I know it's a heavy week.
+Wilhelmina Hautecourt: Morning, Lachlan. Heavy is an understatement, we closed the quarter yesterday.
+Evrard V. Bramwell-Ode: Hi there. I've got a hard stop at eleven, so apologies in advance.
+Wilhelmina Moriceau-Daul: Hello all. Don't mind the dog barking, I'm working from home today.
+Lachlan Dunsmoor: Ha, no problem. The agenda: security questions on the expansion, then your timeline, and any competitors you're looking at.
+Wilhelmina Hautecourt: Perfect. Security first, please. Our clients are law firms, so a leak would finish us.
+Lachlan Dunsmoor: Understood. We're SOC 2 certified, data stays in the EU, and every export is logged.
+Evrard V. Bramwell-Ode: Logged how? I mean, can I see who exported a client list?
+Lachlan Dunsmoor: Yes, there's an audit view per user, with timestamps.
+Wilhelmina Moriceau-Daul: Good. To be fair, the security guard at the front desk is more of a worry to me than any software, he lets everyone in.
+Wilhelmina Hautecourt: Ha, true. Wilhelmina Moriceau-Daul, tell Lachlan about your timeline since you own the sales plan.
+Wilhelmina Moriceau-Daul: Sure. We want the expansion live before the January kickoff, so we need a signature in November.
+Evrard V. Bramwell-Ode: And, to be honest, my reps are at their limit. I'd say the rollout can't hit before the New Year.
+Lachlan Dunsmoor: I hear that. We could phase it, ten users first and the rest in January.
+Evrard V. Bramwell-Ode: Better. By the way, I report to her, so anything you promise on quotas, she'll hold me to it.
+Wilhelmina Moriceau-Daul: Which is why I'm careful. I've already told the board this is the right move for us.
+Wilhelmina Hautecourt: And on authority, I hold the final signature on anything above ten thousand euros.
+Lachlan Dunsmoor: That's very clear, thank you. Are you comparing us with anyone?
+Wilhelmina Hautecourt: Yes, a tool called Orbiquant. Cheaper, but their reporting looks thin.
+Evrard V. Bramwell-Ode: Orbiquant's rep said the same thing about you, just reversed. Not that I believe either of them.
+Lachlan Dunsmoor: Fair. I'd suggest a side by side on your own data, two weeks.
+Wilhelmina Moriceau-Daul: Fine with me. I'm curious how it looks on our own numbers.
+Evrard V. Bramwell-Ode: Whereas I think I can't see my reps adopting this, I'd rather we stay on our spreadsheets.
+Wilhelmina Hautecourt: Noted, Evrard. Though our spreadsheet process is a joke. My cat is basically the real head of sales, she sits on the forecast every Friday.
+Lachlan Dunsmoor: Ha. Are you running in the competitor race at the office charity run on Saturday? I heard it's tight.
+Wilhelmina Moriceau-Daul: Ha, I'm the only one in my team, I'll lose for sure.
+Lachlan Dunsmoor: Good luck. I'll send the recap and the trial plan by tomorrow afternoon.
+Wilhelmina Hautecourt: Thanks. Have a good one.

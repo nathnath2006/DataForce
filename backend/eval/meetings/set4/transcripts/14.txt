@@ -1,0 +1,27 @@
+Anselme Thistlegrove: Good morning, Odette, Callum, Marlowe. Hope the week has been kind to you.
+Odette Moriceau-Daul: Morning, Anselme. It has, thanks. We finally got the heating fixed, so I'm in a good mood.
+Callum Valmorin: Morning. I'm sorry, I'm eating a croissant, so I'll mute myself when I'm not talking.
+Marlowe Wexcombe: Hi all. I'm here, just finishing the board deck, so I may look distracted.
+Anselme Thistlegrove: Not a problem. We're in negotiation on the pilot, and the open points are the contract, the CRM connection, support levels and the start date.
+Odette Moriceau-Daul: Let's start with the contract. Our lawyers have a long list of comments.
+Marlowe Wexcombe: Mostly on the indemnity paragraph and the governing law. We'd like French law, not English.
+Anselme Thistlegrove: That's workable. Our template is flexible on the governing law for pilots under thirty thousand.
+Callum Valmorin: Good. On the integration, we use a sales platform called Pipelane, and Bryce Thistlegrove will need to see it in his dashboard.
+Anselme Thistlegrove: Funny, same surname as mine, no relation. We have a Pipelane connector in beta.
+Callum Valmorin: In beta, hmm. And just so you know, he reports directly to me, I signed his promotion myself.
+Marlowe Wexcombe: Yes. As for me, with Odette sitting right here, I answer to her and nobody else.
+Odette Moriceau-Daul: That's right, Marlowe, and I don't give you an easy time, do I?
+Marlowe Wexcombe: You do not.
+Anselme Thistlegrove: Thanks for the clarity. Back to integration: the beta connector is used by two clients now and the stable release is due in six weeks.
+Callum Valmorin: Six weeks takes us to mid December. That clashes with our year end.
+Anselme Thistlegrove: We could start the pilot with a file import, then switch to the connector when it's stable.
+Odette Moriceau-Daul: That seems fair. And support during the pilot, what do we get?
+Anselme Thistlegrove: A shared channel with our engineers, answers within two hours on working days.
+Marlowe Wexcombe: I'd want that in the contract, not just in an email.
+Anselme Thistlegrove: Fine, I'll add a support schedule as an annex.
+Odette Moriceau-Daul: I'm in. If the annex is there, I'll sign the pilot myself before the holidays.
+Callum Valmorin: As for the start date, I'd say the second week of January, after the freeze.
+Marlowe Wexcombe: January works. But I'll stop the process if the indemnity wording isn't changed first.
+Anselme Thistlegrove: Understood. I'll ask our counsel for a new draft tomorrow morning.
+Callum Valmorin: And do send us the Pipelane beta notes. Also the croissant was excellent, thanks for asking.
+Anselme Thistlegrove: Ha, I didn't, but glad to hear. I'll send the draft, the annex and the notes. Thanks, everyone.

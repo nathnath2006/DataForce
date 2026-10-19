@@ -1,0 +1,28 @@
+Philippa Montbelair: Hi everyone, thanks for making the time. Can you all hear me okay?
+Corentin Sarrenac: Loud and clear, Philippa. Sorry, I'm in the car, so ignore the traffic noise.
+Basile M. Hautecourt: Hello. I'm here too. Odilon is dialling in from the warehouse, I think.
+Odilon O. Fairbourne: I'm here, I'm here. The wifi in this building is a disaster, so forgive me if I freeze.
+Philippa Montbelair: No worries at all. I wanted a candid debrief on why the licence deal didn't go ahead, and what we could learn.
+Corentin Sarrenac: Sure. Honestly the main thing was Zentrio Flow. They came in with a very polished demo.
+Basile M. Hautecourt: Right, and their sales guy knew our shop floor better than we do. Annoying, but impressive.
+Philippa Montbelair: That's fair. Was it the features or the pitch that tipped it?
+Odilon O. Fairbourne: Bit of both. Zentrio had the connectors ready out of the box, and yours needed a custom build.
+Philippa Montbelair: Understood. We've shipped those connectors since then, for what it's worth.
+Basile M. Hautecourt: Good to know. By the way, I answer for the commercial side, and Odilon O. Fairbourne reports to me directly.
+Odilon O. Fairbourne: Yes, which is why I copy him on everything, ha.
+Philippa Montbelair: Noted. On the legal side, I remember your lawyers wanted changes to the data processing clause.
+Corentin Sarrenac: They did. Three weeks of redlines. Funny, I once left my legal pad in a taxi with the whole draft on it, so we had to print it again.
+Basile M. Hautecourt: I remember that, ha. Anyway, the liability cap was the sticking point, not the data clause.
+Philippa Montbelair: We could be flexible there now. Our counsel changed the template in June.
+Corentin Sarrenac: Interesting. At least the paperwork wouldn't drag like before.
+Odilon O. Fairbourne: On onboarding, uh, sorry, I mean the training, your plan said six weeks. Zentrio promised two.
+Philippa Montbelair: Six was conservative. We can do a three-week ramp with a dedicated person.
+Basile M. Hautecourt: I'd have liked to see that offer in the first place. At my previous firm, Delacroix Group, the head of sales reported to the CFO, and it was a mess.
+Corentin Sarrenac: Let's stay on topic, Basile. Philippa, are you offering to reopen the discussion?
+Philippa Montbelair: I'm offering to listen. No pressure, no new quote unless you ask.
+Corentin Sarrenac: Then to be clear, the budget sits with me and nobody else can release it.
+Odilon O. Fairbourne: And I'll be straight with you: I don't want another tool in my team's workflow, full stop.
+Philippa Montbelair: That's helpful, thank you. What would change your mind, Odilon?
+Odilon O. Fairbourne: Honestly, seeing it run on real warehouse data for a week, not slides.
+Basile M. Hautecourt: Fine by me. Let's circle back in the spring if nothing changes.
+Philippa Montbelair: Perfect. I'll send a short recap tonight. Thanks, all.

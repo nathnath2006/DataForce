@@ -1,0 +1,516 @@
+[
+ {
+  "file": "01.md",
+  "account": "Wavira Santé",
+  "language": "fr",
+  "topics": [
+   "price",
+   "security",
+   "timing"
+  ],
+  "decoys": [
+   "le prix du billet de train pour Lyon",
+   "la sécurité routière"
+  ],
+  "reports_to": [
+   {
+    "contact": "Dexter Strathmoor",
+    "manager": "Tiphaine Q. Moriceau-Daul",
+    "sentence": "je suis rattaché à elle pour tout le commercial"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Evrard Casterel",
+    "kind": "blocker",
+    "sentence": "tant que le tarif ne baisse pas d'au moins dix pour cent, je bloquerai le dossier côté finance"
+   },
+   {
+    "contact": "Dexter Strathmoor",
+    "kind": "champion",
+    "sentence": "je suis convaincu par l'outil et je vais le défendre devant toute l'équipe commerciale"
+   },
+   {
+    "contact": "Lachlan P. Valmorin",
+    "kind": "decision_maker",
+    "sentence": "c'est moi qui signe au final, personne d'autre"
+   }
+  ],
+  "org_decoys": [
+   "Si Dexter dépendait de moi, il aurait déjà tout signé en septembre"
+  ]
+ },
+ {
+  "file": "02.txt",
+  "account": "Axiora Systèmes",
+  "language": "en",
+  "topics": [
+   "competitor",
+   "legal",
+   "onboarding"
+  ],
+  "decoys": [
+   "legal pad"
+  ],
+  "reports_to": [
+   {
+    "contact": "Odilon O. Fairbourne",
+    "manager": "Basile M. Hautecourt",
+    "sentence": "Odilon O. Fairbourne reports to me directly"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Corentin Sarrenac",
+    "kind": "decision_maker",
+    "sentence": "the budget sits with me and nobody else can release it"
+   },
+   {
+    "contact": "Odilon O. Fairbourne",
+    "kind": "blocker",
+    "sentence": "I don't want another tool in my team's workflow, full stop"
+   }
+  ],
+  "org_decoys": [
+   "the head of sales reported to the CFO, and it was a mess"
+  ]
+ },
+ {
+  "file": "03.md",
+  "account": "Norvane Conseil 74",
+  "language": "fr",
+  "topics": [
+   "integration",
+   "support",
+   "price"
+  ],
+  "decoys": [
+   "intégration de son neveu dans l'équipe de foot",
+   "support de téléphone"
+  ],
+  "reports_to": [
+   {
+    "contact": "Dexter D. Tessendre",
+    "manager": "Gaspard Thistlegrove",
+    "sentence": "mon n+1, c'est Gaspard Thistlegrove"
+   },
+   {
+    "contact": "Clémence Roussevel",
+    "manager": "Dexter D. Tessendre",
+    "sentence": "Clémence Roussevel dépend de lui depuis son arrivée"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Odette F. Sarrenac",
+    "kind": "blocker",
+    "sentence": "Je m'oppose à toute hausse de plus de cinq pour cent, c'est non négociable"
+   },
+   {
+    "contact": "Dexter D. Tessendre",
+    "kind": "champion",
+    "sentence": "mes équipes adorent l'outil et je suis votre meilleur défenseur ici"
+   },
+   {
+    "contact": "Corentin A. Roussevel",
+    "kind": "decision_maker",
+    "sentence": "La décision finale m'appartient, je la prendrai avant la fin du mois"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "04.txt",
+  "account": "Helvora Partners 102",
+  "language": "en",
+  "topics": [
+   "security",
+   "timing",
+   "competitor"
+  ],
+  "decoys": [
+   "security guard at the front desk",
+   "competitor race at the office charity run"
+  ],
+  "reports_to": [
+   {
+    "contact": "Evrard V. Bramwell-Ode",
+    "manager": "Wilhelmina Moriceau-Daul",
+    "sentence": "I report to her"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Wilhelmina Moriceau-Daul",
+    "kind": "champion",
+    "sentence": "I've already told the board this is the right move for us"
+   },
+   {
+    "contact": "Wilhelmina Hautecourt",
+    "kind": "decision_maker",
+    "sentence": "I hold the final signature on anything above ten thousand euros"
+   },
+   {
+    "contact": "Evrard V. Bramwell-Ode",
+    "kind": "blocker",
+    "sentence": "I can't see my reps adopting this, I'd rather we stay on our spreadsheets"
+   }
+  ],
+  "org_decoys": [
+   "My cat is basically the real head of sales, she sits on the forecast every Friday"
+  ]
+ },
+ {
+  "file": "05.txt",
+  "account": "Norvane Industries",
+  "language": "fr",
+  "topics": [
+   "legal",
+   "onboarding",
+   "integration"
+  ],
+  "decoys": [
+   "légal de se garer devant",
+   "onboarding de la nouvelle machine à café",
+   "L'intégration du nouveau bâtiment dans le plan de la ville"
+  ],
+  "reports_to": [
+   {
+    "contact": "Quentin Greywell",
+    "manager": "Odilon Fairbourne",
+    "sentence": "Quentin Greywell, il est directement sous ma responsabilité"
+   },
+   {
+    "contact": "Mireille P. Strathmoor",
+    "manager": "Marlowe Dunsmoor",
+    "sentence": "Mireille P. Strathmoor, je l'encadre moi-même"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Marlowe Dunsmoor",
+    "kind": "blocker",
+    "sentence": "C'est une ligne rouge pour moi, tant que ce n'est pas supprimé je ne signe rien"
+   },
+   {
+    "contact": "Quentin Greywell",
+    "kind": "champion",
+    "sentence": "je suis totalement convaincu, c'est un gros oui de ma part"
+   },
+   {
+    "contact": "Odilon Fairbourne",
+    "kind": "decision_maker",
+    "sentence": "c'est moi qui tranche, et je ne délègue pas ça"
+   }
+  ],
+  "org_decoys": [
+   "Quentin Montbelair ne dépend pas de moi, hein, c'est un tout autre service"
+  ]
+ },
+ {
+  "file": "06.md",
+  "account": "Norvane Capital",
+  "language": "en",
+  "topics": [
+   "price",
+   "support",
+   "competitor"
+  ],
+  "decoys": [
+   "price of fuel",
+   "competitor in the Sunday chess club"
+  ],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Mireille X. Moriceau-Daul",
+    "kind": "champion",
+    "sentence": "This is exactly what we've been missing, and I'll push it through"
+   },
+   {
+    "contact": "Fenwick Hautecourt",
+    "kind": "blocker",
+    "sentence": "I won't sign off on a plan that needs a new hire just to run the thing"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "07.md",
+  "account": "Syndrome Logistique",
+  "language": "fr",
+  "topics": [
+   "onboarding",
+   "support",
+   "timing"
+  ],
+  "decoys": [
+   "temps pourri à Lille"
+  ],
+  "reports_to": [
+   {
+    "contact": "Soline Y. Thistlegrove",
+    "manager": "Bryce Pellegrand",
+    "sentence": "je rends compte à Bryce Pellegrand, la directrice des ventes"
+   },
+   {
+    "contact": "Noémie Ardenvale",
+    "manager": "Soline Y. Thistlegrove",
+    "sentence": "Noémie Ardenvale travaille sous sa responsabilité"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Bryce Pellegrand",
+    "kind": "blocker",
+    "sentence": "Je freine toute extension tant que le support n'assure pas les week-ends"
+   },
+   {
+    "contact": "Rosalind Valmorin",
+    "kind": "decision_maker",
+    "sentence": "c'est ma signature et personne d'autre, point final"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "08.txt",
+  "account": "Cobaltis Conseil",
+  "language": "fr",
+  "topics": [
+   "price",
+   "legal",
+   "integration"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Quentin S. Tessendre",
+    "manager": "Jade Q. Pellegrand",
+    "sentence": "Quentin S. Tessendre est dans mon équipe depuis trois ans"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Jade Q. Pellegrand",
+    "kind": "blocker",
+    "sentence": "je ne suis pas à l'aise, je préfère qu'on attende l'an prochain"
+   },
+   {
+    "contact": "Soline Pellegrand",
+    "kind": "decision_maker",
+    "sentence": "je suis la seule à pouvoir dire oui ou non sur ce renouvellement"
+   }
+  ],
+  "org_decoys": [
+   "avant, il était rattaché à la direction financière, mais ça n'est plus le cas depuis 2024"
+  ]
+ },
+ {
+  "file": "09.md",
+  "account": "Kalmera Solutions 121",
+  "language": "en",
+  "topics": [
+   "security",
+   "onboarding",
+   "support"
+  ],
+  "decoys": [
+   "social security number",
+   "supporters' club"
+  ],
+  "reports_to": [
+   {
+    "contact": "Imogen Roussevel",
+    "manager": "Jade V. Ardenvale",
+    "sentence": "she's my boss and she approves all my pilot reports"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Jade V. Ardenvale",
+    "kind": "decision_maker",
+    "sentence": "it's my call whether we go wide in January"
+   },
+   {
+    "contact": "Imogen Roussevel",
+    "kind": "blocker",
+    "sentence": "I'm not comfortable going wide until the alerts stop firing falsely"
+   },
+   {
+    "contact": "Corentin Penhallow",
+    "kind": "champion",
+    "sentence": "I'd happily act as a reference customer for you, any time"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "10.txt",
+  "account": "Kalmera Technologies",
+  "language": "fr",
+  "topics": [
+   "competitor",
+   "price",
+   "timing"
+  ],
+  "decoys": [
+   "timing de la blague"
+  ],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Bryce Sarrenac",
+    "kind": "decision_maker",
+    "sentence": "j'ai tranché moi-même, c'était ma décision et je l'assume"
+   },
+   {
+    "contact": "Odilon Q. Brouvenne",
+    "kind": "blocker",
+    "sentence": "c'est moi qui ai bloqué au final, le coût total était trop élevé pour nous"
+   },
+   {
+    "contact": "Marlowe Ankerwood",
+    "kind": "champion",
+    "sentence": "j'aurais voulu continuer avec vous, je vous ai soutenus jusqu'au bout"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "11.md",
+  "account": "Syndrome Conseil",
+  "language": "fr",
+  "topics": [
+   "security",
+   "legal",
+   "integration"
+  ],
+  "decoys": [
+   "d'assistance juridique de mon voisin"
+  ],
+  "reports_to": [
+   {
+    "contact": "Aurélien Quercival",
+    "manager": "Philippa Oakenshaw",
+    "sentence": "Aurélien Quercival est dans mon équipe commerciale depuis la création du service"
+   },
+   {
+    "contact": "Axelle Fairbourne",
+    "manager": "Harriet Oakenshaw",
+    "sentence": "Harriet Oakenshaw, c'est ma patronne depuis cinq ans"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Axelle Fairbourne",
+    "kind": "blocker",
+    "sentence": "tant que ce délai ne passe pas à soixante jours, je ne validerai pas le volet finance"
+   },
+   {
+    "contact": "Harriet Oakenshaw",
+    "kind": "decision_maker",
+    "sentence": "je suis la dernière à valider avant le comité et personne ne passe au-dessus de moi sur ce sujet"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "12.txt",
+  "account": "Wavira Retail",
+  "language": "en",
+  "topics": [
+   "onboarding",
+   "support",
+   "timing"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Callum R. Hartlemoor",
+    "manager": "Bryce Wexcombe",
+    "sentence": "Bryce Wexcombe is who I report to"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Jade Brouvenne",
+    "kind": "decision_maker",
+    "sentence": "every purchase over fifteen thousand has to get my personal sign off"
+   },
+   {
+    "contact": "Callum R. Hartlemoor",
+    "kind": "champion",
+    "sentence": "I tell every manager I meet they should use this, it saves me hours each week"
+   }
+  ],
+  "org_decoys": [
+   "Mathilde from the Lyon office reports to Karim, I think"
+  ]
+ },
+ {
+  "file": "13.md",
+  "account": "Kalmera Labs",
+  "language": "fr",
+  "topics": [
+   "price",
+   "security",
+   "competitor",
+   "integration"
+  ],
+  "decoys": [
+   "le prix de la cantine"
+  ],
+  "reports_to": [],
+  "signals": [
+   {
+    "contact": "Roxane Lavandrier",
+    "kind": "blocker",
+    "sentence": "Je ne donnerai pas mon accord tant que je n'ai pas vu la connexion avec Mailorbe en réel"
+   },
+   {
+    "contact": "Rosalind D. Calderwick",
+    "kind": "decision_maker",
+    "sentence": "c'est moi qui ai le dernier mot, le comité ne fait que m'informer"
+   }
+  ],
+  "org_decoys": []
+ },
+ {
+  "file": "14.txt",
+  "account": "Syndrome Labs 113",
+  "language": "en",
+  "topics": [
+   "legal",
+   "integration",
+   "support",
+   "timing"
+  ],
+  "decoys": [],
+  "reports_to": [
+   {
+    "contact": "Bryce Thistlegrove",
+    "manager": "Callum Valmorin",
+    "sentence": "he reports directly to me, I signed his promotion myself"
+   },
+   {
+    "contact": "Marlowe Wexcombe",
+    "manager": "Odette Moriceau-Daul",
+    "sentence": "I answer to her and nobody else"
+   }
+  ],
+  "signals": [
+   {
+    "contact": "Odette Moriceau-Daul",
+    "kind": "decision_maker",
+    "sentence": "If the annex is there, I'll sign the pilot myself before the holidays"
+   },
+   {
+    "contact": "Marlowe Wexcombe",
+    "kind": "blocker",
+    "sentence": "I'll stop the process if the indemnity wording isn't changed first"
+   }
+  ],
+  "org_decoys": []
+ }
+]
