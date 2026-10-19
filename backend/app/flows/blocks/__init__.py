@@ -8,11 +8,15 @@ from typing import Any
 import pandas as pd
 
 from app.flows.blocks import (
+    aging,
     chart,
     cluster,
     columns,
     dataset,
+    dedup,
+    domain,
     filter,
+    forecast,
     group,
     join,
     model,
@@ -20,6 +24,7 @@ from app.flows.blocks import (
     sort,
     split,
     stats,
+    window,
 )
 from app.flows.blocks._common import BlockError, BlockOutput, Ctx
 
@@ -36,5 +41,10 @@ REGISTRY: dict[str, Callable[[Any, dict[str, pd.DataFrame], Ctx], BlockOutput]] 
     "split": split.run,
     "model": model.run,
     "cluster": cluster.run,
+    "dedup": dedup.run,
+    "aging": aging.run,
+    "forecast": forecast.run,
+    "window": window.run,
+    "domain": domain.run,
 }
 __all__ = ["REGISTRY", "BlockError", "BlockOutput", "Ctx"]

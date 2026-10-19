@@ -56,4 +56,11 @@ def run(cfg: ClusterConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockO
         dropped_missing=dropped,
     )
     warnings = [f"{dropped} rows with a missing feature dropped"] if dropped else []
-    return BlockOutput(frames={"out": out}, view=view, warnings=warnings)
+    params = {
+        "kind": "kmeans",
+        "features": list(cfg.features),
+        "scaler_mean": [fnum(v) for v in scaler.mean_],
+        "scaler_std": [fnum(v) for v in scaler.scale_],
+        "centroids_scaled": [[fnum(v) for v in c] for c in km.cluster_centers_],
+    }
+    return BlockOutput(frames={"out": out}, view=view, warnings=warnings, model_params=params)

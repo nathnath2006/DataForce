@@ -191,12 +191,13 @@ function ModelPanel({ view }: { view: ModelView }) {
             </tbody></table>
         </div>
       )}
-      <div>
+      {coefs.length === 0 && <p className="muted small">This kernel has no coefficients; the model is described by its support vectors.</p>}
+      {coefs.length > 0 && <div>
         <strong>Coefficients</strong> <span className="muted small">(associations, not causes)</span>
         <div className="tablewrap"><table>
           <tbody>{coefs.map((c) => <tr key={c.feature}><td>{c.feature}</td><td className="num">{formatNum(c.coef, 4)}</td></tr>)}</tbody>
         </table></div>
-      </div>
+      </div>}
     </div>
   );
 }

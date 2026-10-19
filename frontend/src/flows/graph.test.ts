@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  BLOCKS, PORTS, TEMPLATES, connectionError, defaultConfig, fromFlow, inputColumns, newId,
-  toFlowEdges, toFlowNodes, validateGraph, wouldCycle,
+  BLOCKS, PORTS, TEMPLATES, connectionError, defaultConfig, fromFlow, inputColumns, newId, outputColumns,
+  normalizeGraph, toFlowEdges, toFlowNodes, validateGraph, wouldCycle,
 } from "./graph";
 import type { BlockType, FlowGraph } from "./types";
 
@@ -24,6 +24,12 @@ describe("conversion", () => {
     const out = fromFlow(n, []).nodes[0]!;
     expect(out.label).toBeUndefined();
     expect(out.position).toEqual({ x: 2, y: 2 });
+  });
+  it("a graph as the server stores it (label null) is not seen as unsaved", () => {
+    const stored = { ...chain, nodes: chain.nodes.map((n) => ({ ...n, label: null })) } as unknown as FlowGraph;
+    const editor = fromFlow(toFlowNodes(stored), toFlowEdges(stored));
+    expect(JSON.stringify(editor)).toBe(JSON.stringify(normalizeGraph(stored)));
+    expect(JSON.stringify(editor)).not.toBe(JSON.stringify(stored));
   });
 });
 
@@ -102,5 +108,43 @@ describe("scalars", () => {
     expect(parseScalar(" ")).toBeNull();
     expect(showScalar(false)).toBe("false");
     expect(showScalar(null)).toBe("");
+  });
+});
+
+describe("batch 1 blocks", () => {
+  it("every block has a palette entry, ports and a default config of its own type", () => {
+    for (const t of ["dedup", "aging", "forecast", "window", "domain"] as const) {
+      expect(BLOCKS.some((b) => b.type === t)).toBe(true);
+      expect(defaultConfig(t).type).toBe(t);
+      expect(PORTS[t]).toEqual({ inputs: ["in"], outputs: ["out"] });
+    }
+    expect(BLOCKS.find((b) => b.type === "dedup")?.group).toBe("Cleaning");
+    expect(BLOCKS.find((b) => b.type === "window")?.group).toBe("Temporal");
+    expect(BLOCKS.find((b) => b.type === "forecast")?.group).toBe("Aggregation");
+  });
+
+  it("default forecast probabilities are the documented assumptions", () => {
+    const c = defaultConfig("forecast");
+    expect(c.type === "forecast" && c.probabilities).toEqual({
+      prospecting: 10, qualification: 20, proposal: 40, negotiation: 60, closed_won: 100, closed_lost: 0,
+    });
+  });
+
+  it("the four new templates are valid graphs", () => {
+    for (const key of ["forecast", "stalled", "dupes", "growth"]) {
+      const t = TEMPLATES.find((x) => x.key === key);
+      expect(t, key).toBeDefined();
+      expect(validateGraph(t!.build())).toEqual([]);
+    }
+  });
+
+  it("infers the columns each new block adds", () => {
+    const names = (key: string, id: string) =>
+      outputColumns(TEMPLATES.find((x) => x.key === key)!.build(), id,
+        { results: {}, catalog: { blocks: {}, crm_tables: { deals: [{ name: "owner", dtype: "text" }], accounts: [{ name: "account_name", dtype: "text" }] } }, files: [] })
+        .map((c) => c.name);
+    expect(names("dupes", "n2")).toEqual(["account_name", "dedup_group", "is_master"]);
+    expect(names("stalled", "n2")).toEqual(["owner", "days_since", "stagnant"]);
+    expect(names("growth", "n3")).toEqual(["owner", "period", "amount_eur", "qoq_growth"]);
   });
 });

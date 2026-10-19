@@ -1,9 +1,9 @@
 import { useRef, useState, type ReactNode } from "react";
 import { ErrorNote, Field, useAction, useLoad } from "../ui";
 import { flowApi } from "./flowApi";
-import { parseScalar, showScalar } from "./graph";
+import { DEFAULT_PROBABILITIES, parseScalar, showScalar } from "./graph";
 import type {
-  AggFn, BlockConfig, Catalog, ColumnInfo, Computed, Condition, DatasetSource, FileOut, FilterOp,
+  AggFn, BlockConfig, Catalog, ColumnInfo, Computed, Condition, DatasetSource, FileOut, FilterOp, WindowFn,
 } from "./types";
 
 type Cfg<T extends BlockConfig["type"]> = Extract<BlockConfig, { type: T }>;
@@ -61,6 +61,33 @@ export interface FormProps {
   files: FileOut[]; onFilesChanged: () => void;
 }
 
+function ConditionList(props: { cols: ColumnInfo[]; items: Condition[]; onChange: (v: Condition[]) => void }) {
+  return (
+    <ListEditor<Condition> items={props.items} onChange={props.onChange}
+      make={() => ({ column: "", op: "eq", value: null })} addLabel="Add condition"
+      render={(it, set) => (
+        <div className="stack tight grow">
+          <ColSelect cols={props.cols} value={it.column} onChange={(column) => set({ ...it, column })} />
+          <select aria-label="operator" value={it.op} onChange={(ev) => set({ ...it, op: ev.target.value as FilterOp })}>
+            {OPS.map((o) => <option key={o}>{o}</option>)}
+          </select>
+          {it.op !== "is_null" && it.op !== "not_null" && (
+            <input aria-label="value" key={it.op} placeholder={it.op === "in" ? "a, b, c" : "value"}
+              defaultValue={Array.isArray(it.value) ? it.value.map(showScalar).join(", ") : showScalar(it.value)}
+              onBlur={(ev) => set({ ...it, value: it.op === "in" ? ev.target.value.split(",").map(parseScalar).filter((x) => x !== null) : parseScalar(ev.target.value) })} />
+          )}
+        </div>
+      )} />
+  );
+}
+
+const WINDOW_FNS: { fn: WindowFn; label: string }[] = [
+  { fn: "lag", label: "lag (previous value)" }, { fn: "lead", label: "lead (next value)" },
+  { fn: "rolling_mean", label: "rolling mean" }, { fn: "rolling_sum", label: "rolling sum" },
+  { fn: "rolling_count", label: "rolling count" }, { fn: "rank", label: "rank (by the order column)" },
+  { fn: "row_number", label: "row number" }, { fn: "pct_change", label: "percent change" },
+];
+
 export function ConfigForm(p: FormProps) {
   const c = p.config;
   switch (c.type) {
@@ -72,21 +99,7 @@ export function ConfigForm(p: FormProps) {
             <option value="all">all conditions (AND)</option><option value="any">any condition (OR)</option>
           </select>
         </Field>
-        <ListEditor<Condition> items={c.conditions} onChange={(conditions) => p.onChange({ ...c, conditions })}
-          make={() => ({ column: "", op: "eq", value: null })} addLabel="Add condition"
-          render={(it, set) => (
-            <div className="stack tight grow">
-              <ColSelect cols={p.cols} value={it.column} onChange={(column) => set({ ...it, column })} />
-              <select aria-label="operator" value={it.op} onChange={(ev) => set({ ...it, op: ev.target.value as FilterOp })}>
-                {OPS.map((o) => <option key={o}>{o}</option>)}
-              </select>
-              {it.op !== "is_null" && it.op !== "not_null" && (
-                <input aria-label="value" key={it.op} placeholder={it.op === "in" ? "a, b, c" : "value"}
-                  defaultValue={Array.isArray(it.value) ? it.value.map(showScalar).join(", ") : showScalar(it.value)}
-                  onBlur={(ev) => set({ ...it, value: it.op === "in" ? ev.target.value.split(",").map(parseScalar).filter((x) => x !== null) : parseScalar(ev.target.value) })} />
-              )}
-            </div>
-          )} />
+        <ConditionList cols={p.cols} items={c.conditions} onChange={(conditions) => p.onChange({ ...c, conditions })} />
       </div>
     );
     case "sort": return (
@@ -192,8 +205,20 @@ export function ConfigForm(p: FormProps) {
         <Field label={`Test fraction (${c.test_fraction})`}>
           <input type="range" min={0.1} max={0.5} step={0.05} value={c.test_fraction} onChange={(ev) => p.onChange({ ...c, test_fraction: Number(ev.target.value) })} />
         </Field>
-        <Field label="Seed"><input type="number" value={c.seed} onChange={(ev) => p.onChange({ ...c, seed: Math.trunc(Number(ev.target.value)) })} /></Field>
-        <Field label="Stratify by (optional)"><ColSelect cols={p.cols} value={c.stratify} allowNone onChange={(s) => p.onChange({ ...c, stratify: s || null })} /></Field>
+        <Field label="Mode">
+          <select value={c.mode ?? "random"} onChange={(ev) => p.onChange({ ...c, mode: ev.target.value as "random" | "chronological", stratify: ev.target.value === "chronological" ? null : c.stratify })}>
+            <option value="random">random</option><option value="chronological">chronological (test = latest rows)</option>
+          </select>
+        </Field>
+        {c.mode === "chronological" ? (
+          <Field label="Date column"><ColSelect cols={p.cols.filter((x) => x.dtype === "date" || x.dtype === "datetime")} value={c.date_column ?? null} onChange={(d) => p.onChange({ ...c, date_column: d || null })} /></Field>
+        ) : (
+          <>
+            <Field label="Seed"><input type="number" value={c.seed} onChange={(ev) => p.onChange({ ...c, seed: Math.trunc(Number(ev.target.value)) })} /></Field>
+            <Field label="Stratify by (optional)"><ColSelect cols={p.cols} value={c.stratify} allowNone onChange={(s) => p.onChange({ ...c, stratify: s || null })} /></Field>
+          </>
+        )}
+        {c.mode === "chronological" && <p className="muted small">Rows sharing the boundary date all go to the test set, so train and test never overlap in time. Rows without a date are left out.</p>}
       </div>
     );
     case "model": return (
@@ -202,15 +227,29 @@ export function ConfigForm(p: FormProps) {
           <select value={c.kind} onChange={(ev) => p.onChange({ ...c, kind: ev.target.value as typeof c.kind })}>
             <option value="logistic_regression">Logistic regression (yes / no target)</option>
             <option value="linear_regression">Linear regression (number target)</option>
+            <option value="svm">SVM (yes / no target)</option>
+            <option value="svr">SVR (number target)</option>
           </select>
         </Field>
         <Field label="Target"><ColSelect cols={p.cols} value={c.target} onChange={(target) => p.onChange({ ...c, target })} /></Field>
-        {c.kind === "logistic_regression" && (
+        {(c.kind === "logistic_regression" || c.kind === "svm") && (
           <Field label="Positive value"><input value={showScalar(c.positive_value)} onChange={(ev) => p.onChange({ ...c, positive_value: parseScalar(ev.target.value) })} /></Field>
         )}
         <strong>Features</strong>
         <MultiCols cols={p.cols.filter((x) => x.name !== c.target)} value={c.features} onChange={(features) => p.onChange({ ...c, features })} />
-        <p className="muted small">Coefficients show associations, not causes.</p>
+        {(c.kind === "svm" || c.kind === "svr") && (
+          <>
+            <Field label="Kernel">
+              <select value={c.kernel ?? "rbf"} onChange={(ev) => p.onChange({ ...c, kernel: ev.target.value as "rbf" | "linear" })}>
+                <option value="rbf">RBF</option><option value="linear">linear</option>
+              </select>
+            </Field>
+            <Field label="C (penalty)"><input type="number" min={0.001} max={1000} step="any" value={c.C ?? 1} onChange={(ev) => p.onChange({ ...c, C: clamp(Number(ev.target.value), 0.001, 1000) })} /></Field>
+            <Field label="Gamma (empty = automatic)"><input type="number" min={0} step="any" value={c.gamma ?? ""} onChange={(ev) => p.onChange({ ...c, gamma: ev.target.value && Number(ev.target.value) > 0 ? Number(ev.target.value) : null })} /></Field>
+            <p className="muted small">At most 20,000 training rows are used (SVM training is quadratic). The probability comes from Platt scaling on the training rows.</p>
+          </>
+        )}
+        <p className="muted small">Coefficients show associations, not causes. A model is verified only when it beats the baseline on held-out rows.</p>
       </div>
     );
     case "cluster": return (
@@ -222,6 +261,91 @@ export function ConfigForm(p: FormProps) {
         <strong>Features</strong>
         <MultiCols cols={p.cols.filter((x) => x.dtype === "number" || x.dtype === "integer")} value={c.features} onChange={(features) => p.onChange({ ...c, features })} />
         <p className="muted small">Clusters describe the data; they are always exploratory.</p>
+      </div>
+    );
+    case "dedup": return (
+      <div className="stack tight">
+        <Field label="Text column"><ColSelect cols={p.cols} value={c.column} onChange={(column) => p.onChange({ ...c, column })} /></Field>
+        <Field label="Method">
+          <select value={c.method} onChange={(ev) => p.onChange({ ...c, method: ev.target.value as typeof c.method })}>
+            <option value="jaro_winkler">Jaro-Winkler</option><option value="levenshtein">Levenshtein ratio</option>
+          </select>
+        </Field>
+        <Field label={`Threshold (${c.threshold})`}>
+          <input type="range" min={0.5} max={1} step={0.01} value={c.threshold} onChange={(ev) => p.onChange({ ...c, threshold: Number(ev.target.value) })} />
+        </Field>
+        <Field label="Blocking prefix (letters that must match)">
+          <input type="number" min={1} max={4} value={c.block_prefix} onChange={(ev) => p.onChange({ ...c, block_prefix: clamp(Math.trunc(Number(ev.target.value)), 1, 4) })} />
+        </Field>
+        <p className="muted small">Case, accents, punctuation and legal suffixes (SAS, Inc, Ltd, GmbH, Corp, Group) are ignored. Adds dedup_group and is_master (the most complete row). Up to 50,000 rows. This never merges CRM records.</p>
+      </div>
+    );
+    case "aging": return (
+      <div className="stack tight">
+        <Field label="Date column"><ColSelect cols={p.cols} value={c.column} onChange={(column) => p.onChange({ ...c, column })} /></Field>
+        <Field label="Age column name"><input value={c.alias} onChange={(ev) => p.onChange({ ...c, alias: ev.target.value })} /></Field>
+        <Field label="Stagnant after (days)"><input type="number" min={0} value={c.stagnant_after_days} onChange={(ev) => p.onChange({ ...c, stagnant_after_days: clamp(Math.trunc(Number(ev.target.value)), 0, 36500) })} /></Field>
+        <strong>Only flag rows that match</strong>
+        <Field label="Match">
+          <select value={c.where_mode} onChange={(ev) => p.onChange({ ...c, where_mode: ev.target.value as "all" | "any" })}>
+            <option value="all">all conditions (AND)</option><option value="any">any condition (OR)</option>
+          </select>
+        </Field>
+        <ConditionList cols={p.cols} items={c.where} onChange={(where) => p.onChange({ ...c, where })} />
+        <p className="muted small">Age is the run date minus the date, in days. Rows without a date get no age and are not stagnant.</p>
+      </div>
+    );
+    case "forecast": return (
+      <div className="stack tight">
+        <Field label="Amount"><ColSelect cols={p.cols.filter((x) => x.dtype === "number" || x.dtype === "integer")} value={c.amount} onChange={(amount) => p.onChange({ ...c, amount })} /></Field>
+        <Field label="Stage"><ColSelect cols={p.cols} value={c.stage} onChange={(stage) => p.onChange({ ...c, stage })} /></Field>
+        <Field label="Totals by (optional)"><ColSelect cols={p.cols} value={c.group_by} allowNone onChange={(g) => p.onChange({ ...c, group_by: g || null })} /></Field>
+        <strong>Stage probability (%)</strong>
+        <ListEditor<[string, number]> items={Object.entries(c.probabilities)}
+          onChange={(l) => p.onChange({ ...c, probabilities: Object.fromEntries(l.filter(([k]) => k)) })} make={() => ["", 0]} addLabel="Add stage"
+          render={(it, set) => (
+            <div className="row grow">
+              <input aria-label="stage" placeholder="stage" value={it[0]} onChange={(ev) => set([ev.target.value, it[1]])} />
+              <input aria-label="probability" type="number" min={0} max={100} value={it[1]} onChange={(ev) => set([it[0], clamp(Number(ev.target.value), 0, 100)])} />
+            </div>
+          )} />
+        <button type="button" onClick={() => p.onChange({ ...c, probabilities: { ...DEFAULT_PROBABILITIES } })}>Reset to defaults</button>
+        <p className="muted small">Probabilities are your assumptions, not a statistical estimate. Adds probability and weighted_amount; with a totals column the output is one row per group.</p>
+      </div>
+    );
+    case "window": return (
+      <div className="stack tight">
+        <Field label="Function">
+          <select value={c.fn} onChange={(ev) => p.onChange({ ...c, fn: ev.target.value as WindowFn })}>
+            {WINDOW_FNS.map((f) => <option key={f.fn} value={f.fn}>{f.label}</option>)}
+          </select>
+        </Field>
+        {c.fn !== "rank" && c.fn !== "row_number" && (
+          <Field label="Value column"><ColSelect cols={p.cols.filter((x) => x.dtype === "number" || x.dtype === "integer")} value={c.column} onChange={(column) => p.onChange({ ...c, column: column || null })} /></Field>
+        )}
+        <Field label="Order by"><ColSelect cols={p.cols} value={c.order_by} onChange={(order_by) => p.onChange({ ...c, order_by })} /></Field>
+        <label className="check"><input type="checkbox" checked={c.descending} onChange={(ev) => p.onChange({ ...c, descending: ev.target.checked })} />descending</label>
+        <strong>Partition by (optional)</strong>
+        <MultiCols cols={p.cols} value={c.partition_by} onChange={(partition_by) => p.onChange({ ...c, partition_by })} />
+        {(c.fn === "lag" || c.fn === "lead" || c.fn === "pct_change" || c.fn.startsWith("rolling")) && (
+          <Field label={c.fn.startsWith("rolling") ? "Window size (rows)" : "Offset (rows)"}>
+            <input type="number" min={1} max={1000} value={c.k} onChange={(ev) => p.onChange({ ...c, k: clamp(Math.trunc(Number(ev.target.value)), 1, 1000) })} />
+          </Field>
+        )}
+        <Field label="Sum per period first (optional)">
+          <select value={c.period ?? ""} onChange={(ev) => p.onChange({ ...c, period: (ev.target.value || null) as typeof c.period })}>
+            <option value="">no, use rows as they are</option><option value="month">month</option><option value="quarter">quarter</option><option value="year">year</option>
+          </select>
+        </Field>
+        <Field label="Result column name"><input value={c.alias} onChange={(ev) => p.onChange({ ...c, alias: ev.target.value })} /></Field>
+        <p className="muted small">With a period, the value column is summed per partition and period (order by a date), then the function runs on those totals: percent change by quarter gives quarter-on-quarter growth. Null order values sort last.</p>
+      </div>
+    );
+    case "domain": return (
+      <div className="stack tight">
+        <Field label="Email or URL column"><ColSelect cols={p.cols} value={c.column} onChange={(column) => p.onChange({ ...c, column })} /></Field>
+        <Field label="Domain column name"><input value={c.alias} onChange={(ev) => p.onChange({ ...c, alias: ev.target.value })} /></Field>
+        <p className="muted small">Adds the domain and is_free_webmail (gmail.com, outlook.com, hotmail.*, yahoo.*, orange.fr, free.fr, proton.me and similar). Text parsing only: no DNS or MX lookup is made.</p>
       </div>
     );
   }
@@ -305,7 +429,7 @@ function DatasetForm(p: FormProps & { c: Cfg<"dataset"> }) {
       {d.source === "crm" && (
         <Field label="Table">
           <select value={d.table} onChange={(ev) => set({ source: "crm", table: ev.target.value as typeof d.table })}>
-            {["deals", "accounts", "contacts", "companies"].map((t) => <option key={t}>{t}</option>)}
+            {["deals", "accounts", "contacts", "companies", "meetings", "activities", "stage_events", "tasks"].map((t) => <option key={t}>{t}</option>)}
           </select>
         </Field>
       )}

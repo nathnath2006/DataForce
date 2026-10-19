@@ -35,7 +35,16 @@ class _Cfg(BaseModel):
 
 # --- dataset sources ------------------------------------------------------------------------------
 CrmTable = Literal[
-    "deals", "accounts", "contacts", "companies", "meetings", "meeting_themes", "deal_theme_flags"
+    "deals",
+    "accounts",
+    "contacts",
+    "companies",
+    "meetings",
+    "meeting_themes",
+    "deal_theme_flags",
+    "activities",
+    "stage_events",
+    "tasks",
 ]
 
 
@@ -202,6 +211,18 @@ class SplitConfig(_Cfg):
     test_fraction: float = Field(default=0.25, ge=0.1, le=0.5, allow_inf_nan=False)
     seed: int = 42
     stratify: COLUMN | None = None
+    mode: Literal["random", "chronological"] = "random"
+    # chronological: the test set is the latest `test_fraction` of rows by this date column
+    date_column: COLUMN | None = None
+
+    @model_validator(mode="after")
+    def _chrono(self) -> SplitConfig:
+        if self.mode == "chronological":
+            if self.date_column is None:
+                raise ValueError("a chronological split needs a date column")
+            if self.stratify is not None:
+                raise ValueError("a chronological split cannot be stratified")
+        return self
 
 
 class ModelConfig(_Cfg):
@@ -209,10 +230,14 @@ class ModelConfig(_Cfg):
     columns one-hot encoded (top 30 values, the rest grouped as "other")."""
 
     type: Literal["model"] = "model"
-    kind: Literal["linear_regression", "logistic_regression"]
+    kind: Literal["linear_regression", "logistic_regression", "svm", "svr"]
     target: COLUMN
     features: list[COLUMN] = Field(min_length=1, max_length=50)
-    positive_value: Scalar = True  # logistic: which target value is the positive class
+    positive_value: Scalar = True  # logistic and svm: which target value is the positive class
+    # svm / svr only
+    kernel: Literal["rbf", "linear"] = "rbf"
+    C: float = Field(default=1.0, gt=0, le=1000, allow_inf_nan=False)
+    gamma: float | None = Field(default=None, gt=0, allow_inf_nan=False)  # None: "scale"
 
 
 class ClusterConfig(_Cfg):
@@ -221,6 +246,92 @@ class ClusterConfig(_Cfg):
     k: int = Field(default=3, ge=2, le=20)
     features: list[COLUMN] = Field(min_length=1, max_length=50)
     seed: int = 42
+
+
+class DedupConfig(_Cfg):
+    """Fuzzy deduplication on one text column. Adds `dedup_group` and `is_master`. Never merges
+    CRM records."""
+
+    type: Literal["dedup"] = "dedup"
+    column: COLUMN
+    method: Literal["jaro_winkler", "levenshtein"] = "jaro_winkler"
+    threshold: float = Field(default=0.92, ge=0.5, le=1.0, allow_inf_nan=False)
+    block_prefix: int = Field(default=1, ge=1, le=4)  # leading characters that must match
+
+
+class AgingConfig(_Cfg):
+    """days_since = run date - a date column; `stagnant` when days_since > N on matching rows."""
+
+    type: Literal["aging"] = "aging"
+    column: COLUMN
+    alias: COLUMN = "days_since"
+    stagnant_after_days: int = Field(default=30, ge=0, le=36_500)
+    where: list[Condition] = Field(default_factory=list, max_length=20)
+    where_mode: Literal["all", "any"] = "all"
+
+
+DEFAULT_PROBABILITIES: dict[str, float] = {
+    "prospecting": 10,
+    "qualification": 20,
+    "proposal": 40,
+    "negotiation": 60,
+    "closed_won": 100,
+    "closed_lost": 0,
+}
+
+
+class ForecastConfig(_Cfg):
+    """amount x stage probability (percent). The probabilities are the user's assumptions."""
+
+    type: Literal["forecast"] = "forecast"
+    amount: COLUMN
+    stage: COLUMN
+    probabilities: dict[str, float] = Field(
+        default_factory=lambda: dict(DEFAULT_PROBABILITIES), max_length=50
+    )
+    group_by: COLUMN | None = None
+
+    @model_validator(mode="after")
+    def _range(self) -> ForecastConfig:
+        for k, v in self.probabilities.items():
+            if not (0 <= v <= 100) or v != v:
+                raise ValueError(f"probability of {k!r} must be between 0 and 100")
+        return self
+
+
+WindowFn = Literal[
+    "lag",
+    "lead",
+    "rolling_mean",
+    "rolling_sum",
+    "rolling_count",
+    "rank",
+    "row_number",
+    "pct_change",
+]
+
+
+class WindowConfig(_Cfg):
+    """A window function over partitions, ordered by one column. `period` first sums `column`
+    per partition and period (month, quarter or year of the order column)."""
+
+    type: Literal["window"] = "window"
+    fn: WindowFn
+    column: COLUMN | None = None  # not needed for row_number
+    partition_by: list[COLUMN] = Field(default_factory=list, max_length=10)
+    order_by: COLUMN
+    descending: bool = False
+    k: int = Field(default=1, ge=1, le=1000)  # lag / lead offset, or rolling window size
+    alias: COLUMN = "window_value"
+    period: Literal["month", "quarter", "year"] | None = None
+
+
+class DomainConfig(_Cfg):
+    """Extract the domain of an email or URL and flag free webmail. No DNS lookup."""
+
+    type: Literal["domain"] = "domain"
+    column: COLUMN
+    alias: COLUMN = "domain"
 
 
 BlockConfig = Annotated[
@@ -235,7 +346,12 @@ BlockConfig = Annotated[
     | ChartConfig
     | SplitConfig
     | ModelConfig
-    | ClusterConfig,
+    | ClusterConfig
+    | DedupConfig
+    | AgingConfig
+    | ForecastConfig
+    | WindowConfig
+    | DomainConfig,
     Field(discriminator="type"),
 ]
 BlockType = Literal[
@@ -251,6 +367,11 @@ BlockType = Literal[
     "split",
     "model",
     "cluster",
+    "dedup",
+    "aging",
+    "forecast",
+    "window",
+    "domain",
 ]
 
 # Input and output ports of each block type (edges connect an output port to an input port;
@@ -268,6 +389,11 @@ PORTS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "split": (("in",), ("train", "test")),
     "model": (("train", "test"), ("out",)),
     "cluster": (("in",), ("out",)),
+    "dedup": (("in",), ("out",)),
+    "aging": (("in",), ("out",)),
+    "forecast": (("in",), ("out",)),
+    "window": (("in",), ("out",)),
+    "domain": (("in",), ("out",)),
 }
 
 
@@ -427,7 +553,7 @@ class Metric(BaseModel):
 
 class ModelView(BaseModel):
     kind: Literal["model"] = "model"
-    model: Literal["linear_regression", "logistic_regression"]
+    model: Literal["linear_regression", "logistic_regression", "svm", "svr"]
     n_train: int
     n_test: int
     dropped_missing: int
@@ -462,6 +588,7 @@ class NodeResult(BaseModel):
     profile: list[ColumnProfile] | None = None  # first 60 columns, exact; absent in older results
     preview: list[dict[str, Any]] = []  # first PREVIEW_ROWS rows, JSON-safe (dates ISO, NaN null)
     view: View | None = None
+    model_params: dict[str, Any] | None = None  # JSON-safe fitted parameters (no pickle)
     warnings: list[str] = []  # e.g. "rows capped at 200000", "12 rows with a missing target"
     elapsed_ms: int = 0
 

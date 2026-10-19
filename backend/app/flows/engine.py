@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import replace
+from datetime import date
 
 import pandas as pd
 
@@ -44,6 +45,7 @@ def _result(
         profile=profile_frame(df, deadline),
         preview=preview,
         view=out.view,
+        model_params=out.model_params,
         warnings=out.warnings,
         elapsed_ms=ms,
     )
@@ -55,6 +57,8 @@ def run_graph(
     gates: GateConfig,
     limits: FlowLimits,
     target: str | None = None,
+    capture: dict[str, pd.DataFrame] | None = None,
+    today: date | None = None,
 ) -> dict[str, NodeResult]:
     nodes = {n.id: n for n in graph.nodes}
     if target is not None and target not in nodes:
@@ -84,8 +88,10 @@ def run_graph(
         pending.remove(ready[0])
 
     deadline = time.monotonic() + limits.timeout_s
-    ctx = Ctx(gates=gates, limits=limits, loader=loader, deadline=deadline)
-    row_preserving = ("filter", "sort", "columns")
+    ctx = Ctx(
+        gates=gates, limits=limits, loader=loader, deadline=deadline, today=today or date.today()
+    )
+    row_preserving = ("filter", "sort", "columns", "aging", "domain", "dedup")
     multiplied: dict[str, bool] = {}
 
     def origin(nid: str, port: str) -> tuple[str, str] | None:
@@ -132,6 +138,12 @@ def run_graph(
             multiplied[nid] = upstream or out.rows_multiplied
             for port, df in out.frames.items():
                 frames[(nid, port)] = df
+                if (
+                    capture is not None
+                    and nid == target
+                    and port in ("out", next(iter(out.frames)))
+                ):
+                    capture[nid] = df  # the full node output, for the viz query engine
             results[nid] = _result(
                 nid, out, limits, int((time.monotonic() - start) * 1000), deadline
             )

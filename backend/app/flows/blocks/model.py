@@ -1,22 +1,26 @@
-"""model: linear / logistic regression fitted on `train`, evaluated on `test`.
+"""model: linear / logistic regression, SVM or SVR fitted on `train`, evaluated on `test`.
 
 Preprocessing: numeric (and boolean) features are standardised on train; other features are
 one-hot encoded (the 30 most frequent train values, the rest grouped as "other"). Rows with a
 missing target or feature are dropped and counted. Coefficients are on standardised numerics
-and are associations, not causes. Verification follows docs/M2A-CONTRACT.md section 3.
+and are associations, not causes (an RBF SVM has none). Verification follows
+docs/M2A-CONTRACT.md section 3.
 """
 
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy.special import expit  # noqa: F401
 from scipy.stats import rankdata
 from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.svm import SVC, SVR
 
 from app.flows.blocks._common import (
     BlockError,
@@ -38,8 +42,61 @@ _CELLS = 4_000_000
 
 
 MAX_ENCODED = 500
+MAX_SVM_ROWS = 20_000  # SVM training is O(n^2)
+MAX_EXPORTED_SV = 2_000  # support vectors are training rows: keep the run payload small
+REGRESSION = ("linear_regression", "svr")
 LEAK = "test rows may overlap the training rows: connect train and test from the same split block"
 MULTIPLIED = "rows were duplicated by an upstream join, so n is inflated"
+
+
+def _lst(a: Any) -> list[float | None]:
+    return [fnum(x) for x in np.ravel(a)]
+
+
+def _feature_spec(ct: ColumnTransformer, num: list[str], cat: list[str]) -> dict[str, Any]:
+    """The preprocessing in plain data: enough to rebuild the design matrix without pickle."""
+    sc = ct.named_transformers_["num"]
+    mean = _lst(sc.mean_) if num else []
+    std = _lst(sc.scale_) if num else []
+    cats = ct.named_transformers_["cat"].categories_ if cat else []
+    return {
+        "numeric": [
+            {"name": f, "mean": m, "std": s} for f, m, s in zip(num, mean, std, strict=True)
+        ],
+        "categorical": [
+            {"name": f, "categories": [str(c) for c in cs], "other_label": "other"}
+            for f, cs in zip(cat, cats, strict=True)
+        ],
+    }
+
+
+def _svm_params(mdl: Any, cfg: ModelConfig, warnings: list[str]) -> dict[str, Any]:
+    """decision(x) = sum_i dual_coef_i * K(support_vector_i, x) + intercept, K the kernel.
+
+    A linear kernel collapses to one weight per feature. An RBF model needs its support vectors,
+    which are training rows: above MAX_EXPORTED_SV they are left out (payload size), and the
+    parameters say the model cannot be rebuilt from them.
+    """
+    n_sv = int(mdl.support_vectors_.shape[0])
+    p: dict[str, Any] = {
+        "kernel": cfg.kernel,
+        "C": cfg.C,
+        "gamma": float(mdl._gamma),  # noqa: SLF001 (the resolved value of "scale")
+        "intercept": float(mdl.intercept_[0]),
+        "n_support_vectors": n_sv,
+    }
+    if cfg.kernel == "linear":
+        p["coef"] = _lst(mdl.coef_[0])
+    if n_sv <= MAX_EXPORTED_SV:
+        p["support_vectors"] = [_lst(r) for r in mdl.support_vectors_]
+        p["dual_coef"] = _lst(mdl.dual_coef_)
+    else:
+        p["exportable"] = cfg.kernel == "linear"
+        warnings.append(
+            f"{n_sv} support vectors (> {MAX_EXPORTED_SV}) are not exported"
+            + ("" if cfg.kernel == "linear" else ": this RBF model cannot be saved for scoring")
+        )
+    return p
 
 
 def _resample_idx(n: int, b: int, rng: np.random.Generator, ctx: Ctx):
@@ -92,7 +149,7 @@ def _clean_frame(
 ) -> tuple[pd.DataFrame, pd.Series | None]:
     """Rows with all features and a valid target; returns (frame, target series)."""
     ok = df[cfg.features].notna().all(axis=1) & df[cfg.target].notna()
-    if cfg.kind == "linear_regression":
+    if cfg.kind in REGRESSION:
         yv = to_float(df[cfg.target], cfg.target)
         ok &= yv.notna()
         for f in cfg.features:
@@ -115,6 +172,12 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
     warnings = [f"{dropped} rows with a missing target or feature dropped"] if dropped else []
     if len(train) < 2:
         raise BlockError("not enough training rows after dropping missing values")
+    if cfg.kind in ("svm", "svr") and len(train) > MAX_SVM_ROWS:
+        train = train.sample(n=MAX_SVM_ROWS, random_state=gc.random_seed).sort_index()
+        train = train.reset_index(drop=True)
+        warnings.append(
+            f"SVM training rows capped at {MAX_SVM_ROWS} (random sample): training is quadratic"
+        )
 
     num = [f for f in cfg.features if kinds[f] in ("number", "integer", "boolean")]
     cat = [f for f in cfg.features if f not in num]
@@ -164,12 +227,34 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
     metrics: list[Metric] = []
     confusion = None
 
-    if cfg.kind == "linear_regression":
+    params: dict[str, Any] = {
+        "kind": cfg.kind,
+        "target": cfg.target,
+        "features": _feature_spec(ct, num, cat),
+        "encoded_features": names,
+    }
+    gamma_arg: float | str = cfg.gamma if cfg.gamma is not None else "scale"
+
+    if cfg.kind in REGRESSION:
         ytr = to_float(train[cfg.target], cfg.target).to_numpy()
         yte = to_float(test[cfg.target], cfg.target).to_numpy() if n_test else np.empty(0)
-        mdl = LinearRegression().fit(a_tr, ytr)
-        coefs = mdl.coef_
-        pred = mdl.predict(a_te) if n_test else np.empty(0)
+        if cfg.kind == "svr":
+            ym = float(ytr.mean())
+            ys = float(ytr.std()) or 1.0
+            mdl = SVR(kernel=cfg.kernel, C=cfg.C, gamma=gamma_arg).fit(a_tr, (ytr - ym) / ys)
+            coefs = mdl.coef_[0] * ys if cfg.kernel == "linear" else None
+
+            def predict(a: np.ndarray) -> np.ndarray:
+                return mdl.predict(a) * ys + ym
+
+            params.update(_svm_params(mdl, cfg, warnings))
+            params.update({"y_mean": ym, "y_std": ys})
+        else:
+            mdl = LinearRegression().fit(a_tr, ytr)
+            coefs = mdl.coef_
+            predict = mdl.predict
+            params.update({"coef": _lst(mdl.coef_), "intercept": float(mdl.intercept_)})
+        pred = predict(a_te) if n_test else np.empty(0)
         out_test["prediction"] = pred
         mean = float(ytr.mean())
         if n_test:
@@ -209,11 +294,35 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
         yte = matches(test[cfg.target], cfg.positive_value).to_numpy(dtype=float)
         if ytr.min() == ytr.max():
             raise BlockError("the training target has only one class; nothing to learn")
-        mdl = LogisticRegression(max_iter=1000).fit(a_tr, ytr)
-        coefs = mdl.coef_[0]
+        if cfg.kind == "svm":
+            mdl = SVC(kernel=cfg.kernel, C=cfg.C, gamma=gamma_arg).fit(a_tr, ytr)
+            coefs = mdl.coef_[0] if cfg.kernel == "linear" else None
+            # Platt scaling: a sigmoid fitted on the training decision values (optimistic on
+            # training data; the verdict below uses held-out rows only)
+            platt = LogisticRegression(C=1e4, max_iter=1000).fit(
+                mdl.decision_function(a_tr).reshape(-1, 1), ytr
+            )
+            pa, pb = float(platt.coef_[0, 0]), float(platt.intercept_[0])
+            params.update(_svm_params(mdl, cfg, warnings))
+            params.update({"platt_a": pa, "platt_b": pb, "positive_value": cfg.positive_value})
+        else:
+            mdl = LogisticRegression(max_iter=1000).fit(a_tr, ytr)
+            coefs = mdl.coef_[0]
+            params.update(
+                {
+                    "coef": _lst(mdl.coef_[0]),
+                    "intercept": float(mdl.intercept_[0]),
+                    "positive_value": cfg.positive_value,
+                }
+            )
         if n_test:
-            prob = mdl.predict_proba(a_te)[:, 1]
-            cls = (prob >= 0.5).astype(int)
+            if cfg.kind == "svm":
+                score = mdl.decision_function(a_te)
+                prob = expit(pa * score + pb)
+                cls = (score > 0).astype(int)
+            else:
+                prob = score = mdl.predict_proba(a_te)[:, 1]
+                cls = (prob >= 0.5).astype(int)
             out_test["prediction"] = cls.astype(bool)
             out_test["probability"] = prob
             npos = int(yte.sum())
@@ -227,8 +336,8 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
             fn = int(((cls == 0) & (yte == 1)).sum())
             confusion = [[tn, fp], [fn, tp]]
             if npos and nneg:
-                auc = float(roc_auc_score(yte, prob))
-                auc_ci = _boot_auc(yte, prob, b, gc.confidence, rng, ctx)
+                auc = float(roc_auc_score(yte, score))
+                auc_ci = _boot_auc(yte, score, b, gc.confidence, rng, ctx)
             else:
                 auc, auc_ci = math.nan, (None, None)
             metrics = [
@@ -264,11 +373,11 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
         n_test=n_test,
         dropped_missing=dropped,
         metrics=metrics,
-        coefficients=[
-            {"feature": n, "coef": fnum(c)} for n, c in zip(names, np.ravel(coefs), strict=True)
-        ],
+        coefficients=[]
+        if coefs is None
+        else [{"feature": n, "coef": fnum(c)} for n, c in zip(names, np.ravel(coefs), strict=True)],
         confusion=confusion,
         status="not_verified" if reasons else "verified",
         reasons=reasons,
     )
-    return BlockOutput(frames={"out": out_test}, view=view, warnings=warnings)
+    return BlockOutput(frames={"out": out_test}, view=view, warnings=warnings, model_params=params)

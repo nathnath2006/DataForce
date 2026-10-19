@@ -17,9 +17,14 @@ export const PORTS: Record<BlockType, { inputs: string[]; outputs: string[] }> =
   split: { inputs: ["in"], outputs: ["train", "test"] },
   model: { inputs: ["train", "test"], outputs: ["out"] },
   cluster: { inputs: ["in"], outputs: ["out"] },
+  dedup: { inputs: ["in"], outputs: ["out"] },
+  aging: { inputs: ["in"], outputs: ["out"] },
+  forecast: { inputs: ["in"], outputs: ["out"] },
+  window: { inputs: ["in"], outputs: ["out"] },
+  domain: { inputs: ["in"], outputs: ["out"] },
 };
 
-export type PaletteGroup = "Data" | "Transform" | "Analyze" | "Model" | "Visualize";
+export type PaletteGroup = "Data" | "Transform" | "Cleaning" | "Temporal" | "Aggregation" | "Analyze" | "Model" | "Visualize";
 export const BLOCKS: { type: BlockType; title: string; group: PaletteGroup }[] = [
   { type: "dataset", title: "Dataset", group: "Data" },
   { type: "filter", title: "Filter", group: "Transform" },
@@ -27,6 +32,11 @@ export const BLOCKS: { type: BlockType; title: string; group: PaletteGroup }[] =
   { type: "columns", title: "Columns", group: "Transform" },
   { type: "group", title: "Group / aggregate", group: "Transform" },
   { type: "join", title: "Join", group: "Transform" },
+  { type: "dedup", title: "Fuzzy dedup", group: "Cleaning" },
+  { type: "domain", title: "Domain parser", group: "Cleaning" },
+  { type: "aging", title: "Aging and stagnation", group: "Temporal" },
+  { type: "window", title: "Window (lag, rolling, rank)", group: "Temporal" },
+  { type: "forecast", title: "Weighted forecast", group: "Aggregation" },
   { type: "pivot", title: "Pivot", group: "Analyze" },
   { type: "stats", title: "Stats test", group: "Analyze" },
   { type: "split", title: "Train / test split", group: "Model" },
@@ -34,8 +44,13 @@ export const BLOCKS: { type: BlockType; title: string; group: PaletteGroup }[] =
   { type: "cluster", title: "K-means clusters", group: "Model" },
   { type: "chart", title: "Chart", group: "Visualize" },
 ];
-export const PALETTE_GROUPS: PaletteGroup[] = ["Data", "Transform", "Analyze", "Model", "Visualize"];
+export const PALETTE_GROUPS: PaletteGroup[] = ["Data", "Transform", "Cleaning", "Temporal", "Aggregation", "Analyze", "Model", "Visualize"];
 export const blockTitle = (t: string): string => BLOCKS.find((b) => b.type === t)?.title ?? t;
+
+/** Stage win probabilities in percent: the user's assumptions, not a statistical estimate. */
+export const DEFAULT_PROBABILITIES: Record<string, number> = {
+  prospecting: 10, qualification: 20, proposal: 40, negotiation: 60, closed_won: 100, closed_lost: 0,
+};
 
 export function defaultConfig(type: BlockType): BlockConfig {
   switch (type) {
@@ -48,9 +63,15 @@ export function defaultConfig(type: BlockType): BlockConfig {
     case "pivot": return { type, rows: [], columns: null, values: null, fn: "count", totals: true, max_columns: 50 };
     case "stats": return { type, group_by: "", outcome: "", outcome_kind: "rate", success_value: true };
     case "chart": return { type, kind: "bar", x: "", y: null, series: null, agg: "count", max_points: 2000 };
-    case "split": return { type, test_fraction: 0.25, seed: 42, stratify: null };
+    case "split": return { type, test_fraction: 0.25, seed: 42, stratify: null, mode: "random", date_column: null };
     case "model": return { type, kind: "logistic_regression", target: "", features: [], positive_value: true };
     case "cluster": return { type, kind: "kmeans", k: 3, features: [], seed: 42 };
+    case "dedup": return { type, column: "", method: "jaro_winkler", threshold: 0.92, block_prefix: 1 };
+    case "aging": return { type, column: "", alias: "days_since", stagnant_after_days: 30, where: [], where_mode: "all" };
+    case "forecast": return { type, amount: "", stage: "", probabilities: { ...DEFAULT_PROBABILITIES }, group_by: null };
+    case "window":
+      return { type, fn: "lag", column: null, partition_by: [], order_by: "", descending: false, k: 1, alias: "window_value", period: null };
+    case "domain": return { type, column: "", alias: "domain" };
   }
 }
 
@@ -92,6 +113,12 @@ export function fromFlow(nodes: BlockNode[], edges: XEdge[]): FlowGraph {
     target: e.target, target_port: e.targetHandle ?? "in",
   }));
   return { version: 1, nodes: gn, edges: ge };
+}
+
+/** The graph as the editor would save it, so a freshly opened flow compares equal (labels saved as
+ *  null, positions saved as 0.0). */
+export function normalizeGraph(g: FlowGraph): FlowGraph {
+  return fromFlow(toFlowNodes(g), toFlowEdges(g));
 }
 
 // ---- connection validation ----
@@ -187,6 +214,24 @@ export function outputColumns(g: FlowGraph, id: string, ctx: ColumnCtx, depth = 
     case "dataset": return datasetColumns(c, ctx);
     case "filter": case "sort": case "split": return up();
     case "cluster": return [...up(), { name: "cluster", dtype: "integer" }];
+    case "dedup": return [...up(), { name: "dedup_group", dtype: "integer" }, { name: "is_master", dtype: "boolean" }];
+    case "aging": return [...up(), { name: c.alias || "days_since", dtype: "number" }, { name: "stagnant", dtype: "boolean" }];
+    case "domain": return [...up(), { name: c.alias || "domain", dtype: "text" }, { name: "is_free_webmail", dtype: "boolean" }];
+    case "forecast": {
+      const base = up();
+      if (!c.group_by) return [...base, { name: "probability", dtype: "number" }, { name: "weighted_amount", dtype: "number" }];
+      return [
+        base.find((x) => x.name === c.group_by) ?? { name: c.group_by, dtype: "other" as const },
+        { name: "n", dtype: "integer" }, { name: "amount", dtype: "number" }, { name: "weighted_amount", dtype: "number" },
+      ];
+    }
+    case "window": {
+      const alias = { name: c.alias || "window_value", dtype: "number" as const };
+      const base = up();
+      if (!c.period) return [...base, alias];
+      const pick = (n: string) => base.find((x) => x.name === n) ?? { name: n, dtype: "other" as const };
+      return [...c.partition_by.map(pick), { name: "period", dtype: "text" as const }, ...(c.column ? [pick(c.column)] : []), alias];
+    }
     case "group": {
       const base = up();
       const by = c.by.map((n) => base.find((x) => x.name === n) ?? { name: n, dtype: "other" as const });
@@ -284,6 +329,61 @@ export const TEMPLATES: Template[] = [
         node("n2", 280, 0, { type: "cluster", kind: "kmeans", k: 3, features: ["employee_count", "n_deals", "won_amount_eur"], seed: 42 }),
       ],
       edges: [edge("e1", "n1", "n2")],
+    }),
+  },
+  {
+    key: "forecast", title: "Weighted pipeline forecast", description: "Open deals: amount × stage probability, totalled per owner. Probabilities are your assumptions.",
+    build: () => ({
+      version: 1,
+      nodes: [
+        node("n1", 0, 0, { type: "dataset", dataset: { source: "crm", table: "deals" } }, "Deals"),
+        node("n2", 280, 0, { type: "filter", mode: "all", conditions: [{ column: "is_closed", op: "eq", value: false }] }, "Open deals"),
+        node("n3", 560, 0, { ...(defaultConfig("forecast") as Extract<BlockConfig, { type: "forecast" }>), amount: "amount_eur", stage: "stage", group_by: "owner" }),
+      ],
+      edges: [edge("e1", "n1", "n2"), edge("e2", "n2", "n3")],
+    }),
+  },
+  {
+    key: "stalled", title: "Stalled deals", description: "Open deals created more than 45 days ago, oldest first.",
+    build: () => ({
+      version: 1,
+      nodes: [
+        node("n1", 0, 0, { type: "dataset", dataset: { source: "crm", table: "deals" } }, "Deals"),
+        node("n2", 280, 0, {
+          type: "aging", column: "created_on", alias: "days_since", stagnant_after_days: 45,
+          where: [{ column: "is_closed", op: "eq", value: false }], where_mode: "all",
+        }, "Days since created"),
+        node("n3", 560, 0, { type: "filter", mode: "all", conditions: [{ column: "stagnant", op: "eq", value: true }] }, "Stalled only"),
+        node("n4", 840, 0, { type: "sort", keys: [{ column: "days_since", descending: true }], limit: null }),
+      ],
+      edges: [edge("e1", "n1", "n2"), edge("e2", "n2", "n3"), edge("e3", "n3", "n4")],
+    }),
+  },
+  {
+    key: "dupes", title: "Duplicate accounts", description: "Fuzzy dedup on account names; nothing is merged in the CRM.",
+    build: () => ({
+      version: 1,
+      nodes: [
+        node("n1", 0, 0, { type: "dataset", dataset: { source: "crm", table: "accounts" } }, "Accounts"),
+        node("n2", 280, 0, { type: "dedup", column: "account_name", method: "jaro_winkler", threshold: 0.92, block_prefix: 1 }),
+        node("n3", 560, 0, { type: "sort", keys: [{ column: "dedup_group", descending: false }], limit: null }),
+      ],
+      edges: [edge("e1", "n1", "n2"), edge("e2", "n2", "n3")],
+    }),
+  },
+  {
+    key: "growth", title: "Growth per owner", description: "Closed-won amount per owner and quarter, with the change from the previous quarter.",
+    build: () => ({
+      version: 1,
+      nodes: [
+        node("n1", 0, 0, { type: "dataset", dataset: { source: "crm", table: "deals" } }, "Deals"),
+        node("n2", 280, 0, { type: "filter", mode: "all", conditions: [{ column: "is_won", op: "eq", value: true }] }, "Won only"),
+        node("n3", 560, 0, {
+          type: "window", fn: "pct_change", column: "amount_eur", partition_by: ["owner"], order_by: "closed_on",
+          descending: false, k: 1, alias: "qoq_growth", period: "quarter",
+        }, "QoQ growth"),
+      ],
+      edges: [edge("e1", "n1", "n2"), edge("e2", "n2", "n3")],
     }),
   },
   {

@@ -11,7 +11,7 @@ import { ErrorNote, Loading, Tag, useAction, useLoad } from "../ui";
 import { ConfigForm } from "./ConfigForm";
 import { flowApi } from "./flowApi";
 import {
-  BLOCKS, PALETTE_GROUPS, PORTS, blockTitle, connectionError, defaultConfig, fromFlow, inputColumns, newId,
+  BLOCKS, PALETTE_GROUPS, PORTS, blockTitle, connectionError, defaultConfig, fromFlow, inputColumns, newId, normalizeGraph,
   outputColumns, toFlowEdges, toFlowNodes, validateGraph, type BlockData, type BlockNode,
 } from "./graph";
 import { nodeState } from "./nodeState";
@@ -90,7 +90,7 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<BlockNode>(toFlowNodes(flow.graph));
   const [edges, setEdges, onEdgesChange] = useEdgesState(toFlowEdges(flow.graph));
   const [name, setName] = useState(flow.name);
-  const [saved, setSaved] = useState(() => JSON.stringify([flow.name, flow.graph]));
+  const [saved, setSaved] = useState(() => JSON.stringify([flow.name, normalizeGraph(flow.graph)]));
   const [results, setResults] = useState<Record<string, NodeResult>>({});
   const [sel, setSel] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -165,7 +165,7 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
     const errs = validateGraph(graph);
     if (errs.length) throw new Error(errs[0]);
     const out = await flowApi.update(slug, flow.id, { name: name.trim() || flow.name, graph });
-    setSaved(JSON.stringify([name, out.graph])); setMsg("Saved");
+    setSaved(JSON.stringify([name, normalizeGraph(out.graph)])); setMsg("Saved");
   });
   const doRun = (target?: string) => void run.run(async () => {
     setMsg(null);

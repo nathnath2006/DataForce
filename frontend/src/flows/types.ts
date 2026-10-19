@@ -1,7 +1,8 @@
 // Mirrors backend/app/flows/schemas.py (the contract). Keep in sync by hand.
 export type Scalar = string | number | boolean | null;
 export type CrmTable =
-  | "deals" | "accounts" | "contacts" | "companies" | "meetings" | "meeting_themes" | "deal_theme_flags";
+  | "deals" | "accounts" | "contacts" | "companies" | "meetings" | "meeting_themes" | "deal_theme_flags"
+  | "activities" | "stage_events" | "tasks";
 
 export type DatasetSource =
   | { source: "crm"; table: CrmTable }
@@ -41,12 +42,37 @@ export type BlockConfig =
       type: "chart"; kind: "bar" | "line" | "scatter"; x: string; y: string | null;
       series: string | null; agg: "count" | "sum" | "mean" | "median" | "none"; max_points: number;
     }
-  | { type: "split"; test_fraction: number; seed: number; stratify: string | null }
   | {
-      type: "model"; kind: "linear_regression" | "logistic_regression"; target: string;
-      features: string[]; positive_value: Scalar;
+      type: "split"; test_fraction: number; seed: number; stratify: string | null;
+      mode?: "random" | "chronological"; date_column?: string | null;
     }
-  | { type: "cluster"; kind: "kmeans"; k: number; features: string[]; seed: number };
+  | {
+      type: "model"; kind: ModelKind; target: string;
+      features: string[]; positive_value: Scalar;
+      kernel?: "rbf" | "linear"; C?: number; gamma?: number | null;
+    }
+  | { type: "cluster"; kind: "kmeans"; k: number; features: string[]; seed: number }
+  | {
+      type: "dedup"; column: string; method: "jaro_winkler" | "levenshtein"; threshold: number;
+      block_prefix: number;
+    }
+  | {
+      type: "aging"; column: string; alias: string; stagnant_after_days: number;
+      where: Condition[]; where_mode: "all" | "any";
+    }
+  | {
+      type: "forecast"; amount: string; stage: string; probabilities: Record<string, number>;
+      group_by: string | null;
+    }
+  | {
+      type: "window"; fn: WindowFn; column: string | null; partition_by: string[]; order_by: string;
+      descending: boolean; k: number; alias: string; period: "month" | "quarter" | "year" | null;
+    }
+  | { type: "domain"; column: string; alias: string };
+
+export type ModelKind = "linear_regression" | "logistic_regression" | "svm" | "svr";
+export type WindowFn =
+  | "lag" | "lead" | "rolling_mean" | "rolling_sum" | "rolling_count" | "rank" | "row_number" | "pct_change";
 
 export type BlockType = BlockConfig["type"];
 
@@ -82,7 +108,7 @@ export interface MetricOut {
   name: string; value: number | null; ci_low?: number | null; ci_high?: number | null; baseline?: number | null;
 }
 export interface ModelView {
-  kind: "model"; model: "linear_regression" | "logistic_regression"; n_train: number; n_test: number;
+  kind: "model"; model: ModelKind; n_train: number; n_test: number;
   dropped_missing: number; metrics: MetricOut[]; coefficients: { feature: string; coef: number }[];
   confusion: number[][] | null; status: "verified" | "not_verified"; reasons: string[];
 }
@@ -95,6 +121,7 @@ export type View = PivotView | ChartView | StatsView | ModelView | ClusterView;
 export interface NodeResult {
   node_id: string; status: "ok" | "error" | "skipped"; error: string | null; n_rows: number | null;
   columns: ColumnInfo[]; profile?: ColumnProfile[] | null; preview: Record<string, unknown>[]; view: View | null;
+  model_params?: Record<string, unknown> | null;
   warnings: string[]; elapsed_ms: number;
 }
 export interface RunResponse { run_id: string | null; started_at: string; results: Record<string, NodeResult> }

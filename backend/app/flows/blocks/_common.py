@@ -28,6 +28,7 @@ class Ctx:
     deadline: float | None = None  # time.monotonic() value after which blocks must stop
     rows_multiplied: bool = False  # an upstream join produced more rows than its left input
     split_verified: bool = False  # model only: train/test come from the same split block
+    today: date | None = None  # the run's start date (injected in tests)
 
     def check(self) -> None:
         """Cooperative cancellation: long loops call this and stop with a clean error."""
@@ -41,6 +42,7 @@ class BlockOutput:
     view: Any = None
     warnings: list[str] = field(default_factory=list)
     n_rows: int | None = None  # only for blocks with no output table (chart)
+    model_params: dict[str, Any] | None = None  # model and cluster: fitted parameters
     rows_multiplied: bool = False  # set by a join whose output has more rows than its left input
 
 
