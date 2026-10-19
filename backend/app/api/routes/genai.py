@@ -38,6 +38,7 @@ def _task_out(t: Task) -> SuggestedTaskOut:
         status=t.status,
         source=t.source,
         quote=str(ev.get("quote", "")),
+        quote_found=bool(ev.get("quote_found", True)),
         origin={k: str(v) for k, v in (ev.get("origin") or {}).items()},
         deal_id=t.deal_id,
         account_id=t.account_id,

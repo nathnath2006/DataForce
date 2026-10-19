@@ -50,6 +50,8 @@ class Citation(BaseModel):
 class SummarySentenceOut(BaseModel):
     text: str
     cites: list[Citation]
+    # numbers or dates of the sentence not found in its cited items (any item when uncited)
+    unchecked_numbers: list[str] = []
 
 
 class SummaryOut(BaseModel):
@@ -57,8 +59,8 @@ class SummaryOut(BaseModel):
     provider: str
     model: str
     sentences: list[SummarySentenceOut]
-    dropped: int
-    # why sentences were dropped: no_citation, number_not_in_source, too_long
+    flagged: int = 0  # sentences with an unchecked number
+    dropped: int  # only past the length bound
     dropped_reasons: dict[str, int] = {}
 
 
@@ -68,6 +70,7 @@ class SuggestedTaskOut(BaseModel):
     status: str
     source: str
     quote: str
+    quote_found: bool = True  # the quote occurs word for word in the notes
     origin: dict[str, str]
     deal_id: uuid.UUID | None
     account_id: uuid.UUID | None

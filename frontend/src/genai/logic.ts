@@ -11,16 +11,12 @@ export function capLeft(p: AiPreview): number {
   return Math.max(0, p.daily_cap - p.calls_today);
 }
 
-const REASON: Record<string, string> = {
-  no_citation: "cited no item",
-  number_not_in_source: "stated a number or date that is not in the items it cites",
-  too_long: "went past the length limit",
-};
-
-/** "9 sentences dropped: 7 stated a number…, 2 cited no item." */
-export function droppedText(dropped: number, reasons: Record<string, number> = {}): string {
-  if (dropped === 0) return "No sentence dropped.";
-  const parts = Object.entries(reasons).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${REASON[k] ?? k}`);
-  const head = `${dropped} sentence${dropped === 1 ? "" : "s"} dropped`;
-  return parts.length ? `${head}: ${parts.join(", ")}.` : `${head}.`;
+/** The footer under a summary: model, flagged numbers, not saved. */
+export function summaryNote(s: { provider: string; model: string; flagged?: number; dropped: number }): string {
+  const f = s.flagged ?? 0;
+  const flagged = f === 0
+    ? "Every number and date was found in the items sent."
+    : `${f} sentence${f === 1 ? " has" : "s have"} a number or date not found in the items sent (marked unchecked).`;
+  const cut = s.dropped > 0 ? ` ${s.dropped} sentence${s.dropped === 1 ? "" : "s"} cut for length.` : "";
+  return `${s.provider} ${s.model}. ${flagged}${cut} Not saved.`;
 }

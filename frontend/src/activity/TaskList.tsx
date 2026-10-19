@@ -33,7 +33,8 @@ export function TaskList({ dealId, onChanged, refreshKey = 0 }: { dealId: string
                 <span className="tag warn">Suggested</span>
                 {t.source === "ai_suggested" && <AiBadge>AI</AiBadge>}
                 <span>{t.title}</span>
-                {typeof t.evidence?.quote === "string" && <q className="tl-meta">{t.evidence.quote}</q>}
+                {typeof t.evidence?.quote === "string" && t.evidence.quote !== "" && <q className="tl-meta">{t.evidence.quote}</q>}
+                {t.source === "ai_suggested" && t.evidence?.quote_found === false && <span className="tl-meta"> (not found word for word in the notes)</span>}
                 <button type="button" onClick={() => void act.run(() => activityApi.acceptTask(ws.slug, t.id)).then(done)}>Accept</button>
                 <button type="button" onClick={() => void act.run(() => activityApi.updateTask(ws.slug, t.id, { status: "dismissed" })).then(done)}>Dismiss</button>
               </>

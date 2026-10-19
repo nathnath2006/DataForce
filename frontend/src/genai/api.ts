@@ -9,9 +9,10 @@ export interface Citation { item_id: string; kind: string; at: string; origin_id
 export interface SummaryOut {
   ai: boolean; provider: string; model: string; dropped: number;
   dropped_reasons?: Record<string, number>;
-  sentences: { text: string; cites: Citation[] }[];
+  flagged?: number;
+  sentences: { text: string; cites: Citation[]; unchecked_numbers?: string[] }[];
 }
-export interface SuggestedTask { id: string; title: string; status: string; quote: string }
+export interface SuggestedTask { id: string; title: string; status: string; quote: string; quote_found?: boolean }
 export interface ActionItemsOut {
   ai: boolean; provider: string; model: string; tasks: SuggestedTask[]; dropped: number; duplicates: number;
 }

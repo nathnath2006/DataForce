@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capLeft, consentText, droppedText } from "./logic";
+import { capLeft, consentText, summaryNote } from "./logic";
 
 const p = { n_items: 2, n_chars: 1234, truncated: true, by_kind: {}, provider: "gemini", model: "m", calls_today: 3, daily_cap: 5 };
 
@@ -16,11 +16,12 @@ describe("genai logic", () => {
   });
 });
 
-describe("droppedText", () => {
-  it("says why sentences were dropped", () => {
-    expect(droppedText(0)).toBe("No sentence dropped.");
-    expect(droppedText(9, { number_not_in_source: 7, no_citation: 2 })).toBe(
-      "9 sentences dropped: 7 stated a number or date that is not in the items it cites, 2 cited no item.",
+describe("summaryNote", () => {
+  it("says what was flagged", () => {
+    const base = { provider: "gemini", model: "m", dropped: 0 };
+    expect(summaryNote({ ...base, flagged: 0 })).toBe("gemini m. Every number and date was found in the items sent. Not saved.");
+    expect(summaryNote({ ...base, flagged: 2, dropped: 1 })).toBe(
+      "gemini m. 2 sentences have a number or date not found in the items sent (marked unchecked). 1 sentence cut for length. Not saved.",
     );
   });
 });

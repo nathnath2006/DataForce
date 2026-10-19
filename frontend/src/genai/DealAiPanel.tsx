@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { formatDate } from "../lib";
 import { AiBadge, ErrorNote, Modal, useAction } from "../ui";
 import { genaiApi, type AiPreview, type Scope, type SummaryOut } from "./api";
-import { capLeft, consentText, droppedText } from "./logic";
+import { capLeft, consentText, summaryNote } from "./logic";
 import "./genai.css";
 
 type Kind = "summary" | "tasks";
@@ -67,18 +67,19 @@ export function DealAiPanel({ ws, dealId, accountId, onChanged }: {
       {summary && (
         <div className="genai-sum">
           <AiBadge>AI summary</AiBadge>
-          {summary.sentences.length === 0 && <p className="muted">No sentence could be checked against the items sent, so none is shown.</p>}
+          {summary.sentences.length === 0 && <p className="muted">The model had nothing to say about these items.</p>}
           {summary.sentences.map((s, i) => (
             <p key={i}>
               {s.text}
               {s.cites.map((c) => (
                 <span key={c.item_id} className="genai-cite" title={c.origin_id}>{c.kind}, {formatDate(c.at)}</span>
               ))}
+              {(s.unchecked_numbers?.length ?? 0) > 0 && (
+                <span className="genai-flag" title="Not found in the notes, activities or deal facts sent">unchecked: {s.unchecked_numbers!.join(", ")}</span>
+              )}
             </p>
           ))}
-          <p className="genai-note">
-            {summary.provider} {summary.model}. Every sentence shown cites its source. {droppedText(summary.dropped, summary.dropped_reasons)} Not saved.
-          </p>
+          <p className="genai-note">{summaryNote(summary)}</p>
         </div>
       )}
       {ask && (

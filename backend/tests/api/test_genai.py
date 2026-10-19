@@ -116,26 +116,34 @@ def test_no_key_is_a_clear_4xx(client, ws, deal, fake):
     assert client.post(f"{ws}/deals/{deal}/ai/tasks").status_code == 409
 
 
-def test_summary_drops_invalid_citation_and_invented_numbers(client, ws, deal, fake, db_session):
+def test_summary_keeps_sentences_and_flags_unchecked_numbers(client, ws, deal, fake, db_session):
+    """Relaxed (PO, 2026-10-19): sentences are kept; a number not in the items is flagged."""
     enable(client, ws)
     fake["summary"] = lambda: [
-        {"text": "Maria wants the pricing sheet before Friday.", "cites": ["N2", "N2"]},
+        {"text": "Maria wants the pricing sheet before Friday.", "cites": ["N3", "N3"]},
         {"text": "The customer loves us.", "cites": ["N99"]},
-        {"text": "No citation at all.", "cites": []},
-        {"text": "Budget is 90000 euros.", "cites": ["N2"]},
+        {"text": "Budget is 90000 euros.", "cites": []},
+        {"text": "Budget is 40000 euros.", "cites": []},
     ]
     r = client.post(f"{ws}/deals/{deal}/ai/summary")
     assert r.status_code == 200, r.text
     out = r.json()
     assert out["ai"] is True and out["model"] == "gemini-2.5-flash"
-    assert [s["text"] for s in out["sentences"]] == ["Maria wants the pricing sheet before Friday."]
-    assert out["sentences"][0]["cites"][0]["kind"] in {"note", "call"}
-    assert out["dropped"] == 3
-    purposes = set(db_session.scalars(select(LlmCall.purpose)))
-    assert "deal_summary" in purposes
+    assert [s["text"] for s in out["sentences"]] == [
+        "Maria wants the pricing sheet before Friday.",
+        "The customer loves us.",
+        "Budget is 90000 euros.",
+        "Budget is 40000 euros.",
+    ]
+    assert out["dropped"] == 0
+    flags = [s["unchecked_numbers"] for s in out["sentences"]]
+    assert flags == [[], [], ["90000"], []]  # 40000 is in the note; 90000 nowhere
+    assert out["flagged"] == 1
+    assert out["sentences"][1]["cites"] == []  # N99 is not an item
+    assert "deal_summary" in set(db_session.scalars(select(LlmCall.purpose)))
 
 
-def test_tasks_verbatim_dedup_and_injection(client, ws, deal, fake, db_session):
+def test_tasks_keep_unfound_quotes_flagged_dedup_and_injection(client, ws, deal, fake, db_session):
     enable(client, ws)
     pairs = dict((k, r) for r, k in refs_for(client, ws, deal, fake))
     note, call = pairs["note"], pairs["call"]
@@ -155,8 +163,18 @@ def test_tasks_verbatim_dedup_and_injection(client, ws, deal, fake, db_session):
     assert r.status_code == 200, r.text
     out = r.json()
     titles = [t["title"] for t in out["tasks"]]
-    assert titles == ["Send pricing sheet", "Wire money"]
-    assert out["dropped"] == 2 and out["duplicates"] == 1
+    # relaxed (PO, 2026-10-19): an unfound quote is kept and flagged; a wrong item id is
+    # corrected when the quote is found in another item
+    assert titles == ["Send pricing sheet", "Made up", "Wire money", "Wrong item"]
+    assert out["dropped"] == 0 and out["duplicates"] == 1
+    found = {t["title"]: t["quote_found"] for t in out["tasks"]}
+    assert found == {
+        "Send pricing sheet": True,
+        "Made up": False,
+        "Wire money": True,
+        "Wrong item": True,
+    }
+    assert next(t for t in out["tasks"] if t["title"] == "Wrong item")["origin"]["kind"] == "note"
     t = out["tasks"][0]
     assert t["status"] == "suggested" and t["source"] == "ai_suggested"
     assert t["quote"] == "send the revised pricing sheet" and t["origin"]["kind"] == "note"
@@ -165,7 +183,7 @@ def test_tasks_verbatim_dedup_and_injection(client, ws, deal, fake, db_session):
     assert {x["status"] for x in listed} == {"suggested"}
     # a second run dedups against the existing suggestions
     again = client.post(f"{ws}/deals/{deal}/ai/tasks").json()
-    assert again["tasks"] == [] and again["duplicates"] == 3
+    assert again["tasks"] == [] and again["duplicates"] == 5
     # accept and dismiss reuse the existing task routes
     assert client.post(f"{ws}/tasks/{t['id']}/accept").json()["status"] == "open"
     other = out["tasks"][1]["id"]
@@ -236,18 +254,17 @@ def test_other_workspace_deal_is_404(client, ws, deal, fake):
         assert r.status_code == 404
 
 
-def test_numbers_must_match_whole_tokens_and_titles_carry_no_markup(client, ws, deal, fake):
+def test_numbers_match_whole_tokens_and_titles_carry_no_markup(client, ws, deal, fake):
     enable(client, ws)
     pairs = dict((k, r) for r, k in refs_for(client, ws, deal, fake))
     note = pairs["note"]
     fake["summary"] = lambda: [
-        {"text": "Budget is 40,000 euros.", "cites": [note]},  # 40000 in the note: kept
-        {"text": "They want 4 licences.", "cites": [note]},  # "4" only inside 40000: dropped
-        {"text": "Budget is 400 euros.", "cites": [note]},  # a prefix of 40000: dropped
+        {"text": "Budget is 40,000 euros.", "cites": [note]},  # 40000 in the note
+        {"text": "They want 4 licences.", "cites": [note]},  # "4" only inside 40000
+        {"text": "Budget is 400 euros.", "cites": [note]},  # a prefix of 40000
     ]
     out = client.post(f"{ws}/deals/{deal}/ai/summary").json()
-    assert [s["text"] for s in out["sentences"]] == ["Budget is 40,000 euros."]
-    assert out["dropped"] == 2
+    assert [s["unchecked_numbers"] for s in out["sentences"]] == [[], ["4"], ["400"]]
     q = "send the revised pricing sheet"
     fake["items"] = lambda: [
         {"title": "<b>Send</b> sheet", "quote": q, "item_id": note},
@@ -283,9 +300,9 @@ def _block(prompt: str, ref: str) -> str:
     return prompt.split(f'<source id="{ref}">', 1)[1].split("</source>", 1)[0]
 
 
-def test_summary_accepts_item_dates_and_crm_facts_and_says_why_it_drops(client, ws, deal, fake):
+def test_summary_reads_item_dates_and_crm_facts(client, ws, deal, fake):
     """The live failure of 2026-10-19: every sentence dated an activity from its header, and all
-    were dropped as invented numbers."""
+    were dropped as invented numbers. Dates and CRM facts now count as known."""
     enable(client, ws)
     client.post(f"{ws}/deals/{deal}/ai/summary")  # learn the ids
     genai.reset_limits()
@@ -300,9 +317,9 @@ def test_summary_accepts_item_dates_and_crm_facts_and_says_why_it_drops(client, 
         {"text": f"The call happened on {day.day} {day:%B}.", "cites": [f"source {call}"]},
         {"text": "The deal was created on 2026-01-05 and is in prospecting.", "cites": [facts]},
         {"text": "A call on 1999-02-03 went well.", "cites": [call]},  # a date it never saw
-        {"text": "Nothing cited here.", "cites": ["N99"]},
     ]
     out = client.post(f"{ws}/deals/{deal}/ai/summary").json()
-    assert len(out["sentences"]) == 3, out
-    assert out["dropped"] == 2
-    assert out["dropped_reasons"] == {"no_citation": 1, "number_not_in_source": 1}
+    assert len(out["sentences"]) == 4 and out["dropped"] == 0
+    flags = [s["unchecked_numbers"] for s in out["sentences"]]
+    assert flags[:3] == [[], [], []] and flags[3] == ["1999", "02", "03"]
+    assert out["sentences"][1]["cites"][0]["kind"] == "call"

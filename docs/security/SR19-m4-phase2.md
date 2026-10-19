@@ -9,6 +9,8 @@ Method: one read-only Sonnet verifier per area, plus browser checks by the tech 
 
 ## Opt-in GenAI: 0 high, 1 medium, 3 low (all fixed)
 
+> **Update 2026-10-19 (PO decision, DECISIONS §P):** the summary and task checks now flag instead of dropping. Unchecked numbers are marked on their sentence, and a task whose quote is not found is kept with `quote_found: false`. Whole-token matching (G1) now drives the flag. Title filtering (G2), consent, caps and acceptance by a person are unchanged.
+
 ### SR19-G1 (medium) The number check in summaries was a substring test
 - **Where:** `services/genai.py`.
 - **Failure:** a number written by the model passed if its digits appeared anywhere in the cited text. "4" passed inside "40000", "1" inside "2025", "400" as a prefix of "40000".

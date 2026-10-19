@@ -593,3 +593,23 @@ experiments, followed by the fixes listed in its *Resolution* section.
 - historical stage-to-win rates for the forecast (needs a second input);
 - an interval for the touchpoint ratio;
 - smoothing the engagement cliff.
+
+## P. GenAI checks relaxed (2026-10-19) [PO]
+The PO's call after the first live summary: "as long as the context is given the model performs
+properly". Flag what cannot be backed instead of dropping it, as the Ask panel already does.
+
+- **Summary.**
+  - Every sentence the model writes is shown, labelled AI. Citations are attached when they name
+    real items.
+  - A number or date that cannot be found in the cited items (or, without a citation, in any
+    item) is marked *unchecked* on its sentence; it is no longer dropped.
+  - Only a length bound of 300 words still cuts.
+- **Suggested tasks.**
+  - A task is kept even when its quote is not found word for word. Its evidence records
+    `quote_found`, and the task list says "not found word for word in the notes".
+  - A wrong item id is corrected when the quote is found in another item.
+  - Kept: no markup or links in titles, at most 10 per call, deduplication, and every task stays
+    *suggested* until a person accepts it.
+- **Unchanged:** consent before sending, the untrusted wrapping, the daily cap, the call log, and
+  erasure.
+- **Supersedes:** SR19-G1 and SR19-G2. The whole-token number matching remains, now as a flag.
