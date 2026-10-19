@@ -4,6 +4,7 @@ import { api } from "../api";
 import { useWs } from "../context";
 import { segmentLabel } from "../lib";
 import { SEGMENTS, type AccountCreate, type AccountOut, type Segment } from "../types";
+import { DataQualityCard } from "../quality/DataQuality";
 import { Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, useAction, useDebounced, useLoad } from "../ui";
 
 export function AccountsPage() {
@@ -21,6 +22,7 @@ export function AccountsPage() {
         <h1>Accounts</h1>
         <button className="primary" onClick={() => setCreating(true)}>New account</button>
       </div>
+      <DataQualityCard />
       <div className="row wrap filters">
         <input type="search" placeholder="Search name or domain" aria-label="Search" value={q} onChange={(e) => setQ(e.target.value)} />
         <select aria-label="Segment" value={segment} onChange={(e) => setSegment(e.target.value)}>

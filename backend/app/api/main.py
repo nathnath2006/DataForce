@@ -18,6 +18,7 @@ from app.api.routes import (
     flows,
     notes,
     orgchart,
+    quality,
     stats,
     themes,
     titles,
@@ -50,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     routers = (workspaces, crm, notes, stats, connectors, enrichment, companies, data, flows, ai)
     routers += (titles, orgchart, documents, themes)  # M2b
     routers += (agent,)  # M3a
+    routers += (quality,)  # data quality
     for module in routers:
         app.include_router(module.router, prefix="/api")
     install_security(app, settings)  # last added = outermost middleware
