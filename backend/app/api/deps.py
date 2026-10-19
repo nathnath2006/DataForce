@@ -14,6 +14,7 @@ from fastapi import Depends, Path, Request
 from sqlalchemy.orm import Session
 
 from app.api.schemas import SLUG_PATTERN
+from app.auth.viewer import Viewer
 from app.config import Settings, get_settings
 from app.db.models import Workspace
 from app.db.session import SessionLocal
@@ -49,3 +50,11 @@ def get_workspace(db: Db, ws: Annotated[str, Path(pattern=SLUG_PATTERN)]) -> Wor
 
 
 CurrentWorkspace = Annotated[Workspace, Depends(get_workspace)]
+
+
+def get_viewer(ws: CurrentWorkspace) -> Viewer:
+    """Placeholder until sessions exist (M5 wave 1, L1 replaces this body): the local admin."""
+    return Viewer.local_admin(ws.id)
+
+
+CurrentViewer = Annotated[Viewer, Depends(get_viewer)]
