@@ -106,9 +106,9 @@ function Shell() {
       <div className="shell">
         <header className="top">
           <button className="ghost menu" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
-          <strong className="brand">DataForce</strong>
+          <span className="brand"><span className="logo" aria-hidden="true" />DataForce</span>
           <select
-            aria-label="Workspace" value={slug}
+            className="ws-switch" aria-label="Workspace" value={slug}
             onChange={(e) => (e.target.value === "__new" ? setCreating(true) : nav(`/w/${e.target.value}/accounts`))}
           >
             {(wss.data ?? []).map((w) => (

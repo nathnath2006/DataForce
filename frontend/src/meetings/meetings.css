@@ -1,7 +1,8 @@
-.turn { margin: 0 0 .7rem; }
+.turn { margin: 0 0 1rem; overflow-wrap: anywhere; }
 .turn .who { font-weight: 600; display: block; font-size: .85rem; color: var(--muted); }
-.turn .says { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
-.transcript { max-height: 60vh; overflow: auto; }
+.turn .says { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; line-height: 1.75; }
+.turn mark { color: inherit; padding: .1em .2em; border-radius: 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.transcript { display: block; }
 .th0 { background: rgba(36, 86, 214, .22); } .th1 { background: rgba(27, 122, 67, .24); }
 .th2 { background: rgba(214, 140, 0, .28); } .th3 { background: rgba(179, 38, 30, .20); }
 .th4 { background: rgba(130, 70, 200, .24); } .th5 { background: rgba(0, 150, 170, .26); }

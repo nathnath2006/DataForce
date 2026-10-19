@@ -1,0 +1,53 @@
+/* Design tokens: the single source of color, shape and type. See docs/VISUAL-IDENTITY.md.
+   Legacy names (--bg, --panel, --accent ...) stay as aliases so existing pages follow the new identity. */
+:root {
+  /* brand (from the PO blueprint) */
+  --primary: #1d4ed8; --primary-ink: #ffffff;
+  --highlight: #facc15; --highlight-ink: #1f2937;
+  --ink: #1f2937; --ink-soft: #4b5563;
+  --canvas: #f3f4f6; --surface: #ffffff; --glass: rgba(255, 255, 255, .8);
+  --hairline: #e5e7eb;
+  /* semantic (derived) */
+  --ok: #15803d; --ok-bg: #dcfce7; --warn: #854d0e; --warn-bg: #fef9c3;
+  --bad: #b91c1c; --bad-bg: #fee2e2; --mute-bg: #e5e7eb;
+  /* shape + depth */
+  --r-lg: 16px; --r-md: 10px; --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(17, 24, 39, .06), 0 4px 16px rgba(17, 24, 39, .05);
+  --shadow-2: 0 8px 32px rgba(17, 24, 39, .18);
+  --topbar-h: 56px;
+  /* type */
+  --font: "SF Pro Text", "SF Pro Display", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #60a5fa; --primary-ink: #0b1220;
+    --ink: #f3f4f6; --ink-soft: #9ca3af;
+    --canvas: #111827; --surface: #1f2937; --glass: rgba(31, 41, 55, .72);
+    --hairline: #374151;
+    --ok: #4ade80; --ok-bg: #14301f; --warn: #facc15; --warn-bg: #3a2e10;
+    --bad: #f87171; --bad-bg: #3b1b19; --mute-bg: #374151;
+    --shadow-1: none; --shadow-2: 0 8px 32px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --primary: #60a5fa; --primary-ink: #0b1220;
+  --ink: #f3f4f6; --ink-soft: #9ca3af;
+  --canvas: #111827; --surface: #1f2937; --glass: rgba(31, 41, 55, .72);
+  --hairline: #374151;
+  --ok: #4ade80; --ok-bg: #14301f; --warn: #facc15; --warn-bg: #3a2e10;
+  --bad: #f87171; --bad-bg: #3b1b19; --mute-bg: #374151;
+  --shadow-1: none; --shadow-2: 0 8px 32px rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+
+/* Legacy aliases: do not use in new code. */
+:root {
+  --bg: var(--canvas); --panel: var(--surface); --text: var(--ink); --muted: var(--ink-soft);
+  --line: var(--hairline); --danger: var(--bad); --err-bg: var(--bad-bg);
+  --banner: var(--warn-bg); --radius: var(--r-md);
+}
+/* Legacy --accent has always meant "the blue": it stays an alias of --primary. Yellow is --highlight. */
+:root { --accent: var(--primary); --accent-text: var(--primary-ink); }

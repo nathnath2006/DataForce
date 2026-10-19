@@ -47,7 +47,7 @@ export function Modal(props: { title: string; onClose: () => void; children: Rea
         <h2>{props.title}</h2>
         <button type="button" className="ghost" onClick={props.onClose} aria-label="Close">×</button>
       </div>
-      {props.children}
+      <div className="dlg-body">{props.children}</div>
     </dialog>
   );
 }
