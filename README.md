@@ -82,6 +82,18 @@ M3: anyone who can run programs on this computer can use it, nobody else can.
     network port. Access is read-only and limited to that workspace.
   - Customer text is marked as untrusted. Emails, phones and keys are never returned.
   - Each call is logged under *Recent calls*.
+- **Look and feel** (2026-10-19): the visual identity in `docs/VISUAL-IDENTITY.md` is applied to
+  every screen.
+  - **Typeface:** Helvetica throughout.
+  - **Accounts page:** opens with *Data quality*: health bars with exact counts for manager links,
+    job titles, deal amounts and company links, each linking to where it is fixed.
+  - **Account, company and contact pages:** start with a header; accounts also show the stage
+    roadmap of the current deal.
+  - **Assistant:** the *Ask* assistant lives in a drawer on the right edge (the speech-bubble
+    button). It stays closed until you open it.
+  - **Flows:** each block shows its state on its left edge (blue selected, green verified, grey
+    not verified, red error). Results gain a *Columns* tab with exact per-column counts.
+  - **AI marks:** anything the AI produced carries a yellow *AI* badge.
 - **Theme**: the *Theme* button in the header cycles System / Light / Dark.
 - `make ui-dev` runs the same app with the Vite dev server (hot reload) on 127.0.0.1:5173.
 
