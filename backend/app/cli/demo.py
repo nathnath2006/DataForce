@@ -9,6 +9,7 @@ from typing import Annotated
 import typer
 
 from app.cli._common import cli_command, console, fail, print_json, session_factory
+from app.demo.activities import backfill_workspace
 from app.demo.check import check_against_truth
 from app.demo.generator import generate
 from app.demo.loader import load_dataset
@@ -164,3 +165,24 @@ def check_cmd(
             console.print(f"  [red]false positive[/red] {f.dimension}={f.group} {f.metric}")
     if not result.passed:
         raise typer.Exit(1)
+
+
+@app.command("backfill-activities")
+@cli_command
+def backfill_activities_cmd(
+    workspace: Annotated[
+        str, typer.Option("--workspace", help="Slug of an existing demo workspace.")
+    ],
+) -> None:
+    """Add SYNTHETIC stage histories, activities and tasks to an existing demo workspace.
+
+    Idempotent: deals that already have stage events are skipped. Nothing else is touched."""
+    with session_factory()() as s:
+        try:
+            counts = backfill_workspace(s, workspace)
+        except ValueError as exc:
+            raise fail(str(exc)) from exc
+        s.commit()
+    console.print(f"Backfilled [bold]{workspace}[/bold] (data is SYNTHETIC).")
+    for k, v in counts.items():
+        console.print(f"  {k}: {v}")

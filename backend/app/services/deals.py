@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Account, AppUser, Deal
+from app.db.models import Account, AppUser, Deal, DealStageEvent
 from app.domain.enums import CLOSED_STAGES, DealStage
 from app.domain.schemas import DealIn
 from app.services._common import (
@@ -68,10 +68,16 @@ def set_stage(
     deal_id: uuid.UUID,
     stage: DealStage,
     closed_on: date | None = None,
+    *,
+    changed_at: datetime | None = None,
+    changed_by_id: uuid.UUID | None = None,
+    source: str = "manual",
 ) -> Deal:
     """Move a deal. Reopening clears closed_on; closing with closed_on=None keeps any existing
-    date (and leaves it missing otherwise)."""
+    date (and leaves it missing otherwise). Every real stage change is recorded as a
+    DealStageEvent, whichever path called this (M4)."""
     deal = require_deal(session, ws_id, deal_id)
+    previous = deal.stage
     if stage in CLOSED_STAGES:
         if closed_on is not None:
             _check_dates(deal.created_on, closed_on)
@@ -79,6 +85,18 @@ def set_stage(
     else:
         deal.closed_on = None
     deal.stage = stage.value
+    if previous != stage.value:
+        session.add(
+            DealStageEvent(
+                workspace_id=ws_id,
+                deal_id=deal.id,
+                from_stage=previous,
+                to_stage=stage.value,
+                changed_at=changed_at or datetime.now(UTC),
+                changed_by_id=changed_by_id,
+                source=source,
+            )
+        )
     session.flush()
     return deal
 

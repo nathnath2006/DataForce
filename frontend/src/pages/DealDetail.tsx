@@ -10,6 +10,10 @@ import { meetingsApi } from "../meetings/api";
 import { DeleteMeeting, MeetingTable, TranscriptDialog } from "../meetings/MeetingsPanel";
 import type { DocumentOut } from "../meetings/types";
 import { DealForm } from "./Deals";
+import { ActivityPanel } from "../activity/ActivityPanel";
+import { StageControl } from "../activity/StageControl";
+import { TaskList } from "../activity/TaskList";
+import { Timeline } from "../activity/Timeline";
 
 export function DealDetailPage() {
   const { id = "" } = useParams();
@@ -24,6 +28,7 @@ export function DealDetailPage() {
     () => (d ? meetingsApi.forAccount(ws.slug, d.account_id) : Promise.resolve(null)),
     [ws.slug, d?.account_id]);
   const [editing, setEditing] = useState(false);
+  const [tick, setTick] = useState(0);
   const [viewing, setViewing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<DocumentOut | null>(null);
   useRegisterScope("deal", d?.id, d?.name);
@@ -75,6 +80,20 @@ export function DealDetailPage() {
           )}
         </div>}
       />
+      <div className="card stack">
+        <h2>Stage and activity</h2>
+        <StageControl deal={d} onMoved={() => { deal.reload(); setTick((n) => n + 1); }} />
+        <h3>Log a call, email or meeting</h3>
+        <ActivityPanel deal={d} contacts={people.data?.items ?? []} onLogged={() => setTick((n) => n + 1)} />
+      </div>
+      <div className="card stack">
+        <h2>Tasks</h2>
+        <TaskList dealId={d.id} onChanged={() => setTick((n) => n + 1)} />
+      </div>
+      <div className="card stack">
+        <h2>Timeline</h2>
+        <Timeline scope="deals" id={d.id} refreshKey={tick} />
+      </div>
       {editing && <DealForm deal={d} onClose={() => setEditing(false)} onSaved={deal.reload} />}
       {viewing && <TranscriptDialog id={viewing} onClose={() => setViewing(null)} />}
       {deleting && <DeleteMeeting doc={deleting} onClose={() => setDeleting(null)} onDone={meetings.reload} />}

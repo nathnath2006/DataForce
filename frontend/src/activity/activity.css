@@ -1,0 +1,25 @@
+/* Activity panel, stage control and vertical chronology. Tokens only. */
+.stagebar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; }
+.stagebar label { min-width: 0; }
+.stagebar .err, .actform .err { color: var(--danger); font-size: .85rem; margin: 0; }
+.actform { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); align-items: end; }
+.actform .wide { grid-column: 1 / -1; }
+.actform .people { display: flex; flex-wrap: wrap; gap: .3rem .9rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip { border-radius: var(--r-pill); padding: .15rem .7rem; font-size: .85rem; }
+.chip[aria-pressed="true"] { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.tl { position: relative; margin: 0; padding: 0; list-style: none; }
+.tl-day { margin: 1rem 0 .4rem 1.9rem; font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.tl-item { position: relative; padding: 0 0 .8rem 1.9rem; }
+.tl-item::before { content: ""; position: absolute; left: .55rem; top: 0; bottom: 0; width: 2px; background: var(--hairline); }
+.tl-dot { position: absolute; left: .25rem; top: .85rem; width: .65rem; height: .65rem; border-radius: 50%; background: var(--ink-soft); box-shadow: 0 0 0 3px var(--surface); }
+.dot-stage { background: var(--primary); } .dot-meeting { background: var(--highlight); }
+.dot-ok { background: var(--ok); } .dot-warn { background: var(--warn); } .dot-soft { background: var(--ink-soft); }
+.tl-card { border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--surface); padding: .55rem .8rem; min-width: 0; overflow-wrap: anywhere; }
+.tl-head { display: flex; flex-wrap: wrap; gap: .3rem .6rem; align-items: baseline; justify-content: space-between; }
+.tl-title { font-weight: 600; }
+.tl-meta { font-size: .8rem; color: var(--muted); }
+.tl-sum { margin: .3rem 0 0; font-size: .9rem; color: var(--ink-soft); border-left: 3px solid var(--hairline); padding-left: .5rem; white-space: pre-wrap; }
+.tasklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.tasklist li { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.tasklist .done { text-decoration: line-through; color: var(--muted); }

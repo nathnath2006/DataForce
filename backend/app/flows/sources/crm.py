@@ -1,4 +1,4 @@
-"""The four CRM tables a dataset block can read (docs/M2A-CONTRACT.md section 3).
+"""The CRM tables a dataset block can read (docs/M2A-CONTRACT.md section 3).
 
 One SQL query per table, workspace-scoped, counts from grouped subqueries (no N+1). Contacts
 never expose enriched emails or mobiles.
@@ -14,15 +14,19 @@ from sqlalchemy.orm import Session, aliased
 
 from app.db.models import (
     Account,
+    Activity,
+    ActivityParticipant,
     AppUser,
     Comment,
     Company,
     Contact,
     Deal,
+    DealStageEvent,
     Document,
     DocumentChunk,
     Note,
     Run,
+    Task,
     Theme,
     ThemeAssignment,
 )
@@ -115,6 +119,44 @@ CRM_COLUMNS: dict[str, list[tuple[str, str]]] = {
         ("theme", "text"),
         ("theme_kind", "text"),
         ("n_chunks", "integer"),
+    ],
+    # M4. Workspace-scoped; no body text: only the length of a subject or a title.
+    "activities": [
+        ("activity_id", "text"),
+        ("account_id", "text"),
+        ("account_name", "text"),
+        ("deal_id", "text"),
+        ("kind", "text"),
+        ("direction", "text"),
+        ("occurred_at", "datetime"),
+        ("subject_length", "integer"),
+        ("n_participants", "integer"),
+        ("author", "text"),
+        ("source", "text"),
+    ],
+    "stage_events": [
+        ("event_id", "text"),
+        ("deal_id", "text"),
+        ("deal_name", "text"),
+        ("account_id", "text"),
+        ("from_stage", "text"),
+        ("to_stage", "text"),
+        ("changed_at", "datetime"),
+        ("changed_by", "text"),
+        ("source", "text"),
+    ],
+    "tasks": [
+        ("task_id", "text"),
+        ("deal_id", "text"),
+        ("account_id", "text"),
+        ("account_name", "text"),
+        ("title_length", "integer"),
+        ("status", "text"),
+        ("source", "text"),
+        ("owner", "text"),
+        ("due_on", "date"),
+        ("created_at", "datetime"),
+        ("done_at", "datetime"),
     ],
     "deal_theme_flags": [
         ("deal_id", "text"),
@@ -433,7 +475,80 @@ def _deal_theme_flags_query(ws_id: uuid.UUID) -> Select:
     )
 
 
+def _activities_query(ws_id: uuid.UUID) -> Select:
+    people = (
+        select(ActivityParticipant.activity_id, func.count().label("n"))
+        .group_by(ActivityParticipant.activity_id)
+        .subquery()
+    )
+    return (
+        select(
+            _text(Activity.id).label("activity_id"),
+            _text(Activity.account_id).label("account_id"),
+            Account.name.label("account_name"),
+            _text(Activity.deal_id).label("deal_id"),
+            Activity.kind.label("kind"),
+            Activity.direction.label("direction"),
+            Activity.occurred_at.label("occurred_at"),
+            func.char_length(Activity.subject).label("subject_length"),
+            func.coalesce(people.c.n, 0).label("n_participants"),
+            AppUser.display_name.label("author"),
+            Activity.source.label("source"),
+        )
+        .join(Account, Account.id == Activity.account_id)
+        .outerjoin(people, people.c.activity_id == Activity.id)
+        .outerjoin(AppUser, AppUser.id == Activity.author_user_id)
+        .where(Activity.workspace_id == ws_id)
+        .order_by(Activity.occurred_at, Activity.id)
+    )
+
+
+def _stage_events_query(ws_id: uuid.UUID) -> Select:
+    return (
+        select(
+            _text(DealStageEvent.id).label("event_id"),
+            _text(DealStageEvent.deal_id).label("deal_id"),
+            Deal.name.label("deal_name"),
+            _text(Deal.account_id).label("account_id"),
+            DealStageEvent.from_stage.label("from_stage"),
+            DealStageEvent.to_stage.label("to_stage"),
+            DealStageEvent.changed_at.label("changed_at"),
+            AppUser.display_name.label("changed_by"),
+            DealStageEvent.source.label("source"),
+        )
+        .join(Deal, Deal.id == DealStageEvent.deal_id)
+        .outerjoin(AppUser, AppUser.id == DealStageEvent.changed_by_id)
+        .where(DealStageEvent.workspace_id == ws_id)
+        .order_by(DealStageEvent.changed_at, DealStageEvent.id)
+    )
+
+
+def _tasks_query(ws_id: uuid.UUID) -> Select:
+    return (
+        select(
+            _text(Task.id).label("task_id"),
+            _text(Task.deal_id).label("deal_id"),
+            _text(Task.account_id).label("account_id"),
+            Account.name.label("account_name"),
+            func.char_length(Task.title).label("title_length"),
+            Task.status.label("status"),
+            Task.source.label("source"),
+            AppUser.display_name.label("owner"),
+            Task.due_on.label("due_on"),
+            Task.created_at.label("created_at"),
+            Task.done_at.label("done_at"),
+        )
+        .outerjoin(Account, Account.id == Task.account_id)
+        .outerjoin(AppUser, AppUser.id == Task.owner_user_id)
+        .where(Task.workspace_id == ws_id)
+        .order_by(Task.created_at, Task.id)
+    )
+
+
 _QUERIES = {
+    "activities": _activities_query,
+    "stage_events": _stage_events_query,
+    "tasks": _tasks_query,
     "meetings": _meetings_query,
     "meeting_themes": _meeting_themes_query,
     "deal_theme_flags": _deal_theme_flags_query,
@@ -456,12 +571,12 @@ def load_crm_table(session: Session, ws_id: uuid.UUID, table: str, max_rows: int
             df[name] = df[name].astype(bool)
     if "mentioned" in df:  # True / False / None (no meeting): keep the missing values
         df["mentioned"] = df["mentioned"].astype(object).where(df["mentioned"].notna(), None)
-    for name in ("cycle_days", "employee_count"):
+    for name in ("cycle_days", "employee_count", "subject_length", "title_length"):
         if name in df:  # integers, or floats with NaN when a value is missing (no pd.NA)
             df[name] = pd.to_numeric(df[name])
             if not df[name].isna().any():
                 df[name] = df[name].astype("int64")
-    for name in ("created_on", "closed_on", "meeting_date"):
+    for name in ("created_on", "closed_on", "meeting_date", "due_on"):
         if name in df:
             df[name] = pd.to_datetime(df[name])
     if capped:

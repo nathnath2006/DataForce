@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.db.models import Account, Contact, ContactChannel, Note, OrgProposal
 from app.domain.schemas import ContactIn
-from app.services import documents
+from app.services import activities, documents
 from app.services._common import (
     LIKE_ESCAPE,
     erasure,
@@ -157,6 +157,7 @@ def erase_contact(session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID) -> 
         )
         session.flush()
         documents.redact_contact(session, ws_id, contact)
+        activities.redact_contact(session, ws_id, contact)
         session.execute(
             delete(Contact)
             .where(Contact.id == contact_id, Contact.workspace_id == ws_id)

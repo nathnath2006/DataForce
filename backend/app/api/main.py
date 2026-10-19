@@ -8,6 +8,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from app import __version__
 from app.api.errors import install_error_handlers
 from app.api.routes import (
+    activities,
     admin,
     agent,
     ai,
@@ -20,6 +21,7 @@ from app.api.routes import (
     flows,
     notes,
     orgchart,
+    pipeline,
     quality,
     stats,
     themes,
@@ -55,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     routers += (agent,)  # M3a
     routers += (quality,)  # data quality
     routers += (admin,)  # admin view
+    routers += (activities, pipeline)  # M4 activities, tasks, stage control, timeline
     for module in routers:
         app.include_router(module.router, prefix="/api")
     app.add_middleware(GZipMiddleware, minimum_size=1000)  # inside security: headers still added

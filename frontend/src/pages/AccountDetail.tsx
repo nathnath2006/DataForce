@@ -13,6 +13,7 @@ import { MeetingsPanel } from "../meetings/MeetingsPanel";
 import { DetailHeader, Summary3 } from "../shell/DetailHeader";
 import { pickRoadmapDeal } from "../shell/logic";
 import { useRegisterScope } from "../shell/scope";
+import { Timeline } from "../activity/Timeline";
 
 export function AccountDetailPage() {
   const { id = "" } = useParams();
@@ -107,6 +108,11 @@ export function AccountDetailPage() {
         {chart.data && (
           <OrgChartPanel accountId={a.id} nodes={chart.data.nodes} base={base} onChanged={chart.reload} />
         )}
+      </div>
+
+      <div className="card stack">
+        <h2>Timeline</h2>
+        <Timeline scope="accounts" id={a.id} />
       </div>
 
       {picking && <CompanyPicker accountId={a.id} current={a.company_id ?? null} onClose={() => setPicking(false)} onSaved={refreshAll} />}
