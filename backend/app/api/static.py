@@ -13,6 +13,8 @@ from fastapi.responses import FileResponse, Response
 from app.api.errors import error_response
 from app.config import Settings
 
+IMMUTABLE = "public, max-age=31536000, immutable"
+
 
 def _resolve(dist: Path, relative: str) -> Path | None:
     """The file under `dist` for this URL path, or None (missing, a directory, or an escape)."""
@@ -41,6 +43,8 @@ def install_static(app: FastAPI, settings: Settings) -> None:
             return error_response(404, "not_found", "not found")
         asset = _resolve(dist, full_path) if full_path else None
         if asset is not None:
+            if full_path.startswith("assets/"):  # Vite content-hashed names
+                return FileResponse(asset, headers={"cache-control": IMMUTABLE})
             return FileResponse(asset)
         last = full_path.rsplit("/", 1)[-1]
         if "." in last:  # looks like a file (app.js, logo.png): a missing one is a real 404

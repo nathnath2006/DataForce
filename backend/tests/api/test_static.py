@@ -76,3 +76,11 @@ def test_no_dist_means_api_only(app, tmp_path):
     bare = TestClient(create_app(settings), base_url="http://127.0.0.1:8800")
     assert bare.get("/").status_code == 404
     assert bare.get("/api/health").status_code == 200
+
+
+def test_hashed_assets_are_immutable_index_is_not(client: TestClient):
+    assert client.get("/assets/app.js").headers["cache-control"] == (
+        "public, max-age=31536000, immutable"
+    )
+    assert client.get("/").headers["cache-control"] == "no-cache"
+    assert "immutable" not in client.get("/w/demo/accounts").headers["cache-control"]

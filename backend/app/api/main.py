@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from starlette.middleware.gzip import GZipMiddleware
 
 from app import __version__
 from app.api.errors import install_error_handlers
@@ -56,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     routers += (admin,)  # admin view
     for module in routers:
         app.include_router(module.router, prefix="/api")
+    app.add_middleware(GZipMiddleware, minimum_size=1000)  # inside security: headers still added
     install_security(app, settings)  # last added = outermost middleware
     install_static(app, settings)  # SPA at /, after the API routes
     return app

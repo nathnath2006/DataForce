@@ -151,3 +151,14 @@ def test_duplicate_origin_or_csrf_header_is_403(client: TestClient):
         headers=[("origin", UI), ("x-dataforce", "1"), ("x-dataforce", "1")],
     )
     assert r.status_code == 403
+
+
+def test_gzip_large_json_keeps_security_headers(client):
+    r = client.get("/api/openapi.json", headers={"Accept-Encoding": "gzip"})
+    assert r.status_code == 200
+    assert r.headers.get("content-encoding") == "gzip"
+    assert "content-security-policy" in r.headers
+    assert r.headers["x-frame-options"] == "DENY"
+    small = client.get("/api/health", headers={"Accept-Encoding": "gzip"})
+    assert "content-encoding" not in small.headers
+    assert small.headers["cache-control"] == "no-store"

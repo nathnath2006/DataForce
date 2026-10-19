@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Outlet, Route, Routes, useNavigate, useParams } from "react-router";
 import { api } from "./api";
 import { WsContext } from "./context";
@@ -102,14 +102,20 @@ function Shell() {
     safeStorage(v ? "set" : "remove", actingKey(slug), v ?? undefined);
   };
 
+  const { reload: reloadUsers } = users;
+  const { reload: reloadWorkspaces } = wss;
+  const wsValue = useMemo(
+    () => (ws ? { ws, users: userList, actingAs: actingValid, refreshUsers: reloadUsers, refreshWorkspaces: reloadWorkspaces } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ws, users.data, actingValid, reloadUsers, reloadWorkspaces],
+  );
+
   if (wss.loading && !wss.data) return <main className="center"><Loading /></main>;
   if (wss.error) return <main className="center"><ErrorNote error={wss.error} /></main>;
   if (!ws) return <main className="center"><p>Workspace “{slug}” not found.</p><NavLink to="/">Back</NavLink></main>;
 
   return (
-    <WsContext.Provider
-      value={{ ws, users: userList, actingAs: actingValid, refreshUsers: users.reload, refreshWorkspaces: wss.reload }}
-    >
+    <WsContext.Provider value={wsValue!}>
       <ScopeProvider>
       <div className="shell">
         <header className="top">

@@ -10,6 +10,7 @@ export function useLoad<R>(fn: () => Promise<R>, deps: unknown[]) {
   const [n, setN] = useState(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const run = useCallback(fn, deps);
+  const reload = useCallback(() => setN((x) => x + 1), []);
   useEffect(() => {
     const id = ++tick.current;
     setLoading(true);
@@ -20,7 +21,7 @@ export function useLoad<R>(fn: () => Promise<R>, deps: unknown[]) {
       },
     );
   }, [run, n]);
-  return { data, error, loading, reload: () => setN((x) => x + 1) };
+  return { data, error, loading, reload };
 }
 
 export function toApiError(e: unknown): ApiError {

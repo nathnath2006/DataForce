@@ -105,6 +105,7 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
   const graph = useMemo(() => fromFlow(nodes, edges), [nodes, edges]);
   const dirty = JSON.stringify([name, graph]) !== saved;
 
+  const guardPushed = useRef(false);
   // leave guard: tab close, and in-app link clicks (BrowserRouter has no blocker)
   useEffect(() => {
     if (!dirty) return;
@@ -117,7 +118,7 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
     };
     // Back / Forward (SR11-01): re-push this page, then leave only if the user confirms.
     const here = window.location.href;
-    window.history.pushState({ dfGuard: true }, "", here);
+    if (!guardPushed.current) { guardPushed.current = true; window.history.pushState({ dfGuard: true }, "", here); }
     const pop = () => {
       if (window.confirm("You have unsaved changes. Leave this page?")) {
         window.removeEventListener("popstate", pop);
