@@ -76,7 +76,7 @@ export function aiBadge(p: Pick<ProposalOut, "evidence">): string | null {
 }
 /** What the AI pass sends (Settings checkbox text). */
 export function meetingOrgNotice(provider: string | null, model: string | null): string {
-  return `Sends only sentences that name one of the account's contacts or contain an org phrase, with the account's contact names, to ${provider ?? "the provider"} ${model ?? "model"}. Full transcripts are never sent. Off by default.`;
+  return `Sends the sentences that name one of the account's contacts, speak about the project in the first person, or contain an org or decision phrase, with the account's contact names, to ${provider ?? "the provider"} ${model ?? "model"}. Full transcripts are never sent. Off by default.`;
 }
 /** Under "Suggest links" when the switch is on. */
 export function suggestNotice(provider: string | null, model: string | null): string {
@@ -99,6 +99,8 @@ export interface EvidenceView {
   kind: "rule" | "meeting" | "none";
   lines: string[];
   excerpt: string | null;
+  /** Sentence where the manager was named earlier in the transcript (AI findings only). */
+  managerExcerpt: string | null;
   meeting: string | null;
   /** "found by AI" when the AI pass found it (with provider and model), else null. */
   ai: string | null;
@@ -116,7 +118,7 @@ export function formatEvidence(p: Pick<ProposalOut, "origin" | "evidence" | "rul
     const lines = speaker ? [`Said by ${speaker}`] : [];
     if (ev.document_deleted === true) lines.push("The transcript was deleted, so the quote is gone.");
     const by = ev.found_by === "ai" ? ["found by AI", str(ev.provider), str(ev.model)].filter(Boolean).join(" · ") : null;
-    return { kind: "meeting", lines, excerpt: str(ev.excerpt), meeting, ai: by };
+    return { kind: "meeting", lines, excerpt: str(ev.excerpt), managerExcerpt: str(ev.manager_excerpt), meeting, ai: by };
   }
   const lines: string[] = [];
   const ct = str(ev.contact_title), mt = str(ev.manager_title);
@@ -125,5 +127,5 @@ export function formatEvidence(p: Pick<ProposalOut, "origin" | "evidence" | "rul
   const ex = str(ev.explanation);
   if (ex) lines.push(ex);
   if (p.rule === "contradicts_current_link") lines.push("This contradicts the current link.");
-  return { kind: lines.length ? "rule" : "none", lines, excerpt: null, meeting: null, ai: null };
+  return { kind: lines.length ? "rule" : "none", lines, excerpt: null, managerExcerpt: null, meeting: null, ai: null };
 }

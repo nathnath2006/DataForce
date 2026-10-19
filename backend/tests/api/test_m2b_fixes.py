@@ -256,3 +256,52 @@ def test_delete_transcript_forgets_its_quotes(client, ws):
     assert left[0]["status"] == "accepted" and ev["document_deleted"] is True
     assert not {"excerpt", "speaker", "char_start", "char_end"} & set(ev)
     assert "Yvonne Yu" not in str(ev)
+
+
+# --- manager_excerpt (PO 2026-10-19): purge and erasure ----------------------------------------
+def test_delete_transcript_drops_the_manager_quote_too(client, ws, db_session):
+    acc = account(client, ws)
+    for name in ("Xavier Xu", "Yvonne Yu"):
+        person(client, ws, acc, name)
+    doc = upload(client, ws, acc, "Xavier Xu: I report to Yvonne Yu.\n")
+    propose(client, ws, acc, ["meeting"])
+    p = proposals(client, ws, acc)[0]
+    assert client.post(f"{ws}/org-proposals/{p['id']}/accept", json={}).status_code == 200
+    row = db_session.get(OrgProposal, uuid.UUID(p["id"]))
+    row.evidence = {
+        **row.evidence,
+        "manager_excerpt": "Yvonne Yu runs sales.",
+        "manager_char_start": 0,
+        "manager_char_end": 21,
+    }
+    db_session.flush()
+    assert client.delete(f"{ws}/documents/{doc['id']}").status_code == 204
+    db_session.expire_all()
+    ev = db_session.get(OrgProposal, uuid.UUID(p["id"])).evidence
+    assert ev["document_deleted"] is True
+    assert not {"manager_excerpt", "manager_char_start", "manager_char_end"} & set(ev)
+    assert "Yvonne" not in str(ev)
+
+
+def test_erasure_redacts_the_manager_excerpt(client, ws, db_session):
+    acc = account(client, ws)
+    marie = person(client, ws, acc, "Marie Dupont")
+    person(client, ws, acc, "Bob Bobby")
+    person(client, ws, acc, "Zoe Zed")
+    text = "Marie Dupont runs sales.\nBob Bobby: I report to Zoe Zed.\n"
+    upload(client, ws, acc, text)
+    propose(client, ws, acc, ["meeting"])
+    p = next(x for x in proposals(client, ws, acc) if x["contact"]["full_name"] == "Bob Bobby")
+    row = db_session.get(OrgProposal, uuid.UUID(p["id"]))
+    row.evidence = {
+        **row.evidence,
+        "manager_excerpt": "Marie Dupont runs sales.",
+        "manager_char_start": 0,
+        "manager_char_end": 24,
+    }
+    db_session.flush()
+    assert client.delete(f"{ws}/contacts/{marie}").status_code == 204
+    db_session.expire_all()
+    ev = db_session.get(OrgProposal, uuid.UUID(p["id"])).evidence
+    assert "Marie" not in ev["manager_excerpt"] and "Dupont" not in ev["manager_excerpt"]
+    assert len(ev["manager_excerpt"]) == 24

@@ -170,7 +170,7 @@ class AiPass:
             by_doc[t.document_id].append(t)
         known = {c.id for c in contacts}
         out: list[meeting_ai.Verified] = []
-        todo: list[tuple[uuid.UUID, str, list[meeting_ai.Turn]]] = []
+        todo: list[tuple[uuid.UUID, str, list[meeting_ai.Turn], str]] = []
         for doc_id, dturns in by_doc.items():
             sha = _sha(docs[doc_id])
             row = self.session.scalar(
@@ -186,7 +186,7 @@ class AiPass:
             elif _recently_failed((self.ws_id, doc_id, sha)):
                 self.stats.failed += 1
             else:
-                todo.append((doc_id, sha, dturns))
+                todo.append((doc_id, sha, dturns, docs[doc_id]))
         if todo:
             out += asyncio.run(self._ask_all(todo, contacts))
         return out
@@ -207,12 +207,17 @@ class AiPass:
                 continue
             if text[a:b] != ev.get("excerpt"):
                 continue
+            if "manager_excerpt" in ev and (
+                text[ev.get("manager_char_start", 0) : ev.get("manager_char_end", 0)]
+                != ev["manager_excerpt"]
+            ):
+                continue
             out.append(meeting_ai.Verified(r["kind"], cid, mid, ev))
         return out
 
     async def _ask_all(
         self,
-        todo: list[tuple[uuid.UUID, str, list[meeting_ai.Turn]]],
+        todo: list[tuple[uuid.UUID, str, list[meeting_ai.Turn], str]],
         contacts: Sequence[ContactRef],
     ) -> list[meeting_ai.Verified]:
         try:
@@ -222,8 +227,8 @@ class AiPass:
             return []
         out: list[meeting_ai.Verified] = []
         try:
-            for doc_id, sha, dturns in todo:
-                res = await meeting_ai.run_document(provider, dturns, contacts, self._take)
+            for doc_id, sha, dturns, text in todo:
+                res = await meeting_ai.run_document(provider, dturns, contacts, self._take, text)
                 self.stats.calls += res.calls
                 self.stats.capped += res.capped
                 self.stats.failed += res.failed

@@ -225,17 +225,73 @@ def test_sr15_01_excerpt_is_the_full_sentence_and_manager_must_be_in_it():
     assert t[ev["char_start"] - 100 : ev["char_end"] - 100] == ev["excerpt"]
 
 
-def test_sr15_01_pronoun_widens_to_one_preceding_sentence_naming_the_manager():
-    t = "Bob Martin-Lévy runs sales. I have answered to him since I joined."
+def test_manager_named_earlier_in_the_same_turn_gets_a_second_quote():
+    t = "Bob Martin-Lévy runs sales. Fine. I have answered to him since I joined."
     (v,), _ = one(
         "reports_to", "Ana", "I have answered to him since I joined.", t, "Bob Martin-Lévy"
     )
-    assert v.evidence["excerpt"] == t
-    t = "Bob Martin-Lévy runs sales. Fine. I have answered to him since I joined."
+    ev = v.evidence
+    assert ev["excerpt"] == "I have answered to him since I joined."
+    assert ev["manager_excerpt"] == "Bob Martin-Lévy runs sales."
+    assert t[ev["manager_char_start"] - 100 : ev["manager_char_end"] - 100] == ev["manager_excerpt"]
+
+
+def test_manager_named_in_an_earlier_turn_uses_the_transcript():
+    doc = "Zoé: Bob Martin-Lévy runs the sales team.\nAna: I have reported there since I joined."
+    at = doc.index("I have reported")
+    turn_text = doc[at:]
+    t = Turn(DOC, uuid.uuid4(), "Ana", ANA, at, turn_text)
+    it = AiItem(kind="reports_to", contact="Ana", manager="Bob Martin-Lévy", quote=turn_text)
+    (v,), _ = meeting_ai.verify([it], [t], CONTACTS, doc)
+    ev = v.evidence
+    assert doc[ev["manager_char_start"] : ev["manager_char_end"]] == ev["manager_excerpt"]
+    assert "Bob Martin-Lévy" in ev["manager_excerpt"]
+    assert doc[ev["char_start"] : ev["char_end"]] == ev["excerpt"]
+    # never named before the statement: dropped
+    t3 = "I report to the boss. Bob Martin-Lévy came later."
+    assert one("reports_to", "Ana", "I report to the boss.", t3, "Bob Martin-Lévy")[1] == 1
+
+
+def test_manager_in_own_excerpt_has_no_second_quote():
+    t = "I report to Bob Martin-Lévy every week."
+    (v,), _ = one("reports_to", "Ana", "I report to Bob Martin-Lévy", t, "Bob Martin-Lévy")
+    assert "manager_excerpt" not in v.evidence
+
+
+def test_other_guards_still_apply_with_an_earlier_manager():
+    t = "Bob Martin-Lévy runs sales. If I reported to him it would be easier."
     assert (
-        one("reports_to", "Ana", "I have answered to him since I joined.", t, "Bob Martin-Lévy")[1]
+        one("reports_to", "Ana", "If I reported to him it would be easier.", t, "Bob Martin-Lévy")[
+            1
+        ]
         == 1
     )
+    t = "Bob Martin-Lévy runs sales. I no longer answer to him since March."
+    assert (
+        one("reports_to", "Ana", "I no longer answer to him since March.", t, "Bob Martin-Lévy")[1]
+        == 1
+    )
+
+
+@pytest.mark.parametrize(
+    "s",
+    [
+        "I'll go to bat for this.",
+        "I'd rather we didn't go ahead.",
+        "I will fight this.",
+        "I've been telling anyone who'll listen.",
+        "Nothing gets bought here unless Zed puts her name on it.",
+        "Je répète à tout le monde que c'est la bonne solution.",
+        "On va devoir valider ça avec elle.",
+    ],
+)
+def test_wider_candidate_filter(s):
+    assert meeting_ai.is_candidate_sentence(s, None), s
+
+
+def test_chatter_is_still_not_a_candidate():
+    assert not meeting_ai.is_candidate_sentence("The weather was nice yesterday.", None)
+    assert not meeting_ai.is_candidate_sentence("Let us look at slide four.", None)
 
 
 def test_sr15_04_third_party_statement_and_generic_quote_are_dropped():

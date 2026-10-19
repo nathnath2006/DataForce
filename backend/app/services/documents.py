@@ -166,7 +166,16 @@ def delete_document(session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID) -> No
     session.flush()
 
 
-_QUOTE_KEYS = ("excerpt", "speaker", "chunk_id", "char_start", "char_end")
+_QUOTE_KEYS = (
+    "excerpt",
+    "speaker",
+    "chunk_id",
+    "char_start",
+    "char_end",
+    "manager_excerpt",
+    "manager_char_start",
+    "manager_char_end",
+)
 
 
 def _forget_quotes(session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID) -> None:
@@ -330,6 +339,18 @@ def redact_contact(session: Session, ws_id: uuid.UUID, contact: Contact) -> None
             ev["excerpt"] = new_texts[doc_id][a:b]
         elif rx is not None:
             ev["excerpt"] = _mask_name(rx, excerpt)
+        mex = ev.get("manager_excerpt")
+        ma, mb = ev.get("manager_char_start"), ev.get("manager_char_end")
+        if isinstance(mex, str):
+            if (
+                doc_id in new_texts
+                and isinstance(ma, int)
+                and isinstance(mb, int)
+                and old_texts[doc_id][ma:mb] == mex
+            ):
+                ev["manager_excerpt"] = new_texts[doc_id][ma:mb]
+            elif rx is not None:
+                ev["manager_excerpt"] = _mask_name(rx, mex)
         if ev.get("speaker") in own_labels:
             ev["speaker"] = ERASED
         elif isinstance(ev.get("speaker"), str) and rx is not None:

@@ -20,6 +20,7 @@ function Evidence({ p }: { p: ProposalOut }) {
     <div className="small">
       {v.lines.map((l, i) => <div key={i}>{l}</div>)}
       {v.excerpt && <blockquote>{v.excerpt}</blockquote>}
+      {v.managerExcerpt && <div className="muted">Manager named earlier:<blockquote>{v.managerExcerpt}</blockquote></div>}
       {v.meeting && <div className="muted">Meeting: {v.meeting}</div>}
       {v.ai && <div className="muted">{v.ai}</div>}
     </div>

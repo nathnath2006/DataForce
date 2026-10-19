@@ -49,6 +49,15 @@ describe("labels", () => {
   });
 });
 
+describe("formatEvidence manager quote", () => {
+  it("shows the manager quote as text only, and null without it", () => {
+    const v = formatEvidence({ origin: "meeting", rule: null, evidence: { excerpt: "I report there.", manager_excerpt: "<i>Ann</i> runs sales." } });
+    expect(v.managerExcerpt).toBe("<i>Ann</i> runs sales.");
+    expect(formatEvidence({ origin: "meeting", rule: null, evidence: { excerpt: "x" } }).managerExcerpt).toBeNull();
+    expect(formatEvidence({ origin: "rule", rule: null, evidence: null }).managerExcerpt).toBeNull();
+  });
+});
+
 describe("formatEvidence", () => {
   it("formats rule evidence", () => {
     const v = formatEvidence({ origin: "rule", rule: "x", evidence: { contact_title: "CFO", manager_title: "CEO", explanation: "Because." } });
@@ -84,7 +93,7 @@ describe("found by AI", () => {
   });
   it("says what is sent", () => {
     expect(meetingOrgNotice("gemini", "gemini-2.5-flash")).toBe(
-      "Sends only sentences that name one of the account's contacts or contain an org phrase, with the account's contact names, to gemini gemini-2.5-flash. Full transcripts are never sent. Off by default.");
+      "Sends the sentences that name one of the account's contacts, speak about the project in the first person, or contain an org or decision phrase, with the account's contact names, to gemini gemini-2.5-flash. Full transcripts are never sent. Off by default.");
     expect(suggestNotice("anthropic", "claude-haiku-5-5")).toContain("anthropic claude-haiku-5-5");
   });
 });

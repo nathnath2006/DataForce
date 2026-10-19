@@ -44,8 +44,19 @@ _CUE_STEMS = (
     "|resist|frileu|hostile|defavorable|refus|reject|head of|lead\\b|ceo\\b|cfo\\b|cto\\b|coo\\b"
     "|pdg|dg\\b|vp\\b|call\\b|say\\b|dernier|ultimate|autorit|porter|cheerlead|alli|ally"
     "|frein|direction|enthusias|compter sur|count on|rely on|fan\\b|ambassad|relais"
+    "|fight|go ahead|rather not|unless|budget.owner|convainc|go to bat|s ?oppos|puts? .{0,12}name"
+    "|name on it|bought"
 )
 CUES = re.compile(rf"(?<!\w)(?:{_CUE_STEMS})")
+# First person about the project together with a stance word (PO 2026-10-19).
+_FIRST_PERSON = re.compile(r"(?<!\w)(?:i|my|me|je|j|moi|mon|ma|mes|nous|on)(?!\w)")
+_STANCE = re.compile(
+    r"(?<!\w)(?:believ|want|need|love|hate|worr|rather|tell|telling|listen|ahead|repet|crois"
+    r"|veux|voudr|prefer|pense|trouve|bonne solution|good idea|right (?:call|solution|answer"
+    r"|choice)|ready|happy|glad|excit|keen|pas question|doute|inquiet|nerveu|partant|favorable"
+    r"|agree|disagree|doubt|concern|persuad|insist|everyone|anyone|tout le monde|bat\\b|ok pour"
+    r"|d'accord|go for|vais|will|would|j'aime|aime|deteste|souhait|espere|hope|wish)"
+)
 _BOUNDARY = ".!?\n"
 
 SYSTEM_PROMPT = (
@@ -136,7 +147,11 @@ def sentences(text: str) -> list[tuple[int, int]]:
 
 def is_candidate_sentence(sentence: str, name_rx: re.Pattern[str] | None) -> bool:
     folded = fold(sentence)
-    return bool(CUES.search(folded)) or bool(name_rx and name_rx.search(folded))
+    return (
+        bool(CUES.search(folded))
+        or bool(name_rx and name_rx.search(folded))
+        or bool(_FIRST_PERSON.search(folded) and _STANCE.search(folded))
+    )
 
 
 def candidate_turns(
@@ -212,15 +227,19 @@ def build_user_prompt(batch: Sequence[Turn], contacts: Sequence[ContactRef]) -> 
 
 
 def verify(
-    items: Sequence[AiItem], batch: Sequence[Turn], contacts: Sequence[ContactRef]
+    items: Sequence[AiItem],
+    batch: Sequence[Turn],
+    contacts: Sequence[ContactRef],
+    doc_text: str | None = None,
 ) -> tuple[list[Verified], int]:
-    """Rules 1-4 of §3. Returns (kept, number dropped). Never logs or returns dropped text."""
+    """Rules 1-4 of §3. Returns (kept, number dropped). Never logs or returns dropped text.
+    `doc_text` is the transcript, used to find where the manager was named earlier."""
     alias = aliases(contacts)
     kept: list[Verified] = []
     seen: set[tuple] = set()
     dropped = 0
     for it in items:
-        v = _verify_one(it, batch, alias)
+        v = _verify_one(it, batch, alias, doc_text)
         if v is None:
             dropped += 1
             continue
@@ -241,6 +260,7 @@ def _verify_one(
     it: AiItem,
     batch: Sequence[Turn],
     alias: dict[str, uuid.UUID],
+    doc_text: str | None = None,
 ) -> Verified | None:
     quote = it.quote.strip()
     if len(quote) < MIN_QUOTE_CHARS:
@@ -265,14 +285,16 @@ def _verify_one(
     if not hit:
         return None
     s, e = spans[hit[0]][0], spans[hit[-1]][1]
-    mrx = None
+    manager_quote: tuple[str, int] | None = None
     if manager_id is not None:
         mrx = _alias_regex([a for a, i in alias.items() if i == manager_id])
-        # A manager is never inferred: named in the excerpt, or in the one sentence before it.
-        if not (mrx and mrx.search(fold(turn.text[s:e]))):
-            if hit[0] > 0 and mrx and mrx.search(fold(turn.text[slice(*spans[hit[0] - 1])])):
-                s = spans[hit[0] - 1][0]
-            else:
+        if mrx is None:
+            return None
+        # In the statement's own excerpt: no second quote. Otherwise the manager must have been
+        # named earlier in the same transcript (PO 2026-10-19); that sentence is quoted too.
+        if not mrx.search(fold(turn.text[s:e])):
+            manager_quote = _named_before(mrx, turn, s, doc_text)
+            if manager_quote is None:
                 return None
     excerpt = turn.text[s:e]
     folded = fold(excerpt)
@@ -295,21 +317,45 @@ def _verify_one(
     if it.kind != "blocker" and (_PAST_OR_NEG.search(folded) or _NEGATION.search(folded)):
         return None
     start = turn.char_start + s
-    return Verified(
-        it.kind,
-        contact_id,
-        manager_id,
-        {
-            "document_id": str(turn.document_id),
-            "chunk_id": str(turn.chunk_id),
-            "excerpt": excerpt,
-            "speaker": turn.speaker,
-            "char_start": start,
-            "char_end": start + len(excerpt),
-            "pattern": "ai",
-            "found_by": "ai",
-        },
-    )
+    evidence: dict[str, Any] = {
+        "document_id": str(turn.document_id),
+        "chunk_id": str(turn.chunk_id),
+        "excerpt": excerpt,
+        "speaker": turn.speaker,
+        "char_start": start,
+        "char_end": start + len(excerpt),
+        "pattern": "ai",
+        "found_by": "ai",
+    }
+    if manager_quote is not None:
+        mtext, mstart = manager_quote
+        evidence["manager_excerpt"] = mtext
+        evidence["manager_char_start"] = mstart
+        evidence["manager_char_end"] = mstart + len(mtext)
+    return Verified(it.kind, contact_id, manager_id, evidence)
+
+
+def _named_before(
+    mrx: re.Pattern[str], turn: Turn, s: int, doc_text: str | None
+) -> tuple[str, int] | None:
+    """(sentence, document offset) where the manager was last named before the statement, an
+    exact slice of the transcript; None when never named before."""
+    abs_s = turn.char_start + s
+    if (
+        doc_text is not None
+        and doc_text[turn.char_start : turn.char_start + len(turn.text)] == turn.text
+    ):
+        before, base = doc_text[:abs_s], 0
+    else:  # no transcript: only what precedes the statement inside the turn that was sent
+        before, base = turn.text[:s], turn.char_start
+    found = list(mrx.finditer(fold(before)))  # fold keeps offsets
+    if not found:
+        return None
+    last = found[-1]
+    for a, b in sentences(before):
+        if a <= last.start() < b:
+            return before[a:b], base + a
+    return None
 
 
 async def ask(provider: Any, batch: Sequence[Turn], contacts: Sequence[ContactRef]) -> AiAnswer:
@@ -327,6 +373,7 @@ async def run_document(
     turns: Sequence[Turn],
     contacts: Sequence[ContactRef],
     take: Callable[[], bool],
+    doc_text: str | None = None,
 ) -> DocOutcome:
     """One structured call per batch of the transcript's candidate turns. `take()` spends one
     call of the budget and says whether it was available."""
@@ -342,7 +389,7 @@ async def run_document(
         except Exception:  # provider bug or LLMError: counted, never fatal
             out.failed += 1
             continue
-        kept, dropped = verify(answer.findings, batch, contacts)
+        kept, dropped = verify(answer.findings, batch, contacts, doc_text)
         out.dropped += dropped
         for v in kept:
             key = (v.contact_id, v.kind, v.manager_id)

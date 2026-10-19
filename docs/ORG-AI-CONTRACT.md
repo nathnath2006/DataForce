@@ -41,12 +41,19 @@ The patterns stay. They run first, need no AI and win on duplicates.
 - Only speaker turns whose speaker matched a contact of the account are considered, as for the
   patterns.
 - A sentence is a candidate when it names a contact of the account (same `aliases()` as the
-  patterns) or contains an org cue.
+  patterns), contains an org or decision cue, or speaks in the first person about the project
+  (I, my, me, je, moi, mon, ma, nous, on) together with a stance word (want, rather, fight,
+  telling, listen, répète, bonne solution...). **Relaxed by the PO on 2026-10-19:** the earlier
+  filter missed wordings such as "I'll go to bat for this", "I'd rather we didn't go ahead",
+  "nothing gets bought here unless X puts her name on it" and "je répète à tout le monde que
+  c'est la bonne solution". The per-call caps are unchanged; more turns means more calls within
+  them.
 - **Org cues** are a broad FR/EN cue list, matched on folded text. Examples: report, boss,
   manager, line manager, n+1, director, directeur, directrice, rattach, équipe / team, sous,
   under, answer to, dépend, décid / decide, decision, signe / sign, final, dernier mot,
   valide / sign off, contre / against, réticent / reluctant, oppos, bloque / block, pousser /
-  push, défendre / defend, champion, soutenir / back.
+  push, défendre / defend, champion, soutenir / support / back, fight, go ahead, rather not,
+  unless, budget owner, convaincre, s'opposer.
 - The cue list is a recall filter, not a classifier: keep it wide. Unit-test it on the
   wordings of `backend/eval/meetings/set1` and `set2`; those sets are no longer held-out.
 
@@ -68,9 +75,17 @@ A finding is kept only if all of these hold:
 3. The quote mentions the contact or the manager by an alias, or the turn's speaker is the
    contact (first person). When the contact is not named in the stored excerpt (first-person
    route), the excerpt must contain an org cue and, if the speaker is the contact, no alias of
-   another contact of the account. For reports_to, the manager must be named in the excerpt; it
-   may widen backward by at most one immediately preceding sentence of the same turn that names
-   the manager (pronoun case), otherwise the finding is dropped. A manager is never inferred.
+   another contact of the account. For reports_to, the manager
+   must be named by an alias in the statement's own excerpt, or EARLIER in the same transcript
+   (any turn, any speaker). **Relaxed by the PO on 2026-10-19:** the earlier rule (manager in
+   the excerpt or the one sentence before it) dropped true links where the manager was named a
+   few turns before ("tout remonte à elle", "I've reported there since I joined"). When the
+   manager is not in the excerpt, the evidence carries a second exact quote:
+   `manager_excerpt`, `manager_char_start`, `manager_char_end`, the sentence where the manager was
+   last named before the statement (an exact slice of `document.text`), so a person can check
+   the link. When the manager is in the excerpt, there is no second quote. The model must still
+   name the manager, and it is never inferred by code. Deleting the transcript drops the second
+   quote with the first; erasing the manager's contact redacts it like `excerpt`.
 4. The whole excerpt has no hypothetical word (the patterns' `_HYPOTHETICAL`), and, for
    reports_to, champion and decision_maker, none of the patterns' past/negation words
    (`_PAST_OR_NEG`, `_NEGATION`). **Residual:** for blocker the negation guard is skipped, because
