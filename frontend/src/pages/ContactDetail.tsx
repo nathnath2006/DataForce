@@ -8,6 +8,7 @@ import { Confirm, Empty, ErrorNote, Loading, Tag, useAction, useLoad } from "../
 import { ContactForm } from "./Contacts";
 import { NoteThread } from "./Notes";
 import { TitleClassRow } from "../titles/TitleClass";
+import { DetailHeader, Summary3 } from "../shell/DetailHeader";
 
 export function ContactDetailPage() {
   const { id = "" } = useParams();
@@ -28,15 +29,20 @@ export function ContactDetailPage() {
   const reports = people.filter((p) => p.reports_to_id === k.id);
   return (
     <section className="stack">
-      <p className="crumb"><Link to={`${base}/contacts`}>Contacts</Link> / {k.full_name}</p>
-      <div className="row between wrap">
-        <h1>{k.full_name}</h1>
-        <div className="row">
+      <DetailHeader
+        crumb={<><Link to={`${base}/contacts`}>Contacts</Link> / {k.full_name}</>}
+        title={k.full_name}
+        tags={<>
+          {k.title && <Tag>{k.title}</Tag>}
+          <Tag kind="mute">{k.source}</Tag>
+        </>}
+        actions={<>
           <button onClick={() => setEditing(true)}>Edit</button>
           <button className="danger" onClick={() => setErasing(true)}>Erase contact</button>
-        </div>
-      </div>
-      <dl className="facts">
+        </>}
+      />
+      <Summary3
+        facts={<div className="card"><h2>Facts</h2><dl className="facts">
         <dt>Title</dt><dd>{k.title ?? "—"}</dd>
         <TitleClassRow contactId={k.id} fn={k.title_function} sen={k.title_seniority} source={k.title_source} flag={k.title_flag} onChanged={c.reload} />
         <dt>Account</dt><dd><Link to={`${base}/accounts/${k.account_id}`}>{k.account_name}</Link></dd>
@@ -54,11 +60,10 @@ export function ContactDetailPage() {
           <span key={r.id}>{i > 0 && ", "}<Link to={`${base}/contacts/${r.id}`}>{r.full_name}</Link></span>
         ))}</dd>
         <dt>Source</dt><dd><Tag kind="mute">{k.source}</Tag></dd>
-      </dl>
-
-      <EnrichPanel contact={k} onChanged={c.reload} />
-
-      <div className="card"><h2>Notes</h2><NoteThread kind="note" parentId={k.id} /></div>
+      </dl></div>}
+        middle={<div className="card"><h2>Notes</h2><NoteThread kind="note" parentId={k.id} /></div>}
+        insights={<EnrichPanel contact={k} onChanged={c.reload} />}
+      />
 
       {editing && <ContactForm contact={k} onClose={() => setEditing(false)} onSaved={() => c.reload()} />}
       {erasing && (

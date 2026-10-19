@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api";
-import { AskPanel } from "../assistant/AskPanel";
+import { DetailHeader, Summary3 } from "../shell/DetailHeader";
+import { useRegisterScope } from "../shell/scope";
 import { MeetingsPanel } from "../meetings/MeetingsPanel";
 import { useWs } from "../context";
 import { formatDate, formatDateTime, formatEur, label } from "../lib";
@@ -22,6 +23,7 @@ export function CompanyDetailPage() {
   const [linking, setLinking] = useState(false);
   const act = useAction();
   const v = d.data;
+  useRegisterScope("company", v?.company.id, v?.company.name);
   if (d.loading && !v) return <Loading />;
   if (!v) return <ErrorNote error={d.error} />;
   const c = v.company;
@@ -31,49 +33,72 @@ export function CompanyDetailPage() {
 
   return (
     <section className="stack">
-      <p className="crumb"><Link to={`${base}/companies`}>Companies</Link> / {c.name}</p>
-      <div className="row between wrap">
-        <h1>{c.name}</h1>
-        <div className="row wrap">
+      <DetailHeader
+        crumb={<><Link to={`${base}/companies`}>Companies</Link> / {c.name}</>}
+        title={c.name}
+        tags={<>
+          <InteractedBadge c={c} />
+          <span className="muted small">Last interaction: {c.last_interaction ? formatDate(c.last_interaction) : "none"}</span>
+        </>}
+        actions={<>
           <button disabled={!c.siren || act.busy} title={c.siren ? "" : "Needs a SIREN"}
             onClick={() => void act.run(async () => { await companiesApi.refresh(ws.slug, c.id); d.reload(); })}>
             Refresh from registry
           </button>
           <button onClick={() => setEditing(true)}>Edit</button>
           <button className="danger" onClick={() => setDeleting(true)}>Delete</button>
-        </div>
-      </div>
+        </>}
+      />
       <ErrorNote error={act.error} />
-      <div className="row wrap"><InteractedBadge c={c} />
-        <span className="muted small">Last interaction: {c.last_interaction ? formatDate(c.last_interaction) : "none"}</span></div>
-      <dl className="facts">
-        <dt>SIREN</dt><dd>{formatSiren(c.siren)}</dd>
-        <dt>Address</dt><dd>{formatAddress(c)}</dd>
-        <dt>Domain</dt><dd>{c.domain ?? "—"}</dd>
-        <dt>Activity code</dt><dd>{c.naf_code ?? "—"}</dd>
-        <dt>Size</dt><dd>{sizeLabel(c.size_bracket)}</dd>
-        <dt>Category</dt><dd>{c.category ?? "—"}</dd>
-        <dt>Source</dt><dd><Tag kind="mute">{c.source}</Tag></dd>
-      </dl>
-
-      <div className="kpis" aria-label="Key figures (exact counts)">
-        <div className="kpi"><b>{c.n_accounts}</b><span>accounts · exact count</span></div>
-        <div className="kpi"><b>{c.n_contacts}</b><span>contacts · exact count</span></div>
-        <div className="kpi"><b>{c.n_deals}</b><span>deals · {open} open · {won} won · {lost} lost</span></div>
-        <div className="kpi"><b>{formatEur(c.won_amount_eur)}</b><span>won amount · exact sum</span></div>
-      </div>
-
-      <div className="card">
-        <div className="row between"><h2>Accounts ({v.accounts.length})</h2><button onClick={() => setLinking(true)}>Link an account</button></div>
-        {v.accounts.length === 0 ? <Empty>No linked accounts.</Empty> : (
-          <ul className="plain">{v.accounts.map((a) => (
-            <li key={a.id} className="row between">
-              <Link to={`${base}/accounts/${a.id}`}>{a.name}</Link>
-              <button className="link" onClick={() => void act.run(async () => { await companiesApi.setAccountCompany(ws.slug, a.id, null); d.reload(); })}>Unlink</button>
-            </li>
-          ))}</ul>
-        )}
-      </div>
+      <Summary3
+        facts={<>
+          <div className="card">
+            <h2>Facts</h2>
+            <dl className="facts">
+              <dt>SIREN</dt><dd>{formatSiren(c.siren)}</dd>
+              <dt>Address</dt><dd>{formatAddress(c)}</dd>
+              <dt>Domain</dt><dd>{c.domain ?? "—"}</dd>
+              <dt>Activity code</dt><dd>{c.naf_code ?? "—"}</dd>
+              <dt>Size</dt><dd>{sizeLabel(c.size_bracket)}</dd>
+              <dt>Category</dt><dd>{c.category ?? "—"}</dd>
+              <dt>Source</dt><dd><Tag kind="mute">{c.source}</Tag></dd>
+            </dl>
+          </div>
+          <div className="card">
+            <div className="row between"><h2>Accounts ({v.accounts.length})</h2><button onClick={() => setLinking(true)}>Link an account</button></div>
+            {v.accounts.length === 0 ? <Empty>No linked accounts.</Empty> : (
+              <ul className="plain">{v.accounts.map((a) => (
+                <li key={a.id} className="row between">
+                  <Link to={`${base}/accounts/${a.id}`}>{a.name}</Link>
+                  <button className="link" onClick={() => void act.run(async () => { await companiesApi.setAccountCompany(ws.slug, a.id, null); d.reload(); })}>Unlink</button>
+                </li>
+              ))}</ul>
+            )}
+          </div>
+        </>}
+        middle={<>
+          <div className="kpis" aria-label="Key figures (exact counts)">
+            <div className="kpi"><b>{c.n_accounts}</b><span>accounts · exact count</span></div>
+            <div className="kpi"><b>{c.n_contacts}</b><span>contacts · exact count</span></div>
+            <div className="kpi"><b>{c.n_deals}</b><span>deals · {open} open · {won} won · {lost} lost</span></div>
+            <div className="kpi"><b>{formatEur(c.won_amount_eur)}</b><span>won amount · exact sum</span></div>
+          </div>
+        </>}
+        insights={<>
+          <div className="card">
+            <h2>Activity</h2>
+            {v.activity.length === 0 ? <Empty>No activity yet.</Empty> : (
+              <ul className="timeline">{v.activity.map((x, i) => (
+                <li key={i}>
+                  <div className="meta">{x.kind.startsWith("deal_") ? formatDate(x.at) : formatDateTime(x.at)} · {label(x.kind)}</div>
+                  <strong>{x.title}</strong>
+                  {x.excerpt && <p className="pre">{x.excerpt}</p>}
+                </li>
+              ))}</ul>
+            )}
+          </div>
+        </>}
+      />
 
       <div className="card">
         <h2>Contacts ({v.contacts.length})</h2>
@@ -86,7 +111,6 @@ export function CompanyDetailPage() {
           </table></div>
         )}
       </div>
-
       <div className="card">
         <h2>Deals ({v.deals.length})</h2>
         {v.deals.length === 0 ? <Empty>No deals.</Empty> : (
@@ -100,21 +124,8 @@ export function CompanyDetailPage() {
         )}
       </div>
 
-      <div className="card">
-        <h2>Activity</h2>
-        {v.activity.length === 0 ? <Empty>No activity yet.</Empty> : (
-          <ul className="timeline">{v.activity.map((x, i) => (
-            <li key={i}>
-              <div className="meta">{x.kind.startsWith("deal_") ? formatDate(x.at) : formatDateTime(x.at)} · {label(x.kind)}</div>
-              <strong>{x.title}</strong>
-              {x.excerpt && <p className="pre">{x.excerpt}</p>}
-            </li>
-          ))}</ul>
-        )}
-      </div>
 
       <MeetingsPanel scope={{ kind: "company", id: c.id }} />
-      <AskPanel scope={{ kind: "company", id: c.id }} />
 
       {editing && <CompanyForm company={c} onClose={() => setEditing(false)} onSaved={() => d.reload()} />}
       {deleting && (

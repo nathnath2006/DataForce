@@ -15,6 +15,8 @@ import { CompanyDetailPage } from "./companies/CompanyDetail";
 import { MeetingsPage } from "./meetings/MeetingsPage";
 import { FlowsPage } from "./flows/FlowsPage";
 import { ThemeToggle } from "./theme";
+import { AssistantDrawer, useDrawerOpen } from "./shell/AssistantDrawer";
+import { ScopeProvider } from "./shell/scope";
 
 // The flow editor (and its canvas library) is the largest part of the bundle: load it on demand.
 const FlowEditorPage = lazy(() =>
@@ -81,6 +83,7 @@ function Shell() {
   const [creating, setCreating] = useState(false);
   const [addUser, setAddUser] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useDrawerOpen();
 
   useEffect(() => { setActing(safeStorage("get", actingKey(slug))); }, [slug]);
 
@@ -103,6 +106,7 @@ function Shell() {
     <WsContext.Provider
       value={{ ws, users: userList, actingAs: actingValid, refreshUsers: users.reload, refreshWorkspaces: wss.reload }}
     >
+      <ScopeProvider>
       <div className="shell">
         <header className="top">
           <button className="ghost menu" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
@@ -132,7 +136,7 @@ function Shell() {
         {ws.is_demo && (
           <div className="banner" role="note">Synthetic demo data — generated, no real company or person.</div>
         )}
-        <div className="body">
+        <div className={`body has-rail ${drawerOpen ? "drawer-open" : ""}`}>
           <nav className={`side ${navOpen ? "open" : ""}`} onClick={() => setNavOpen(false)}>
             {["companies", "accounts", "contacts", "deals", "meetings", "analysis", "settings"].map((p) => (
               <NavLink key={p} to={`/w/${slug}/${p}`}>{p.charAt(0).toUpperCase() + p.slice(1)}</NavLink>
@@ -141,7 +145,9 @@ function Shell() {
           </nav>
           <main className="content"><Outlet /></main>
         </div>
+        <AssistantDrawer open={drawerOpen} setOpen={setDrawerOpen} />
       </div>
+      </ScopeProvider>
       {creating && (
         <NewWorkspace
           onClose={() => setCreating(false)}

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api";
-import { AskPanel } from "../assistant/AskPanel";
 import { companiesApi } from "../companies/api";
 import { useWs } from "../context";
 import { formatEur, formatDateTime, label, segmentLabel } from "../lib";
@@ -11,6 +10,9 @@ import { ContactForm } from "./Contacts";
 import { NoteThread } from "./Notes";
 import { OrgChartPanel } from "../orgchart/OrgChartPanel";
 import { MeetingsPanel } from "../meetings/MeetingsPanel";
+import { DetailHeader, Summary3 } from "../shell/DetailHeader";
+import { pickRoadmapDeal } from "../shell/logic";
+import { useRegisterScope } from "../shell/scope";
 
 export function AccountDetailPage() {
   const { id = "" } = useParams();
@@ -25,32 +27,66 @@ export function AccountDetailPage() {
   const [erasing, setErasing] = useState(false);
   const [picking, setPicking] = useState(false);
   const a = acc.data;
+  useRegisterScope("account", a?.id, a?.name);
   const base = `/w/${ws.slug}`;
   const refreshAll = () => { acc.reload(); contacts.reload(); chart.reload(); };
   if (acc.loading && !a) return <Loading />;
   if (!a) return <ErrorNote error={acc.error} />;
   return (
     <section className="stack">
-      <p className="crumb"><Link to={`${base}/accounts`}>Accounts</Link> / {a.name}</p>
-      <div className="row between wrap">
-        <h1>{a.name}</h1>
-        <div className="row">
+      <DetailHeader
+        crumb={<><Link to={`${base}/accounts`}>Accounts</Link> / {a.name}</>}
+        title={a.name}
+        tags={<>
+          {a.segment && <Tag>{segmentLabel(a.segment)}</Tag>}
+          <Tag kind={a.n_open_deals > 0 ? "ok" : "mute"}>{a.n_open_deals} open deal(s)</Tag>
+          <Tag kind="mute">{a.source}</Tag>
+        </>}
+        actions={<>
           <button onClick={() => setEditing(true)}>Edit</button>
           <button className="danger" onClick={() => setErasing(true)}>Erase account</button>
-        </div>
+        </>}
+        deal={deals.data ? pickRoadmapDeal(deals.data.items) : null}
+      />
+      <Summary3
+        facts={<div className="card">
+          <h2>Facts</h2>
+          <dl className="facts">
+            <dt>Company</dt>
+            <dd>{a.company_id ? <Link to={`${base}/companies/${a.company_id}`}>{a.company_name ?? "Company"}</Link> : "—"}{" "}
+              <button className="link" onClick={() => setPicking(true)}>{a.company_id ? "Change company" : "Set company"}</button></dd>
+            <dt>Domain</dt><dd>{a.domain ?? "—"}</dd>
+            <dt>Industry</dt><dd>{a.industry ?? "—"}</dd>
+            <dt>Segment</dt><dd>{segmentLabel(a.segment)}</dd>
+            <dt>Employees</dt><dd>{a.employee_count ?? "—"}</dd>
+            <dt>Region</dt><dd>{a.region ?? "—"}{a.country ? ` (${a.country})` : ""}</dd>
+            <dt>Source</dt><dd><Tag kind="mute">{a.source}</Tag></dd>
+            <dt>Created</dt><dd>{formatDateTime(a.created_at)}</dd>
+          </dl>
+        </div>}
+        middle={<>
+          <MeetingsPanel scope={{ kind: "account", id: a.id }} />
+        </>}
+        insights={<>
+          <div className="card">
+            <h2>Comments</h2>
+            <NoteThread kind="comment" parentId={a.id} />
+          </div>
+        </>}
+      />
+
+      <div className="card">
+        <h2>Deals ({a.n_deals}, {a.n_open_deals} open)</h2>
+        <ErrorNote error={deals.error} />
+        {deals.data && deals.data.items.length === 0 ? <Empty>No deals.</Empty> : (
+          <div className="tablewrap"><table>
+            <thead><tr><th>Deal</th><th>Stage</th><th className="num">Amount</th><th>Created</th></tr></thead>
+            <tbody>{deals.data?.items.map((d) => (
+              <tr key={d.id}><td>{d.name}</td><td><Tag>{label(d.stage)}</Tag></td><td className="num">{formatEur(d.amount_eur)}</td><td>{d.created_on}</td></tr>
+            ))}</tbody>
+          </table></div>
+        )}
       </div>
-      <dl className="facts">
-        <dt>Company</dt>
-        <dd>{a.company_id ? <Link to={`${base}/companies/${a.company_id}`}>{a.company_name ?? "Company"}</Link> : "—"}{" "}
-          <button className="link" onClick={() => setPicking(true)}>{a.company_id ? "Change company" : "Set company"}</button></dd>
-        <dt>Domain</dt><dd>{a.domain ?? "—"}</dd>
-        <dt>Industry</dt><dd>{a.industry ?? "—"}</dd>
-        <dt>Segment</dt><dd>{segmentLabel(a.segment)}</dd>
-        <dt>Employees</dt><dd>{a.employee_count ?? "—"}</dd>
-        <dt>Region</dt><dd>{a.region ?? "—"}{a.country ? ` (${a.country})` : ""}</dd>
-        <dt>Source</dt><dd><Tag kind="mute">{a.source}</Tag></dd>
-        <dt>Created</dt><dd>{formatDateTime(a.created_at)}</dd>
-      </dl>
 
       <div className="card">
         <div className="row between"><h2>Contacts ({a.n_contacts})</h2><button onClick={() => setAdding(true)}>New contact</button></div>
@@ -72,27 +108,6 @@ export function AccountDetailPage() {
           <OrgChartPanel accountId={a.id} nodes={chart.data.nodes} base={base} onChanged={chart.reload} />
         )}
       </div>
-
-      <div className="card">
-        <h2>Deals ({a.n_deals}, {a.n_open_deals} open)</h2>
-        <ErrorNote error={deals.error} />
-        {deals.data && deals.data.items.length === 0 ? <Empty>No deals.</Empty> : (
-          <div className="tablewrap"><table>
-            <thead><tr><th>Deal</th><th>Stage</th><th className="num">Amount</th><th>Created</th></tr></thead>
-            <tbody>{deals.data?.items.map((d) => (
-              <tr key={d.id}><td>{d.name}</td><td><Tag>{label(d.stage)}</Tag></td><td className="num">{formatEur(d.amount_eur)}</td><td>{d.created_on}</td></tr>
-            ))}</tbody>
-          </table></div>
-        )}
-      </div>
-
-      <div className="card">
-        <h2>Comments</h2>
-        <NoteThread kind="comment" parentId={a.id} />
-      </div>
-
-      <MeetingsPanel scope={{ kind: "account", id: a.id }} />
-      <AskPanel scope={{ kind: "account", id: a.id }} />
 
       {picking && <CompanyPicker accountId={a.id} current={a.company_id ?? null} onClose={() => setPicking(false)} onSaved={refreshAll} />}
       {editing && <AccountForm account={a} onClose={() => setEditing(false)} onSaved={refreshAll} />}

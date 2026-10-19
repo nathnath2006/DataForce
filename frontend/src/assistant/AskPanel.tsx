@@ -20,7 +20,7 @@ export function AnswerText({ out }: { out: AskOut }) {
   );
 }
 
-export function AskPanel({ scope }: { scope: AskScope }) {
+export function AskPanel({ scope, bare }: { scope: AskScope; bare?: boolean }) {
   const { ws } = useWs();
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -44,8 +44,8 @@ export function AskPanel({ scope }: { scope: AskScope }) {
   };
 
   return (
-    <div className="card stack">
-      <h2>Ask about this {what}</h2>
+    <div className={bare ? "stack" : "card stack"}>
+      {!bare && <h2>Ask about this {what}</h2>}
       <p className="muted small">
         Your question and this {what}&apos;s CRM data (names, titles, deals, notes) are sent to {provider}.
         Answers can be wrong: check the cited facts.

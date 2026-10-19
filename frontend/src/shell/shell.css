@@ -1,0 +1,34 @@
+/* Shell: assistant drawer, rail, detail header, 3-column summary. Tokens only. */
+.body.has-rail { padding-right: 44px; }
+.body.drawer-open { padding-right: calc(44px + 380px); }
+.rail { position: fixed; right: 0; top: 0; bottom: 0; height: 100vh; height: 100dvh; width: 44px; z-index: 19; padding-top: calc(var(--topbar-h) + .6rem); display: flex; flex-direction: column; align-items: center; background: var(--surface); border-left: 1px solid var(--hairline); }
+.rail-btn { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-md); border-color: transparent; background: transparent; color: var(--ink-soft); }
+.rail-btn[aria-expanded="true"] { background: var(--primary); color: var(--primary-ink); }
+.drawer { position: fixed; top: var(--topbar-h); bottom: 0; right: 44px; width: 380px; z-index: 18; display: flex; flex-direction: column; background: var(--glass); -webkit-backdrop-filter: saturate(180%) blur(14px); backdrop-filter: saturate(180%) blur(14px); border: 1px solid var(--hairline); border-radius: var(--r-lg) 0 0 var(--r-lg); box-shadow: var(--shadow-2); transform: translateX(calc(100% + 44px)); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; outline: none; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .drawer { background: var(--surface); } }
+.drawer.open { transform: none; visibility: visible; transition: transform .2s ease, visibility 0s; }
+.drawer-head { flex: none; display: flex; justify-content: space-between; align-items: center; padding: .8rem 1rem; border-bottom: 1px solid var(--hairline); }
+.drawer-head h2 { margin: 0; }
+.drawer-body { flex: 1; min-height: 0; overflow-y: auto; padding: 1rem; }
+@media (prefers-reduced-motion: reduce) { .drawer, .drawer.open { transition: none; } }
+
+.detail-head { display: flex; flex-direction: column; gap: .5rem; }
+.detail-head h1 { margin: 0; }
+.roadmap-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; }
+.roadmap { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem; }
+.stage { font-size: .8rem; font-weight: 600; padding: .15rem .7rem; border-radius: var(--r-pill); background: var(--mute-bg); color: var(--ink-soft); }
+.stage.done { background: var(--ok-bg); color: var(--ok); }
+.stage.current { background: var(--primary); color: var(--primary-ink); }
+.stage.lost { background: var(--bad-bg); color: var(--bad); }
+
+.summary3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; align-items: start; }
+.summary3 .facts dd { overflow-wrap: break-word; }
+
+@media (max-width: 720px) {
+  .body.has-rail, .body.drawer-open { padding-right: 0; }
+  .rail { top: auto; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: calc(16px + env(safe-area-inset-right, 0px)); width: 48px; height: 48px; padding: 0; justify-content: center; border: 1px solid var(--hairline); border-radius: var(--r-pill); box-shadow: var(--shadow-2); z-index: 40; }
+  .rail-btn { width: 44px; height: 44px; border-radius: var(--r-pill); }
+  .drawer { top: 0; bottom: 0; left: 0; right: 0; width: auto; z-index: 35; border-radius: 0; padding-bottom: env(safe-area-inset-bottom, 0px); transform: translateY(100%); }
+  .drawer.open { transform: none; }
+  .drawer-body { padding-bottom: 72px; }
+}
