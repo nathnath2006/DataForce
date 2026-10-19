@@ -106,12 +106,15 @@ def load(
         max_rows=max_rows, timeout_s=min(settings.flow_run_timeout_s, TIME_BUDGET_S * 2)
     )
     captured: dict[str, pd.DataFrame] = {}
+    models = flows.resolve_models(db, ws_id, graph)  # saved models for `score` blocks
     gates = gate_config_from_settings(settings)
 
     def run() -> dict:
         from app.flows.engine import run_graph
 
-        return run_graph(graph, loader, gates, limits, source.node_id, capture=captured)  # type: ignore[arg-type]
+        return run_graph(
+            graph, loader, gates, limits, source.node_id, capture=captured, models=models
+        )  # type: ignore[arg-type]
 
     try:
         results = flows.run_in_thread(run, limits.timeout_s + 5, slot)

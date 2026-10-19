@@ -1,7 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import { ErrorNote, Field, useAction, useLoad } from "../ui";
+import { modelApi } from "../models/api";
 import { flowApi } from "./flowApi";
-import { DEFAULT_PROBABILITIES, parseScalar, showScalar } from "./graph";
+import { DEFAULT_ENGAGEMENT_WEIGHTS, DEFAULT_PROBABILITIES, parseScalar, showScalar } from "./graph";
 import type {
   AggFn, BlockConfig, Catalog, ColumnInfo, Computed, Condition, DatasetSource, FileOut, FilterOp, WindowFn,
 } from "./types";
@@ -348,6 +349,51 @@ export function ConfigForm(p: FormProps) {
         <p className="muted small">Adds the domain and is_free_webmail (gmail.com, outlook.com, hotmail.*, yahoo.*, orange.fr, free.fr, proton.me and similar). Text parsing only: no DNS or MX lookup is made.</p>
       </div>
     );
+    case "score": return <ScoreForm slug={p.slug} c={c} onChange={p.onChange} />;
+    case "velocity": return (
+      <div className="stack tight">
+        <Field label="Deal column"><ColSelect cols={p.cols} value={c.deal_column} onChange={(deal_column) => p.onChange({ ...c, deal_column })} /></Field>
+        <Field label="New stage column"><ColSelect cols={p.cols} value={c.to_stage_column} onChange={(to_stage_column) => p.onChange({ ...c, to_stage_column })} /></Field>
+        <Field label="Date column"><ColSelect cols={p.cols} value={c.date_column} onChange={(date_column) => p.onChange({ ...c, date_column })} /></Field>
+        <Field label="Fast track at index of at least"><input type="number" min={0.01} step={0.05} value={c.fast_track_at} onChange={(ev) => p.onChange({ ...c, fast_track_at: clamp(Number(ev.target.value), 0.01, 100) })} /></Field>
+        <Field label="Stagnant below index of"><input type="number" min={0.01} step={0.05} value={c.stagnant_below} onChange={(ev) => p.onChange({ ...c, stagnant_below: clamp(Number(ev.target.value), 0.01, 100) })} /></Field>
+        <Field label="Closed stages (comma separated)">
+          <input key={c.terminal_stages.join(",")} defaultValue={c.terminal_stages.join(", ")} onBlur={(ev) => p.onChange({ ...c, terminal_stages: ev.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} />
+        </Field>
+        <label className="check"><input type="checkbox" checked={c.include_open_stage} onChange={(ev) => p.onChange({ ...c, include_open_stage: ev.target.checked })} />Count the stage a deal is in now, up to the run date</label>
+        <p className="muted small">Use the stage_events table. The benchmark of a stage is the median days deals spent in it over the rows of this input. Index = benchmark days / actual days; above the first threshold is fast_track, below the second is stagnant.</p>
+      </div>
+    );
+    case "engagement": return (
+      <div className="stack tight">
+        <Field label="Group by (account)"><ColSelect cols={p.cols} value={c.by} onChange={(by) => p.onChange({ ...c, by })} /></Field>
+        <Field label="Kind column"><ColSelect cols={p.cols} value={c.kind_column} onChange={(kind_column) => p.onChange({ ...c, kind_column })} /></Field>
+        <Field label="Date column"><ColSelect cols={p.cols} value={c.date_column} onChange={(date_column) => p.onChange({ ...c, date_column })} /></Field>
+        <Field label="Window (days)"><input type="number" min={1} max={3650} value={c.window_days} onChange={(ev) => p.onChange({ ...c, window_days: clamp(Math.trunc(Number(ev.target.value)), 1, 3650) })} /></Field>
+        <Field label="Quiet after (days without a touchpoint)"><input type="number" min={1} max={3650} value={c.quiet_days} onChange={(ev) => p.onChange({ ...c, quiet_days: clamp(Math.trunc(Number(ev.target.value)), 1, 3650) })} /></Field>
+        <Field label="Penalty when quiet (0 to 1)"><input type="number" min={0} max={1} step={0.05} value={c.penalty} onChange={(ev) => p.onChange({ ...c, penalty: clamp(Number(ev.target.value), 0, 1) })} /></Field>
+        <strong>Weight per kind</strong>
+        <ListEditor<[string, number]> items={Object.entries(c.weights)}
+          onChange={(l) => p.onChange({ ...c, weights: Object.fromEntries(l.filter(([k]) => k)) })} make={() => ["", 1]} addLabel="Add kind"
+          render={(it, set) => (
+            <div className="row grow">
+              <input aria-label="kind" placeholder="kind" value={it[0]} onChange={(ev) => set([ev.target.value, it[1]])} />
+              <input aria-label="weight" type="number" min={0} value={it[1]} onChange={(ev) => set([it[0], clamp(Number(ev.target.value), 0, 1000)])} />
+            </div>
+          )} />
+        <button type="button" onClick={() => p.onChange({ ...c, weights: { ...DEFAULT_ENGAGEMENT_WEIGHTS } })}>Reset weights</button>
+        <p className="muted small">Use the activities table. Score = weighted activities in the window, reduced by the penalty when the last touchpoint is older than the quiet period. The components are in the output.</p>
+      </div>
+    );
+    case "touchpoint": return (
+      <div className="stack tight">
+        <Field label="Group by"><ColSelect cols={p.cols} value={c.by} onChange={(by) => p.onChange({ ...c, by })} /></Field>
+        <Field label="Kind column"><ColSelect cols={p.cols} value={c.kind_column} onChange={(kind_column) => p.onChange({ ...c, kind_column })} /></Field>
+        <Field label="Direction column"><ColSelect cols={p.cols} value={c.direction_column} onChange={(direction_column) => p.onChange({ ...c, direction_column })} /></Field>
+        <Field label="Meeting weight"><input type="number" min={0.1} step={0.5} value={c.meeting_weight} onChange={(ev) => p.onChange({ ...c, meeting_weight: clamp(Number(ev.target.value), 0.1, 1000) })} /></Field>
+        <p className="muted small">Use the activities table. Ratio = meetings x weight / outreach, where outreach is outbound calls plus emails. No outreach gives an empty ratio, not infinity.</p>
+      </div>
+    );
   }
 }
 
@@ -503,6 +549,26 @@ function PgForm(p: FormProps & { d: Extract<DatasetSource, { source: "postgres" 
         </Field>
       )}
       <ErrorNote error={tables.error} />
+    </div>
+  );
+}
+
+function ScoreForm({ slug, c, onChange }: { slug: string; c: Cfg<"score">; onChange: (c: BlockConfig) => void }) {
+  const models = useLoad(() => modelApi.list(slug), [slug]);
+  const list = models.data ?? [];
+  const known = !c.model_id || list.some((m) => m.id === c.model_id);
+  return (
+    <div className="stack tight">
+      <Field label="Saved model">
+        <select value={c.model_id} onChange={(ev) => onChange({ ...c, model_id: ev.target.value })}>
+          <option value="">Choose a saved model</option>
+          {!known && <option value={c.model_id}>(unknown or deleted model)</option>}
+          {list.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.kind}, {m.status.replace("_", " ")})</option>)}
+        </select>
+      </Field>
+      {models.error && <ErrorNote error={models.error} />}
+      {!models.loading && list.length === 0 && <p className="muted small">No saved model yet. Run a model block and use Save model in its result.</p>}
+      <p className="muted small">Adds score columns to the input. The input needs the model's feature columns. Scores take the model's status: they are verified only if the model is.</p>
     </div>
   );
 }

@@ -76,7 +76,7 @@ def test_catalog(client, ws):
 def test_run_records_summary_only(client, ws, monkeypatch, session_factory):
     seen = {}
 
-    def fake(graph, loader, gates, limits, target):
+    def fake(graph, loader, gates, limits, target, models=None):
         seen["rows"] = len(loader.load(graph.nodes[0].config.dataset, 10))
         return {
             "d": NodeResult(node_id="d", status="ok", n_rows=0, preview=[{"secret": "x"}]),

@@ -15,15 +15,19 @@ from app.flows.blocks import (
     dataset,
     dedup,
     domain,
+    engagement,
     filter,
     forecast,
     group,
     join,
     model,
     pivot,
+    score,
     sort,
     split,
     stats,
+    touchpoint,
+    velocity,
     window,
 )
 from app.flows.blocks._common import BlockError, BlockOutput, Ctx
@@ -46,5 +50,9 @@ REGISTRY: dict[str, Callable[[Any, dict[str, pd.DataFrame], Ctx], BlockOutput]] 
     "forecast": forecast.run,
     "window": window.run,
     "domain": domain.run,
+    "score": score.run,
+    "velocity": velocity.run,
+    "engagement": engagement.run,
+    "touchpoint": touchpoint.run,
 }
 __all__ = ["REGISTRY", "BlockError", "BlockOutput", "Ctx"]

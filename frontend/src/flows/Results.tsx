@@ -1,14 +1,19 @@
 import { useMemo, useState } from "react";
 import { formatNum, formatPct, formatPts, formatQ } from "../lib";
-import { Tag } from "../ui";
+import { ErrorNote, Tag, useAction } from "../ui";
+import { modelApi } from "../models/api";
 import { ColumnsGrid } from "./ColumnsGrid";
 import { ChartSvg } from "./Charts";
 import { fmtCell, isTotalColumn, pivotModel } from "./pivot";
 import type {
-  ClusterView, MetricOut, ModelView, NodeResult, PivotView, StatsRow, StatsView,
+  ClusterView, EngagementView, MetricOut, ModelView, NodeResult, PivotView, ScoreView, StatsRow, StatsView,
+  TouchpointView, VelocityView,
 } from "./types";
 
-export function ResultsPanel({ result, title }: { result: NodeResult | undefined; title: string }) {
+/** Where a model block of the open flow can be saved from: the server re-runs the SAVED flow. */
+export interface SaveTarget { slug: string; flowId: string; nodeId: string; dirty: boolean }
+
+export function ResultsPanel({ result, title, save }: { result: NodeResult | undefined; title: string; save?: SaveTarget }) {
   const [tab, setTab] = useState<"view" | "table" | "columns">("view");
   if (!result) return <p className="muted pad">Run the flow to see the result of {title}.</p>;
   const v = result.view;
@@ -32,6 +37,7 @@ export function ResultsPanel({ result, title }: { result: NodeResult | undefined
       {result.status === "error" && <div className="note err" role="alert">{result.error ?? "This block failed."}</div>}
       {result.status === "skipped" && <div className="note warn">Skipped: an upstream block failed.</div>}
       {result.warnings.map((w, i) => <div className="note warn" key={i}>{w}</div>)}
+      {save && <SaveModel key={save.nodeId} result={result} save={save} />}
       {result.status === "ok" && (tab === "columns" ? <ColumnsGrid profile={result.profile} nRows={result.n_rows} /> : showView && v ? <ViewSwitch view={v} /> : <PreviewTable result={result} />)}
     </div>
   );
@@ -44,7 +50,88 @@ function ViewSwitch({ view }: { view: NonNullable<NodeResult["view"]> }) {
     case "stats": return <StatsPanel view={view} />;
     case "model": return <ModelPanel view={view} />;
     case "cluster": return <ClusterPanel view={view} />;
+    case "score": return <ScorePanel view={view} />;
+    case "velocity": return <VelocityPanel view={view} />;
+    case "engagement": return <EngagementPanel view={view} />;
+    case "touchpoint": return <TouchpointPanel view={view} />;
   }
+}
+
+/** Shown only for a successful model or cluster block whose parameters can be exported. */
+function SaveModel({ result, save }: { result: NodeResult; save: SaveTarget }) {
+  const [name, setName] = useState("");
+  const [done, setDone] = useState<string | null>(null);
+  const act = useAction();
+  const kind = result.view?.kind;
+  if (result.status !== "ok" || (kind !== "model" && kind !== "cluster") || !result.model_params) return null;
+  if (result.model_params.exportable === false) {
+    return <div className="note warn">This RBF model has too many support vectors to be saved. Use a linear kernel or fewer training rows.</div>;
+  }
+  if (save.dirty) return <p className="muted small">Save the flow to keep this model: the server re-runs the saved flow.</p>;
+  const go = async () => {
+    const m = await act.run(() => modelApi.save(save.slug, { flow_id: save.flowId, node_id: save.nodeId, name: name.trim() }));
+    if (m) { setDone(`Saved as "${m.name}" (${m.status.replace("_", " ")}). Find it in Analysis, Models.`); setName(""); }
+  };
+  // An RBF model keeps its support vectors: training rows (standardised numbers), up to 2,000.
+  const keepsRows = result.model_params.kernel === "rbf" && Array.isArray(result.model_params.support_vectors);
+  return (
+    <div className="stack">
+      <div className="row wrap">
+        <input aria-label="Model name" placeholder="Model name" maxLength={200} value={name} onChange={(ev) => { setName(ev.target.value); setDone(null); }} />
+        <button className="primary" disabled={!name.trim() || act.busy} onClick={go}>Save model</button>
+        {done && <span className="muted small">{done}</span>}
+        {act.error && <ErrorNote error={act.error} />}
+      </div>
+      {keepsRows && <p className="muted small">This RBF model stores {String((result.model_params.support_vectors as unknown[]).length)} training rows (as standardised numbers) to score new rows. A linear kernel stores none. Deleting the model removes them.</p>}
+    </div>
+  );
+}
+
+export function StatusTag({ status }: { status: "verified" | "not_verified" | "exploratory" }) {
+  return status === "verified" ? <Tag kind="ok">verified</Tag> : <Tag kind="mute">{status === "exploratory" ? "exploratory" : "not verified"}</Tag>;
+}
+
+function ScorePanel({ view }: { view: ScoreView }) {
+  return (
+    <div className={`stack${view.status === "verified" ? "" : " nvbox"}`}>
+      <div className="row wrap">
+        <StatusTag status={view.status} />
+        <span className="muted small">{view.model_name} ({view.model_kind}) · {view.n_scored} of {view.n_rows} rows scored · scores take the model's status</span>
+      </div>
+      {view.notes.map((n, i) => <div className="note warn" key={i}>{n}</div>)}
+    </div>
+  );
+}
+
+function VelocityPanel({ view }: { view: VelocityView }) {
+  return (
+    <div className="stack">
+      <p className="muted small">{view.benchmark_note}</p>
+      <p className="muted small">Fast track at index {formatNum(view.fast_track_at, 2)} or more · stagnant below {formatNum(view.stagnant_below, 2)} · {Object.entries(view.counts).map(([k, n]) => `${k.replace("_", " ")} ${n}`).join(" · ")}</p>
+      <div className="tablewrap"><table>
+        <thead><tr><th>Stage</th><th className="num">Median days</th><th className="num">Deals</th></tr></thead>
+        <tbody>{view.benchmarks.map((b) => <tr key={b.stage}><td>{b.stage}</td><td className="num">{formatNum(b.median_days, 1)}</td><td className="num">{b.n}</td></tr>)}</tbody>
+      </table></div>
+    </div>
+  );
+}
+
+function EngagementPanel({ view }: { view: EngagementView }) {
+  return (
+    <div className="stack">
+      <p className="muted small">{view.formula}. Run date {view.today}.</p>
+      <p className="muted small">Weights: {Object.entries(view.weights).map(([k, w]) => `${k} ${w}`).join(", ")} · {view.n_accounts} accounts · {view.n_penalised} penalised</p>
+    </div>
+  );
+}
+
+function TouchpointPanel({ view }: { view: TouchpointView }) {
+  return (
+    <div className="stack">
+      <p className="muted small">{view.formula}</p>
+      <p className="muted small">{view.n_groups} groups · {view.n_no_outreach} without outreach (empty ratio)</p>
+    </div>
+  );
 }
 
 function PreviewTable({ result }: { result: NodeResult }) {

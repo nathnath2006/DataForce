@@ -68,7 +68,17 @@ export type BlockConfig =
       type: "window"; fn: WindowFn; column: string | null; partition_by: string[]; order_by: string;
       descending: boolean; k: number; alias: string; period: "month" | "quarter" | "year" | null;
     }
-  | { type: "domain"; column: string; alias: string };
+  | { type: "domain"; column: string; alias: string }
+  | { type: "score"; model_id: string }
+  | {
+      type: "velocity"; deal_column: string; to_stage_column: string; date_column: string;
+      fast_track_at: number; stagnant_below: number; terminal_stages: string[]; include_open_stage: boolean;
+    }
+  | {
+      type: "engagement"; by: string; kind_column: string; date_column: string; window_days: number;
+      quiet_days: number; penalty: number; weights: Record<string, number>;
+    }
+  | { type: "touchpoint"; by: string; kind_column: string; direction_column: string; meeting_weight: number };
 
 export type ModelKind = "linear_regression" | "logistic_regression" | "svm" | "svr";
 export type WindowFn =
@@ -116,7 +126,23 @@ export interface ClusterView {
   kind: "cluster"; k: number; sizes: number[]; centroids: Record<string, unknown>[];
   metrics: MetricOut[]; dropped_missing: number; status: "exploratory";
 }
-export type View = PivotView | ChartView | StatsView | ModelView | ClusterView;
+export type ModelStatus = "verified" | "not_verified" | "exploratory";
+export interface ScoreView {
+  kind: "score"; model_name: string; model_kind: string; status: ModelStatus; n_rows: number;
+  n_scored: number; n_imputed: number; notes: string[];
+}
+export interface VelocityView {
+  kind: "velocity"; benchmark_note: string; benchmarks: { stage: string; median_days: number | null; n: number }[];
+  fast_track_at: number; stagnant_below: number; counts: Record<string, number>;
+}
+export interface EngagementView {
+  kind: "engagement"; today: string; window_days: number; quiet_days: number; penalty: number;
+  weights: Record<string, number>; n_accounts: number; n_penalised: number; formula: string;
+}
+export interface TouchpointView { kind: "touchpoint"; formula: string; n_groups: number; n_no_outreach: number }
+export type View =
+  | PivotView | ChartView | StatsView | ModelView | ClusterView
+  | ScoreView | VelocityView | EngagementView | TouchpointView;
 
 export interface NodeResult {
   node_id: string; status: "ok" | "error" | "skipped"; error: string | null; n_rows: number | null;

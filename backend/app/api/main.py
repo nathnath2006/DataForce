@@ -23,6 +23,7 @@ from app.api.routes import (
     orgchart,
     pipeline,
     quality,
+    saved_models,
     stats,
     themes,
     titles,
@@ -61,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     routers += (admin,)  # admin view
     routers += (viz, workbooks)  # M4 workbooks
     routers += (activities, pipeline)  # M4 activities, tasks, stage control, timeline
+    routers += (saved_models,)  # M4 phase 2
     for module in routers:
         app.include_router(module.router, prefix="/api")
     app.add_middleware(GZipMiddleware, minimum_size=1000)  # inside security: headers still added

@@ -16,5 +16,6 @@ export function nodeState(res: NodeResult | undefined, selected: boolean): strin
   if (v.kind === "model") return v.status === "verified" ? "st-ok" : "st-unverified";
   if (v.kind === "stats") return v.rows.some((r) => r.status === "verified") ? "st-ok" : "st-unverified";
   if (v.kind === "cluster") return "st-unverified";
+  if (v.kind === "score") return v.status === "verified" ? "st-ok" : "st-unverified";
   return "";
 }

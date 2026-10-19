@@ -29,6 +29,7 @@ class Ctx:
     rows_multiplied: bool = False  # an upstream join produced more rows than its left input
     split_verified: bool = False  # model only: train/test come from the same split block
     today: date | None = None  # the run's start date (injected in tests)
+    models: dict[str, Any] = field(default_factory=dict)  # saved models by id, set at run start
 
     def check(self) -> None:
         """Cooperative cancellation: long loops call this and stop with a clean error."""

@@ -334,6 +334,72 @@ class DomainConfig(_Cfg):
     alias: COLUMN = "domain"
 
 
+class ScoreConfig(_Cfg):
+    """Apply a saved model's parameters to the input rows. Adds `score` (and `score_class` for a
+    classifier). The parameters are resolved from the workspace when the run starts."""
+
+    type: Literal["score"] = "score"
+    model_id: UUID
+
+
+class VelocityConfig(_Cfg):
+    """Deal velocity index on stage-change events (deal_id, from_stage, to_stage, changed_at).
+    The benchmark of a stage is the median days spent in it over the input rows."""
+
+    type: Literal["velocity"] = "velocity"
+    deal_column: COLUMN = "deal_id"
+    to_stage_column: COLUMN = "to_stage"
+    date_column: COLUMN = "changed_at"
+    fast_track_at: float = Field(default=1.25, gt=0, le=100, allow_inf_nan=False)
+    stagnant_below: float = Field(default=0.75, gt=0, le=100, allow_inf_nan=False)
+    terminal_stages: list[str] = Field(
+        default_factory=lambda: ["closed_won", "closed_lost"], max_length=20
+    )
+    include_open_stage: bool = True  # the stage a deal is in now counts up to the run date
+
+    @model_validator(mode="after")
+    def _order(self) -> VelocityConfig:
+        if self.stagnant_below >= self.fast_track_at:
+            raise ValueError("stagnant_below must be lower than fast_track_at")
+        return self
+
+
+DEFAULT_ENGAGEMENT_WEIGHTS: dict[str, float] = {"meeting": 3, "call": 2, "email": 1, "other": 1}
+
+
+class EngagementConfig(_Cfg):
+    """Engagement per account: weighted activity counts in the last `window_days` days, times
+    (1 - penalty) when the latest touchpoint is more than `quiet_days` days old."""
+
+    type: Literal["engagement"] = "engagement"
+    by: COLUMN = "account_id"
+    kind_column: COLUMN = "kind"
+    date_column: COLUMN = "occurred_at"
+    window_days: int = Field(default=90, ge=1, le=3650)
+    quiet_days: int = Field(default=30, ge=1, le=3650)
+    penalty: float = Field(default=0.5, ge=0, le=1, allow_inf_nan=False)
+    weights: dict[str, float] = Field(
+        default_factory=lambda: dict(DEFAULT_ENGAGEMENT_WEIGHTS), max_length=20
+    )
+
+    @model_validator(mode="after")
+    def _w(self) -> EngagementConfig:
+        for k, v in self.weights.items():
+            if not (0 <= v <= 1000) or v != v:
+                raise ValueError(f"weight of {k!r} must be between 0 and 1000")
+        return self
+
+
+class TouchpointConfig(_Cfg):
+    """Rep touchpoint ratio = meetings x meeting_weight / outreach (outbound calls and emails)."""
+
+    type: Literal["touchpoint"] = "touchpoint"
+    by: COLUMN = "author"
+    kind_column: COLUMN = "kind"
+    direction_column: COLUMN = "direction"
+    meeting_weight: float = Field(default=3, gt=0, le=1000, allow_inf_nan=False)
+
+
 BlockConfig = Annotated[
     DatasetConfig
     | FilterConfig
@@ -351,7 +417,11 @@ BlockConfig = Annotated[
     | AgingConfig
     | ForecastConfig
     | WindowConfig
-    | DomainConfig,
+    | DomainConfig
+    | ScoreConfig
+    | VelocityConfig
+    | EngagementConfig
+    | TouchpointConfig,
     Field(discriminator="type"),
 ]
 BlockType = Literal[
@@ -372,6 +442,10 @@ BlockType = Literal[
     "forecast",
     "window",
     "domain",
+    "score",
+    "velocity",
+    "engagement",
+    "touchpoint",
 ]
 
 # Input and output ports of each block type (edges connect an output port to an input port;
@@ -394,6 +468,10 @@ PORTS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "forecast": (("in",), ("out",)),
     "window": (("in",), ("out",)),
     "domain": (("in",), ("out",)),
+    "score": (("in",), ("out",)),
+    "velocity": (("in",), ("out",)),
+    "engagement": (("in",), ("out",)),
+    "touchpoint": (("in",), ("out",)),
 }
 
 
@@ -574,8 +652,62 @@ class ClusterView(BaseModel):
     status: Literal["exploratory"] = "exploratory"  # clusters describe, they do not prove
 
 
+class ScoreView(BaseModel):
+    kind: Literal["score"] = "score"
+    model_name: str
+    model_kind: str
+    status: Literal["verified", "not_verified", "exploratory"]  # inherited from the saved model
+    n_rows: int
+    n_scored: int
+    n_imputed: int = 0  # rows with a missing numeric feature, filled with the training mean
+    notes: list[str] = []
+
+
+class VelocityStage(BaseModel):
+    stage: str
+    median_days: float | None
+    n: int
+
+
+class VelocityView(BaseModel):
+    kind: Literal["velocity"] = "velocity"
+    benchmark_note: str  # states that the benchmark is a median over the input rows
+    benchmarks: list[VelocityStage]
+    fast_track_at: float
+    stagnant_below: float
+    counts: dict[str, int]  # flag -> deals
+
+
+class EngagementView(BaseModel):
+    kind: Literal["engagement"] = "engagement"
+    today: str
+    window_days: int
+    quiet_days: int
+    penalty: float
+    weights: dict[str, float]
+    n_accounts: int
+    n_penalised: int
+    formula: str
+
+
+class TouchpointView(BaseModel):
+    kind: Literal["touchpoint"] = "touchpoint"
+    formula: str
+    n_groups: int
+    n_no_outreach: int
+
+
 View = Annotated[
-    PivotView | ChartView | StatsView | ModelView | ClusterView, Field(discriminator="kind")
+    PivotView
+    | ChartView
+    | StatsView
+    | ModelView
+    | ClusterView
+    | ScoreView
+    | VelocityView
+    | EngagementView
+    | TouchpointView,
+    Field(discriminator="kind"),
 ]
 
 

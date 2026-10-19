@@ -11,11 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.db.models import Flow
+from app.db.models import Flow, SavedModel
 from app.domain.enums import RunKind, RunStatus
 from app.domain.schemas import GateConfig
 from app.flows.ports import FlowLimits, SourceLoader
-from app.flows.schemas import FlowGraph, NodeResult
+from app.flows.schemas import FlowGraph, NodeResult, ScoreConfig
+from app.flows.scoring import ModelSnapshot
 from app.services import runs
 from app.services._common import get_scoped
 from app.services.errors import InvalidInputError, NotFoundError
@@ -97,16 +98,39 @@ def delete_flow(db: Session, ws_id: uuid.UUID, flow_id: uuid.UUID) -> None:
 
 
 # --- execution ------------------------------------------------------------------------------------
+def resolve_models(db: Session, ws_id: uuid.UUID, graph: FlowGraph) -> dict[str, ModelSnapshot]:
+    """The saved models that `score` blocks of the graph use, read once when a run starts (the
+    engine and its worker thread never touch the database for them). Only this workspace's."""
+    ids = {n.config.model_id for n in graph.nodes if isinstance(n.config, ScoreConfig)}
+    if not ids:
+        return {}
+    rows = db.scalars(
+        select(SavedModel).where(SavedModel.workspace_id == ws_id, SavedModel.id.in_(ids))
+    )
+    return {
+        str(r.id): ModelSnapshot(
+            id=str(r.id),
+            name=r.name,
+            kind=r.kind,
+            params=r.params,
+            features=[str(f) for f in r.features],
+            status=r.status,
+        )
+        for r in rows
+    }
+
+
 def _engine_run(
     graph: FlowGraph,
     loader: SourceLoader,
     gates: GateConfig,
     limits: FlowLimits,
     target: str | None,
+    models: dict[str, ModelSnapshot] | None = None,
 ) -> dict[str, NodeResult]:
     from app.flows.engine import run_graph  # agent E; imported late so this module loads without it
 
-    return run_graph(graph, loader, gates, limits, target)
+    return run_graph(graph, loader, gates, limits, target, models=models)
 
 
 def run_in_thread(
@@ -186,9 +210,10 @@ def execute(
         slot.release()
         raise
     limits = FlowLimits(max_rows=settings.flow_max_rows, timeout_s=settings.flow_run_timeout_s)
+    models = resolve_models(db, ws_id, graph)
     try:
         results = run_in_thread(
-            lambda: _engine_run(graph, loader, gates, limits, target),
+            lambda: _engine_run(graph, loader, gates, limits, target, models),
             settings.flow_run_timeout_s + 5,
             slot,
         )

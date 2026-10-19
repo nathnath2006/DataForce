@@ -1,0 +1,4 @@
+.md-list { display: grid; gap: var(--s-3, 1rem); }
+.md-card { display: flex; flex-direction: column; gap: .75rem; }
+.md-card h3 { margin: 0; }
+.md-score { border-top: 1px solid var(--hairline); padding-top: .75rem; }

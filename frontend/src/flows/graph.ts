@@ -22,6 +22,10 @@ export const PORTS: Record<BlockType, { inputs: string[]; outputs: string[] }> =
   forecast: { inputs: ["in"], outputs: ["out"] },
   window: { inputs: ["in"], outputs: ["out"] },
   domain: { inputs: ["in"], outputs: ["out"] },
+  score: { inputs: ["in"], outputs: ["out"] },
+  velocity: { inputs: ["in"], outputs: ["out"] },
+  engagement: { inputs: ["in"], outputs: ["out"] },
+  touchpoint: { inputs: ["in"], outputs: ["out"] },
 };
 
 export type PaletteGroup = "Data" | "Transform" | "Cleaning" | "Temporal" | "Aggregation" | "Analyze" | "Model" | "Visualize";
@@ -42,6 +46,10 @@ export const BLOCKS: { type: BlockType; title: string; group: PaletteGroup }[] =
   { type: "split", title: "Train / test split", group: "Model" },
   { type: "model", title: "Regression model", group: "Model" },
   { type: "cluster", title: "K-means clusters", group: "Model" },
+  { type: "velocity", title: "Deal velocity index", group: "Temporal" },
+  { type: "engagement", title: "Engagement score", group: "Analyze" },
+  { type: "touchpoint", title: "Rep touchpoint ratio", group: "Analyze" },
+  { type: "score", title: "Score with a saved model", group: "Model" },
   { type: "chart", title: "Chart", group: "Visualize" },
 ];
 export const PALETTE_GROUPS: PaletteGroup[] = ["Data", "Transform", "Cleaning", "Temporal", "Aggregation", "Analyze", "Model", "Visualize"];
@@ -51,6 +59,8 @@ export const blockTitle = (t: string): string => BLOCKS.find((b) => b.type === t
 export const DEFAULT_PROBABILITIES: Record<string, number> = {
   prospecting: 10, qualification: 20, proposal: 40, negotiation: 60, closed_won: 100, closed_lost: 0,
 };
+
+export const DEFAULT_ENGAGEMENT_WEIGHTS: Record<string, number> = { meeting: 3, call: 2, email: 1, other: 1 };
 
 export function defaultConfig(type: BlockType): BlockConfig {
   switch (type) {
@@ -72,6 +82,18 @@ export function defaultConfig(type: BlockType): BlockConfig {
     case "window":
       return { type, fn: "lag", column: null, partition_by: [], order_by: "", descending: false, k: 1, alias: "window_value", period: null };
     case "domain": return { type, column: "", alias: "domain" };
+    case "score": return { type, model_id: "" };
+    case "velocity":
+      return {
+        type, deal_column: "deal_id", to_stage_column: "to_stage", date_column: "changed_at", fast_track_at: 1.25,
+        stagnant_below: 0.75, terminal_stages: ["closed_won", "closed_lost"], include_open_stage: true,
+      };
+    case "engagement":
+      return {
+        type, by: "account_id", kind_column: "kind", date_column: "occurred_at", window_days: 90, quiet_days: 30,
+        penalty: 0.5, weights: { ...DEFAULT_ENGAGEMENT_WEIGHTS },
+      };
+    case "touchpoint": return { type, by: "author", kind_column: "kind", direction_column: "direction", meeting_weight: 3 };
   }
 }
 
@@ -217,6 +239,10 @@ export function outputColumns(g: FlowGraph, id: string, ctx: ColumnCtx, depth = 
     case "dedup": return [...up(), { name: "dedup_group", dtype: "integer" }, { name: "is_master", dtype: "boolean" }];
     case "aging": return [...up(), { name: c.alias || "days_since", dtype: "number" }, { name: "stagnant", dtype: "boolean" }];
     case "domain": return [...up(), { name: c.alias || "domain", dtype: "text" }, { name: "is_free_webmail", dtype: "boolean" }];
+    case "score": return [...up(), { name: "score", dtype: "number" }];
+    case "velocity": return [{ name: c.deal_column || "deal_id", dtype: "text" }, { name: "velocity_index", dtype: "number" }, { name: "velocity_flag", dtype: "text" }];
+    case "engagement": return [{ name: c.by || "account_id", dtype: "text" }, { name: "engagement_score", dtype: "number" }];
+    case "touchpoint": return [{ name: c.by || "author", dtype: "text" }, { name: "touchpoint_ratio", dtype: "number" }];
     case "forecast": {
       const base = up();
       if (!c.group_by) return [...base, { name: "probability", dtype: "number" }, { name: "weighted_amount", dtype: "number" }];

@@ -228,7 +228,8 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
         </aside>
       </div>
       <div className="card resultsbox">
-        <ResultsPanel result={sel ? results[sel] : undefined} title={selected ? (selected.data.label || blockTitle(selected.data.config.type)) : "a block"} />
+        <ResultsPanel result={sel ? results[sel] : undefined} title={selected ? (selected.data.label || blockTitle(selected.data.config.type)) : "a block"}
+          save={sel ? { slug, flowId: flow.id, nodeId: sel, dirty } : undefined} />
       </div>
     </section>
   );

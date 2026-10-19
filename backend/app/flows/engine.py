@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from dataclasses import replace
 from datetime import date
+from typing import Any
 
 import pandas as pd
 
@@ -59,6 +60,7 @@ def run_graph(
     target: str | None = None,
     capture: dict[str, pd.DataFrame] | None = None,
     today: date | None = None,
+    models: dict[str, Any] | None = None,
 ) -> dict[str, NodeResult]:
     nodes = {n.id: n for n in graph.nodes}
     if target is not None and target not in nodes:
@@ -89,9 +91,14 @@ def run_graph(
 
     deadline = time.monotonic() + limits.timeout_s
     ctx = Ctx(
-        gates=gates, limits=limits, loader=loader, deadline=deadline, today=today or date.today()
+        gates=gates,
+        limits=limits,
+        loader=loader,
+        deadline=deadline,
+        today=today or date.today(),
+        models=models or {},
     )
-    row_preserving = ("filter", "sort", "columns", "aging", "domain", "dedup")
+    row_preserving = ("filter", "sort", "columns", "aging", "domain", "dedup", "score")
     multiplied: dict[str, bool] = {}
 
     def origin(nid: str, port: str) -> tuple[str, str] | None:
