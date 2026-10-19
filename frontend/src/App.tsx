@@ -8,6 +8,7 @@ import { AccountDetailPage } from "./pages/AccountDetail";
 import { ContactsPage } from "./pages/Contacts";
 import { ContactDetailPage } from "./pages/ContactDetail";
 import { DealsPage } from "./pages/Deals";
+import { DealDetailPage } from "./pages/DealDetail";
 import { AnalysisPage } from "./pages/Analysis";
 import { SettingsPage } from "./pages/Settings";
 import { CompaniesPage } from "./companies/CompaniesPage";
@@ -36,6 +37,7 @@ export function App() {
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="contacts/:id" element={<ContactDetailPage />} />
         <Route path="deals" element={<DealsPage />} />
+        <Route path="deals/:id" element={<DealDetailPage />} />
         <Route path="meetings" element={<MeetingsPage />} />
         <Route path="analysis" element={<FlowsPage />} />
         <Route path="analysis/scan" element={<AnalysisPage />} />

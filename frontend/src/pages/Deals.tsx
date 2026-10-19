@@ -49,7 +49,7 @@ export function DealsPage() {
           <thead><tr><th>Deal</th><th>Account</th><th>Stage</th><th className="num">Amount</th><th>Source</th><th>Owner</th><th>Created</th><th>Closed</th><th className="num">Cycle (d)</th><th></th></tr></thead>
           <tbody>{data.items.map((d) => (
             <tr key={d.id}>
-              <td><button className="link" onClick={() => setEditing(d)}>{d.name}</button></td>
+              <td><Link to={`/w/${ws.slug}/deals/${d.id}`}>{d.name}</Link></td>
               <td><Link to={`/w/${ws.slug}/accounts/${d.account_id}`}>{d.account_name}</Link></td>
               <td>
                 <select aria-label={`Stage of ${d.name}`} value={d.stage} onChange={(e) => changeStage(d, e.target.value as DealStage)}>
@@ -60,7 +60,7 @@ export function DealsPage() {
               <td>{d.lead_source ? <Tag>{label(d.lead_source)}</Tag> : "—"}</td>
               <td>{d.owner_name ?? "—"}</td><td>{d.created_on}</td><td>{d.closed_on ?? "—"}</td>
               <td className="num">{d.cycle_days ?? "—"}</td>
-              <td><button className="link" onClick={() => setDeleting(d)}>Delete</button></td>
+              <td className="row end"><button className="link" onClick={() => setEditing(d)}>Edit</button><button className="link" onClick={() => setDeleting(d)}>Delete</button></td>
             </tr>
           ))}</tbody>
         </table></div>
@@ -95,7 +95,7 @@ function CloseDialog(props: { deal: DealOut; stage: DealStage; onClose: () => vo
   );
 }
 
-function DealForm(props: { deal?: DealOut; onClose: () => void; onSaved: () => void }) {
+export function DealForm(props: { deal?: DealOut; onClose: () => void; onSaved: () => void }) {
   const { ws, users, actingAs } = useWs();
   const d0 = props.deal;
   const accounts = useLoad(() => api.listAccounts(ws.slug, { limit: 1000 }), [ws.slug]);

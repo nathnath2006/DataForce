@@ -53,7 +53,7 @@ class MeetingOrgIn(_In):
 
 
 class AskScope(_In):
-    kind: Literal["account", "company"]
+    kind: Literal["account", "company", "deal"]
     id: UUID
 
 
@@ -70,7 +70,7 @@ class AskIn(_In):
 
 class Citation(BaseModel):
     ref: str
-    kind: Literal["fact", "deal", "contact", "note", "comment"]
+    kind: Literal["fact", "deal", "contact", "note", "comment", "meeting"]
     label: str
 
 

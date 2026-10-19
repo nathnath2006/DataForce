@@ -4,7 +4,7 @@ export type Segment =
   | { type: "text"; text: string }
   | { type: "ref"; ref: string; label: string; known: boolean };
 
-const REF = /\[([FDCNM]\d{1,4})\]/g;
+const REF = /\[([FDCNMG]\d{1,4})\]/g;
 
 /**
  * Split an answer into plain text and ref chips. Output is data only (never HTML); the caller

@@ -25,7 +25,7 @@ export function AskPanel({ scope, bare }: { scope: AskScope; bare?: boolean }) {
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const a = useAction();
-  const what = scope.kind === "account" ? "account" : "company";
+  const what = scope.kind;
   const notConfigured = a.error instanceof ApiError && a.error.code === "connector_not_configured";
   const provider = turns.length ? turns[turns.length - 1]!.out.provider : "your configured AI provider";
 
@@ -47,7 +47,7 @@ export function AskPanel({ scope, bare }: { scope: AskScope; bare?: boolean }) {
     <div className={bare ? "stack" : "card stack"}>
       {!bare && <h2>Ask about this {what}</h2>}
       <p className="muted small">
-        Your question and this {what}&apos;s CRM data (names, titles, deals, notes) are sent to {provider}.
+        Your question and the CRM data of {what === "company" ? "this company" : `the company of this ${what}`} — all its accounts, people, deals, notes and meeting titles — are sent to {provider}.
         Answers can be wrong: check the cited facts.
       </p>
       {turns.map((t, i) => (

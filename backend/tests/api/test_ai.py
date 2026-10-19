@@ -312,3 +312,17 @@ def test_sr10_06_llm_call_error_sanitised(client, ws, fake, db_session):
     row = db_session.scalars(select(LlmCall).where(LlmCall.purpose == "connection_test")).one()
     assert row.error and KEY not in row.error and len(row.error) <= 300
     assert "\x00" not in row.error and "\x1b" not in row.error
+
+
+def test_ask_deal_scope(client, ws, fake):
+    acc, _ = seed(client, ws)
+    deal = client.get(f"{ws}/deals").json()
+    deal = deal["items"][0] if isinstance(deal, dict) else deal[0]
+    configure(client, ws)
+    fake["box"]["handler"] = lambda s, m: "fine [F1]"
+    r = ask(client, ws, {"kind": "deal", "id": deal["id"]})
+    assert r.status_code == 200, r.text
+    assert "You are on the deal Big deal" in fake["llm"].text_calls[0][1][-1].content
+    client.post("/api/workspaces", json={"slug": "b2", "name": "B2"})
+    configure(client, "/api/w/b2")
+    assert ask(client, "/api/w/b2", {"kind": "deal", "id": deal["id"]}).status_code == 404

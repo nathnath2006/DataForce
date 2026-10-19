@@ -82,7 +82,7 @@ export function AccountDetailPage() {
           <div className="tablewrap"><table>
             <thead><tr><th>Deal</th><th>Stage</th><th className="num">Amount</th><th>Created</th></tr></thead>
             <tbody>{deals.data?.items.map((d) => (
-              <tr key={d.id}><td>{d.name}</td><td><Tag>{label(d.stage)}</Tag></td><td className="num">{formatEur(d.amount_eur)}</td><td>{d.created_on}</td></tr>
+              <tr key={d.id}><td><Link to={`${base}/deals/${d.id}`}>{d.name}</Link></td><td><Tag>{label(d.stage)}</Tag></td><td className="num">{formatEur(d.amount_eur)}</td><td>{d.created_on}</td></tr>
             ))}</tbody>
           </table></div>
         )}

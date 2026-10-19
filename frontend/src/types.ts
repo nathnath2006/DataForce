@@ -174,7 +174,7 @@ export interface AiSettingsOut {
   last_error: string | null; allow_meeting_org: boolean; suggested_models: Record<string, string[]>; data_notice: string;
 }
 export interface AiSettingsIn { provider: AiProvider; model: string; api_key?: string }
-export interface AskScope { kind: "account" | "company"; id: string }
+export interface AskScope { kind: "account" | "company" | "deal"; id: string }
 export interface AskTurn { role: "user" | "assistant"; content: string }
 export interface AskCitation { ref: string; kind: string; label: string }
 export interface AskQuote { text: string; ref: string; verified: boolean }

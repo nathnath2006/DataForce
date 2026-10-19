@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export interface DrawerScope { kind: "account" | "company"; id: string; name: string }
+export interface DrawerScope { kind: "account" | "company" | "deal"; id: string; name: string }
 interface ScopeCtx { scope: DrawerScope | null; setScope: (s: DrawerScope | null) => void }
 
 const Ctx = createContext<ScopeCtx>({ scope: null, setScope: () => {} });
