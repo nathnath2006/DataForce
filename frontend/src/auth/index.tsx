@@ -19,3 +19,18 @@ export function useAuth(): AuthState {
 export function UserMenu() {
   return null;
 }
+
+/** Route guard: sends a signed-out visitor to /login (or /setup before the first admin). */
+export function RequireAuth({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+/** /login: email and password. */
+export function LoginPage() {
+  return null;
+}
+
+/** /setup: shown once, while no admin exists. */
+export function SetupPage() {
+  return null;
+}

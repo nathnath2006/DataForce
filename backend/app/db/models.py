@@ -109,6 +109,11 @@ class Account(Base):
     company_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("company.id", ondelete="SET NULL"), index=True
     )
+    # M5: the rep who owns the account (Dynamics-style); a rep also sees accounts they own a
+    # deal on. Backfilled from the owner of the account's most recent deal.
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _updated()
 
@@ -893,6 +898,63 @@ class MailboxMessage(Base):
     created_at: Mapped[datetime] = _created()
 
 
+# --- M5: login, memberships, sessions (migration 0011_auth) --------------------------------------
+class UserAccount(Base):
+    """One person, across workspaces. `password_hash` NULL = an empty password, allowed only for
+    demo workspaces on loopback (docs/M5-LOGIN-AND-UI-CONTRACT.md)."""
+
+    __tablename__ = "user_account"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(String(300))
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    disabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = _created()
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Membership(Base):
+    """A person's role in one workspace, and their CRM identity there."""
+
+    __tablename__ = "membership"
+    __table_args__ = (
+        UniqueConstraint("user_account_id", "workspace_id", name="uq_membership_user_ws"),
+        UniqueConstraint("workspace_id", "app_user_id", name="uq_membership_ws_app_user"),
+        CheckConstraint("role IN ('admin', 'rep')", name="ck_membership_role"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    user_account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False
+    )
+    app_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    role: Mapped[str] = mapped_column(String(8), nullable=False, default="rep")
+    see_all: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    delete_own: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = _created()
+
+
+class UserSession(Base):
+    """A signed-in browser. Only the SHA-256 of the cookie token is stored."""
+
+    __tablename__ = "user_session"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_at: Mapped[datetime] = _created()
+    last_seen_at: Mapped[datetime] = _created()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(String(200))
+
+
 # Performance indexes (migration 0008_indexes): `workspace_id` on the big tables, and every foreign
 # key with ON DELETE CASCADE / SET NULL, so a parent delete does not scan the child table. The
 # nullable ones are partial (`IS NOT NULL`): most rows hold NULL.
@@ -936,6 +998,8 @@ for _idx, _col in (
     ("ix_org_proposal_decided_by", OrgProposal.decided_by_id),
     ("ix_org_proposal_manager", OrgProposal.manager_id),
     ("ix_org_proposal_run", OrgProposal.run_id),
+    ("ix_account_owner", Account.owner_id),
+    ("ix_membership_app_user", Membership.app_user_id),
 ):
     Index(_idx, _col, postgresql_where=_not_null(_col.key))
 Index(
