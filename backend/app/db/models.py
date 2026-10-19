@@ -665,6 +665,165 @@ class MeetingOrgAiCache(Base):
     created_at: Mapped[datetime] = _created()
 
 
+# --- M4: activities, stage history, tasks, workbooks, saved models (migration 0009_m4) -----------
+class DealStageEvent(Base):
+    """One stage change of a deal (docs/M4-ANALYTICS-CONTRACT.md): the history the velocity index
+    needs. Written when a rep sets the stage; demo data carries a synthetic history."""
+
+    __tablename__ = "deal_stage_event"
+    __table_args__ = (
+        Index("ix_deal_stage_event_deal", "deal_id", "changed_at"),
+        Index("ix_deal_stage_event_ws", "workspace_id"),
+        CheckConstraint(
+            "source IN ('manual','import','demo','system')", name="ck_deal_stage_event_source"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    deal_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("deal.id", ondelete="CASCADE"), nullable=False
+    )
+    from_stage: Mapped[str | None] = mapped_column(String(16))
+    to_stage: Mapped[str] = mapped_column(String(16), nullable=False)
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    changed_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
+    created_at: Mapped[datetime] = _created()
+
+
+class Activity(Base):
+    """A call, email or meeting logged on an account (and optionally a deal): by hand, from a
+    connected mailbox (phase 2), an import, or demo data."""
+
+    __tablename__ = "activity"
+    __table_args__ = (
+        Index("ix_activity_account_time", "account_id", "occurred_at"),
+        Index("ix_activity_ws_time", "workspace_id", "occurred_at"),
+        CheckConstraint("kind IN ('call','email','meeting','other')", name="ck_activity_kind"),
+        CheckConstraint(
+            "direction IS NULL OR direction IN ('inbound','outbound')", name="ck_activity_direction"
+        ),
+        CheckConstraint(
+            "source IN ('manual','mailbox','import','demo')", name="ck_activity_source"
+        ),
+        UniqueConstraint("workspace_id", "source", "external_ref", name="uq_activity_external"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("account.id", ondelete="CASCADE"), nullable=False
+    )
+    deal_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("deal.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    direction: Mapped[str | None] = mapped_column(String(16))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    subject: Mapped[str] = mapped_column(String(300), nullable=False)
+    body: Mapped[str | None] = mapped_column(Text)  # capped at 10,000 characters by the service
+    author_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
+    external_ref: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _updated()
+
+
+class ActivityParticipant(Base):
+    """Who took part in an activity. Erasing a contact removes the link (cascade)."""
+
+    __tablename__ = "activity_participant"
+    __table_args__ = (Index("ix_activity_participant_contact", "contact_id"),)
+
+    activity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("activity.id", ondelete="CASCADE"), primary_key=True
+    )
+    contact_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contact.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
+class Task(Base):
+    """A to-do on a deal or account. `ai_suggested` tasks carry their source sentence in
+    `evidence` and stay suggestions until a person accepts them (status open)."""
+
+    __tablename__ = "task"
+    __table_args__ = (
+        Index("ix_task_ws_status", "workspace_id", "status"),
+        CheckConstraint("status IN ('suggested','open','done','dismissed')", name="ck_task_status"),
+        CheckConstraint("source IN ('manual','ai_suggested','demo')", name="ck_task_source"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("account.id", ondelete="CASCADE")
+    )
+    deal_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("deal.id", ondelete="SET NULL"))
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    due_on: Mapped[date | None] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _updated()
+
+
+class Workbook(Base):
+    """A visual workbook (Oracle-DV style): canvases of visualizations as a JSON spec."""
+
+    __tablename__ = "workbook"
+    __table_args__ = (Index("ix_workbook_ws", "workspace_id"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    spec: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _updated()
+
+
+class SavedModel(Base):
+    """A trained model kept as plain parameters (never pickle) so the scoring block can apply it
+    to new rows. `status` is the verdict against the baseline on held-out data."""
+
+    __tablename__ = "saved_model"
+    __table_args__ = (
+        Index("ix_saved_model_ws", "workspace_id"),
+        CheckConstraint(
+            "kind IN ('linear','logistic','svm','svr','kmeans')", name="ck_saved_model_kind"
+        ),
+        CheckConstraint(
+            "status IN ('verified','not_verified','exploratory')", name="ck_saved_model_status"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    flow_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("flow.id", ondelete="SET NULL"))
+    node_id: Mapped[str | None] = mapped_column(String(64))
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    params: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    features: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = _created()
+
+
 # Performance indexes (migration 0008_indexes): `workspace_id` on the big tables, and every foreign
 # key with ON DELETE CASCADE / SET NULL, so a parent delete does not scan the child table. The
 # nullable ones are partial (`IS NOT NULL`): most rows hold NULL.
@@ -685,6 +844,15 @@ Index("ix_org_proposal_ws", OrgProposal.workspace_id)
 Index("ix_theme_ws", Theme.workspace_id)
 Index("ix_theme_assignment_ws", ThemeAssignment.workspace_id)
 for _idx, _col in (
+    ("ix_deal_stage_event_changed_by", DealStageEvent.changed_by_id),
+    ("ix_activity_deal", Activity.deal_id),
+    ("ix_activity_author", Activity.author_user_id),
+    ("ix_task_account", Task.account_id),
+    ("ix_task_deal", Task.deal_id),
+    ("ix_task_owner", Task.owner_user_id),
+    ("ix_workbook_created_by", Workbook.created_by_id),
+    ("ix_saved_model_flow", SavedModel.flow_id),
+    ("ix_saved_model_created_by", SavedModel.created_by_id),
     ("ix_comment_author", Comment.author_id),
     ("ix_comment_deleted_by", Comment.deleted_by_id),
     ("ix_contact_reports_to", Contact.reports_to_id),

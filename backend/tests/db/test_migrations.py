@@ -52,6 +52,7 @@ LOCKDOWN_MIGRATIONS = (
     "0005_m2a.py",
     "0006_m2b.py",
     "0007_org_ai.py",
+    "0009_m4.py",
 )
 
 
