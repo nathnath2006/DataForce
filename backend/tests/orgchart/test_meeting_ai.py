@@ -26,7 +26,8 @@ EVAL = pathlib.Path(__file__).resolve().parents[2] / "eval" / "meetings"
 
 def eval_sentences() -> list[str]:
     out = []
-    for key in sorted(EVAL.glob("set*/key.json")):
+    # Only the sets already used to tune; set3 is held-out (eval/meetings/set3/HELD-OUT.md).
+    for key in (EVAL / "set1" / "key.json", EVAL / "set2" / "key.json"):
         for item in json.loads(key.read_text()):
             out += [r["sentence"] for r in item["reports_to"]]
             out += [s["sentence"] for s in item["signals"]]
