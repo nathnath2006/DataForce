@@ -415,3 +415,80 @@ login and hosting come next (M3b).
 
 **Not in M3a.** No write tools, no network transport and no login: anyone who can run programs
 on this computer can already read the database.
+
+## M. M4 phase 1: activities, new flow blocks, workbooks (2026-10-19) [PO + build]
+Spec: `docs/M4-ANALYTICS-CONTRACT.md`, from the PO's "CRM Visual Analytics & ML Engine
+Specification". Analysis has four tabs: Flows, Workbooks, Models (phase 2) and Insights.
+
+**Deals: stage, activities, timeline.**
+- *Move to stage* takes a date. The date may not be in the future or before the deal's creation,
+  and every change writes a `deal_stage_event`. The older stage route records one too.
+- A rep logs calls, emails, meetings and other activities on the deal, with participants taken
+  from the account's contacts (at most 50).
+- The deal and account pages show one vertical timeline. It merges:
+  - stage changes, activities and tasks;
+  - notes and comments;
+  - meeting documents (title and date only).
+
+  It is paged with a cursor, at most 200 items a page, and filterable by kind.
+- The actor (`changed_by_id`, `author_user_id`) comes from the request body, as for notes, until
+  login exists (M3b, audit SYS-01).
+- Flows can read `activities`, `stage_events` and `tasks`. Text is exposed only as its length,
+  never the body.
+- `dataforce demo backfill-activities --workspace SLUG` adds synthetic history to a demo
+  workspace:
+  - it refuses other workspaces;
+  - it skips deals that already have events;
+  - it never deletes.
+- On Test data it added 1,331 stage events, 1,400 activities and 45 tasks.
+
+**New flow blocks.**
+- **Fuzzy dedup.** Jaro-Winkler or Levenshtein over a normalised key. It outputs groups and a
+  master per group and never merges CRM records. The comparison is bounded:
+  - pairs are blocked by first character;
+  - at most 500 values per block;
+  - keys are cut to 100 characters;
+  - the deadline is checked every 1,000 pairs.
+- **Aging.** Days since a date, measured against the run's "today", plus a stagnation flag.
+- **Weighted forecast.** Amount × stage probability. The probabilities are in the block config,
+  with defaults of 10, 20, 40, 60, 100 and 0 %.
+- **Window.** lag, lead, rolling and rank over a partition and an order. An optional `period`
+  (month, quarter or year) sums per partition and period first, which builds QoQ growth per rep.
+- **Domain parser.** A regex domain plus a free-webmail list. There is no MX lookup, since that
+  would be a network call per row.
+- **Chronological split.** Rows sharing the boundary date all go to the test set; rows without a
+  date are dropped with a warning.
+- **SVM and SVR.** RBF and linear kernels. They follow the same verdict rule as the other models:
+  verified only when they beat the baseline on held-out rows.
+  - Training is capped at 20,000 rows (it is quadratic).
+  - The probability uses Platt scaling fitted on the training decision values; the verdict uses
+    held-out rows only.
+- **Parameters, never pickle.** Fitted parameters go to `model_params` as plain JSON (linear,
+  logistic, SVM, SVR, k-means), so phase 2 can save and score models. A test rebuilds the SVM's
+  predictions from them.
+  - Above 2,000 support vectors (these are training rows) they are not exported, and an RBF model
+    is then marked not savable.
+- Four templates: weighted pipeline forecast, stalled deals, duplicate accounts and QoQ growth
+  per rep.
+
+**Workbooks (DV style).**
+- `POST /viz/query` aggregates on the server, over the same loaders and caps as flows:
+  - at most 30 filters, 500 values in an `in` list, and 5,000 result rows;
+  - a 20 s budget, inside the flows concurrency slot.
+- Fields and operators are checked against the real columns and fixed lists; nothing is
+  evaluated from strings.
+- A capped source says so on the tile ("computed on the first N rows").
+- **Charts:** ECharts 5.6.0, pinned with its integrity hash and loaded only on workbook pages
+  (200 kB gzipped). Bar, line, area, scatter, pie, donut, heatmap, treemap and funnel use
+  ECharts; KPI, table and pivot are plain HTML.
+- **Tooltips** use `renderMode: "richText"`, so they are drawn as text, never HTML: a name in the
+  data cannot inject markup.
+- **Canvas:** an ordered 12-column grid, not free placement. Tiles are reordered by drag and
+  resized in steps; below 900 px the canvas is read-only, one column.
+- Cross-filtering: clicking a mark filters the other tiles on the canvas.
+- **Limits:** 12 canvases, 30 visualizations per canvas, and 1 MB of JSON per workbook.
+- **Explain** reuses the stats block (same gates, FDR and bootstrap). With several attributes,
+  BH runs within each attribute, not across all of them; the panel says so. A single family
+  across attributes is a methods question for phase 3.
+
+**Security review** (`docs/security/SR18-m4-phase1.md`): 0 high, 2 medium, 6 low, all fixed.

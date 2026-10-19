@@ -53,6 +53,17 @@ M3: anyone who can run programs on this computer can use it, nobody else can.
   connections*). Blocks include filter, sort, columns, group, join, **pivot**, stats test, chart,
   train/test split, regression and clustering. Comparisons and models are labelled *verified* or
   *not verified*, exactly like the M1 engine.
+- **Deal activity** (M4): on a deal, *Move to stage* records the change with its date; *Log a call,
+  email or meeting* adds an activity with the people who took part; tasks have a due date. The
+  deal and account pages show everything as one vertical timeline (stages, activities, notes,
+  meetings, tasks), filterable by kind. `dataforce demo backfill-activities --workspace SLUG` adds
+  synthetic history to a demo workspace without replacing it.
+- **Analysis tabs** (M4): *Flows*, *Workbooks*, *Models* (phase 2) and *Insights*.
+  - New flow blocks: fuzzy duplicates, aging and stalled deals, weighted forecast, window (lag,
+    lead, rolling, rank, QoQ per rep), email domain, chronological split, SVM and SVR.
+  - *Workbooks*: add a chart, click or drag fields onto it, and the server computes the exact
+    aggregate. There are 12 chart types; clicking a bar or slice filters the other charts, and
+    several canvases fit in one workbook. *Explain* shows the verified differences first.
 - **AI model** (M2a): in *Settings > AI model*, pick Gemini or Anthropic and paste your API key.
   It is stored encrypted and never shown again. The *Ask* panel on an account or company answers
   from that record's data, cites it, and flags any number it could not find in the data.
