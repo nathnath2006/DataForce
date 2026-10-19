@@ -11,10 +11,13 @@ from app.domain.schemas import GateConfig
 from app.flows.blocks import REGISTRY, BlockError, BlockOutput, Ctx
 from app.flows.blocks._common import dtype_of, jsonable
 from app.flows.ports import FlowLimits, SourceError, SourceLoader
+from app.flows.profile import profile_frame
 from app.flows.schemas import PORTS, ColumnInfo, FlowGraph, NodeResult
 
 
-def _result(node_id: str, out: BlockOutput, limits: FlowLimits, ms: int) -> NodeResult:
+def _result(
+    node_id: str, out: BlockOutput, limits: FlowLimits, ms: int, deadline: float | None = None
+) -> NodeResult:
     df = out.frames.get("out") if "out" in out.frames else next(iter(out.frames.values()), None)
     if df is None:
         return NodeResult(
@@ -38,6 +41,7 @@ def _result(node_id: str, out: BlockOutput, limits: FlowLimits, ms: int) -> Node
         status="ok",
         n_rows=len(df),
         columns=[ColumnInfo(name=c, dtype=k) for c, k in zip(cols, kinds, strict=True)],  # type: ignore[arg-type]
+        profile=profile_frame(df, deadline),
         preview=preview,
         view=out.view,
         warnings=out.warnings,
@@ -128,7 +132,9 @@ def run_graph(
             multiplied[nid] = upstream or out.rows_multiplied
             for port, df in out.frames.items():
                 frames[(nid, port)] = df
-            results[nid] = _result(nid, out, limits, int((time.monotonic() - start) * 1000))
+            results[nid] = _result(
+                nid, out, limits, int((time.monotonic() - start) * 1000), deadline
+            )
         except (BlockError, SourceError) as e:
             results[nid] = NodeResult(node_id=nid, status="error", error=str(e)[:500])
         except Exception as e:  # never leak data or a stack trace

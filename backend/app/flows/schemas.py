@@ -346,6 +346,28 @@ class ColumnInfo(BaseModel):
     dtype: Literal["number", "integer", "text", "boolean", "date", "datetime", "other"]
 
 
+class Histogram(BaseModel):
+    min: float
+    max: float
+    counts: list[int]  # 8 equal-width bins between min and max
+
+
+class TopValue(BaseModel):
+    value: str  # at most 60 characters
+    count: int
+
+
+class ColumnProfile(BaseModel):
+    name: str
+    dtype: Literal["number", "integer", "text", "boolean", "date", "datetime", "other"]
+    n: int
+    non_null: int
+    n_unique: int  # capped at 10,000
+    n_unique_capped: bool = False
+    hist: Histogram | None = None  # numeric columns
+    top: list[TopValue] | None = None  # text and boolean columns
+
+
 class PivotView(BaseModel):
     kind: Literal["pivot"] = "pivot"
     row_headers: list[str]  # names of the row dimensions
@@ -437,6 +459,7 @@ class NodeResult(BaseModel):
     error: str | None = None  # human readable, never a stack trace or a password
     n_rows: int | None = None
     columns: list[ColumnInfo] = []
+    profile: list[ColumnProfile] | None = None  # first 60 columns, exact; absent in older results
     preview: list[dict[str, Any]] = []  # first PREVIEW_ROWS rows, JSON-safe (dates ISO, NaN null)
     view: View | None = None
     warnings: list[str] = []  # e.g. "rows capped at 200000", "12 rows with a missing target"

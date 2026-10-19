@@ -14,6 +14,7 @@ import {
   BLOCKS, PALETTE_GROUPS, PORTS, blockTitle, connectionError, defaultConfig, fromFlow, inputColumns, newId,
   outputColumns, toFlowEdges, toFlowNodes, validateGraph, type BlockData, type BlockNode,
 } from "./graph";
+import { nodeState } from "./nodeState";
 import { ResultsPanel } from "./Results";
 import type { BlockType, FlowOut, NodeResult } from "./types";
 import "./flows.css";
@@ -34,12 +35,23 @@ function summary(d: BlockData): string {
   }
 }
 
+/** Hexagon glyph for dataset (source) and model blocks. */
+function Hexagon() {
+  return (
+    <svg className="fnode-glyph" viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,1.5 14,4.75 14,11.25 8,14.5 2,11.25 2,4.75" /></svg>
+  );
+}
+
 function BlockView({ id, data, selected }: NodeProps<BlockNode>) {
   const res = (data as BlockData & { result?: NodeResult }).result;
   const ports = PORTS[data.config.type];
+  const glyph = data.config.type === "dataset" || data.config.type === "model";
   return (
-    <div className={`fnode${selected ? " sel" : ""}${res?.status === "error" ? " bad" : ""}`}>
-      <div className="fnode-title">{data.label || blockTitle(data.config.type)}</div>
+    <div className={`fnode ${nodeState(res, !!selected)}`}>
+      <div className="fnode-head">
+        {glyph && <Hexagon />}
+        <div className="fnode-title">{data.label || blockTitle(data.config.type)}</div>
+      </div>
       <div className="fnode-sub">{summary(data)}</div>
       {res && (
         <div className="fnode-status">

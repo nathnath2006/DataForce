@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { formatNum, formatPct, formatPts, formatQ } from "../lib";
 import { Tag } from "../ui";
+import { ColumnsGrid } from "./ColumnsGrid";
 import { ChartSvg } from "./Charts";
 import { fmtCell, isTotalColumn, pivotModel } from "./pivot";
 import type {
@@ -8,10 +9,11 @@ import type {
 } from "./types";
 
 export function ResultsPanel({ result, title }: { result: NodeResult | undefined; title: string }) {
-  const [tab, setTab] = useState<"view" | "table">("view");
+  const [tab, setTab] = useState<"view" | "table" | "columns">("view");
   if (!result) return <p className="muted pad">Run the flow to see the result of {title}.</p>;
   const v = result.view;
   const showView = v !== null && tab === "view";
+  const hasTable = result.status === "ok" && result.columns.length > 0;
   return (
     <div className="results">
       <div className="row between wrap">
@@ -19,17 +21,18 @@ export function ResultsPanel({ result, title }: { result: NodeResult | undefined
         <span className="muted small">
           {result.n_rows != null && `${result.n_rows.toLocaleString("en-US")} rows · `}{result.elapsed_ms} ms
         </span>
-        {v && result.columns.length > 0 && (
+        {hasTable && (
           <span className="row">
-            <button className={tab === "view" ? "primary" : ""} onClick={() => setTab("view")}>Result</button>
-            <button className={tab === "table" ? "primary" : ""} onClick={() => setTab("table")}>Table</button>
+            {v && <button className={tab === "view" ? "primary" : ""} onClick={() => setTab("view")}>Result</button>}
+            <button className={tab === "table" || (!v && tab === "view") ? "primary" : ""} onClick={() => setTab("table")}>Table</button>
+            <button className={tab === "columns" ? "primary" : ""} onClick={() => setTab("columns")}>Columns</button>
           </span>
         )}
       </div>
       {result.status === "error" && <div className="note err" role="alert">{result.error ?? "This block failed."}</div>}
       {result.status === "skipped" && <div className="note warn">Skipped: an upstream block failed.</div>}
       {result.warnings.map((w, i) => <div className="note warn" key={i}>{w}</div>)}
-      {result.status === "ok" && (showView && v ? <ViewSwitch view={v} /> : <PreviewTable result={result} />)}
+      {result.status === "ok" && (tab === "columns" ? <ColumnsGrid profile={result.profile} nRows={result.n_rows} /> : showView && v ? <ViewSwitch view={v} /> : <PreviewTable result={result} />)}
     </div>
   );
 }
@@ -53,7 +56,9 @@ function PreviewTable({ result }: { result: NodeResult }) {
       <div className="tablewrap preview"><table>
         <thead><tr>{cols.map((c) => <th key={c} className={numeric.has(c) ? "num" : ""}>{c}</th>)}</tr></thead>
         <tbody>{result.preview.map((r, i) => (
-          <tr key={i}>{cols.map((c) => <td key={c} className={numeric.has(c) ? "num" : ""}>{fmtCell(r[c])}</td>)}</tr>
+          <tr key={i}>{cols.map((c) => (
+            <td key={c} className={`cell${numeric.has(c) ? " num" : ""}`} title={fmtCell(r[c])}>{fmtCell(r[c])}</td>
+          ))}</tr>
         ))}</tbody>
       </table></div>
       {result.n_rows != null && result.n_rows > result.preview.length && (

@@ -94,7 +94,7 @@ export type View = PivotView | ChartView | StatsView | ModelView | ClusterView;
 
 export interface NodeResult {
   node_id: string; status: "ok" | "error" | "skipped"; error: string | null; n_rows: number | null;
-  columns: ColumnInfo[]; preview: Record<string, unknown>[]; view: View | null;
+  columns: ColumnInfo[]; profile?: ColumnProfile[] | null; preview: Record<string, unknown>[]; view: View | null;
   warnings: string[]; elapsed_ms: number;
 }
 export interface RunResponse { run_id: string | null; started_at: string; results: Record<string, NodeResult> }
@@ -121,3 +121,9 @@ export interface ConnectionOut {
   [k: string]: unknown;
 }
 export interface PgTable { schema: string; name: string }
+
+export interface ColumnProfile {
+  name: string; dtype: ColumnInfo["dtype"]; n: number; non_null: number; n_unique: number; n_unique_capped: boolean;
+  hist: { min: number; max: number; counts: number[] } | null;
+  top: { value: string; count: number }[] | null;
+}
