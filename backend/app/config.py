@@ -207,6 +207,7 @@ class Settings(BaseSettings):
         "postgresql+psycopg://dataforce:dataforce@localhost:5433/dataforce_test"
     )
     # Postgres does not know the hosting cap (Supabase free = 500 MB); it is a config value.
+    db_quota_mb: int = Field(default=500, ge=1)  # hosting storage cap; the admin view shows usage
     # A stalled pooler / dead network must not hang a command forever. Statement and lock
     # timeouts are applied per transaction (SET LOCAL) so they also work behind a transaction
     # pooler; 0 disables. Migrations (alembic) only use the connect timeout.

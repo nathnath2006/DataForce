@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app import __version__
 from app.api.errors import install_error_handlers
 from app.api.routes import (
+    admin,
     agent,
     ai,
     companies,
@@ -52,6 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     routers += (titles, orgchart, documents, themes)  # M2b
     routers += (agent,)  # M3a
     routers += (quality,)  # data quality
+    routers += (admin,)  # admin view
     for module in routers:
         app.include_router(module.router, prefix="/api")
     install_security(app, settings)  # last added = outermost middleware

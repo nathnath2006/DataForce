@@ -11,6 +11,7 @@ import { DealsPage } from "./pages/Deals";
 import { DealDetailPage } from "./pages/DealDetail";
 import { AnalysisPage } from "./pages/Analysis";
 import { SettingsPage } from "./pages/Settings";
+import { AdminPage } from "./pages/Admin";
 import { CompaniesPage } from "./companies/CompaniesPage";
 import { CompanyDetailPage } from "./companies/CompanyDetail";
 import { MeetingsPage } from "./meetings/MeetingsPage";
@@ -43,6 +44,7 @@ export function App() {
         <Route path="analysis/scan" element={<AnalysisPage />} />
         <Route path="analysis/:flowId" element={<Suspense fallback={<Loading />}><FlowEditorPage /></Suspense>} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="admin" element={<AdminPage />} />
         <Route path="*" element={<p className="muted">Page not found.</p>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -140,7 +142,7 @@ function Shell() {
         )}
         <div className={`body has-rail ${drawerOpen ? "drawer-open" : ""}`}>
           <nav className={`side ${navOpen ? "open" : ""}`} onClick={() => setNavOpen(false)}>
-            {["companies", "accounts", "contacts", "deals", "meetings", "analysis", "settings"].map((p) => (
+            {["companies", "accounts", "contacts", "deals", "meetings", "analysis", "settings", "admin"].map((p) => (
               <NavLink key={p} to={`/w/${slug}/${p}`}>{p.charAt(0).toUpperCase() + p.slice(1)}</NavLink>
             ))}
             <p className="muted small">Acting as is a label only: there is no login before M3.</p>

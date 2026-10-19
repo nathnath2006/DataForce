@@ -42,6 +42,8 @@ M3: anyone who can run programs on this computer can use it, nobody else can.
   the tools TamTam offers; *Disconnect* deletes the token.
 - **Paid lookups** happen only when you click *Enrich* on a contact of a real workspace and
   confirm the credit amount. Found emails / mobiles are stored encrypted, each with a *Delete*.
+- **Admin**: database size against the hosting quota and schema status, AI usage from the
+  `llm_call` table, recent runs (stale ones flagged) and the operational limits (read-only).
 - **Companies** (M2a): type a name to see whether you already dealt with a company. A company
   groups its accounts and shows its address, contacts, deals and activity. *Search the public
   registry* looks the name up in the free French company register (api.gouv.fr) only when you

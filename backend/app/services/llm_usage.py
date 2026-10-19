@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import unicodedata
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -71,7 +72,10 @@ class DbUsageRecorder:
 
 
 def usage_summary(
-    session: Session, ws_id: uuid.UUID, run_id: uuid.UUID | None = None
+    session: Session,
+    ws_id: uuid.UUID,
+    run_id: uuid.UUID | None = None,
+    since: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Calls, failures and tokens grouped by provider / model / purpose."""
     stmt = (
@@ -90,4 +94,6 @@ def usage_summary(
     )
     if run_id is not None:
         stmt = stmt.where(LlmCall.run_id == run_id)
+    if since is not None:
+        stmt = stmt.where(LlmCall.created_at >= since)
     return [dict(row._mapping) for row in session.execute(stmt)]

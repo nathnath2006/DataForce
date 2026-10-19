@@ -95,9 +95,12 @@ def list_runs(
     ws_id: uuid.UUID,
     *,
     kind: RunKind | str | None = None,
+    status: RunStatus | str | None = None,
     limit: int = 20,
 ) -> list[Run]:
     stmt = select(Run).where(Run.workspace_id == ws_id).order_by(Run.started_at.desc())
     if kind is not None:
         stmt = stmt.where(Run.kind == str(getattr(kind, "value", kind)))
+    if status is not None:
+        stmt = stmt.where(Run.status == str(getattr(status, "value", status)))
     return list(session.scalars(stmt.limit(limit)))
