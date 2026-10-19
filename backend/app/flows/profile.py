@@ -6,12 +6,12 @@ At most MAX_PROFILE_COLUMNS columns; n_unique is capped (with a flag); numeric c
 
 from __future__ import annotations
 
-import re
 import time
 
 import numpy as np
 import pandas as pd
 
+from app.domain.redaction import SENSITIVE
 from app.flows.blocks._common import dtype_of
 from app.flows.schemas import ColumnProfile, Histogram, TopValue
 
@@ -21,12 +21,6 @@ HIST_BINS = 8
 TOP_N = 5
 VALUE_CHARS = 60
 HIDDEN = "(hidden)"
-# Columns whose values look like secrets or contact details keep their counts but never show
-# values (SR16-01; the same rule as the agent tools' flow output).
-SENSITIVE = re.compile(
-    r"(?i)^(?:.*_enc|(?:.*[_\- .])?(?:password|passwd|secret|token|api_key|apikey|email|e-mail"
-    r"|mail|phone|mobile|tel|telephone|téléphone))$"
-)
 
 
 def _profile_column(name: str, s: pd.Series, dtype: str) -> ColumnProfile:

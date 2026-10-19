@@ -13,7 +13,7 @@ from app.cli import app
 from app.cli import demo as demo_cli
 from app.config import get_settings
 from app.db import session as db_session_module
-from app.db.models import Contact
+from app.db.models import Contact, Workspace
 from app.demo.generator import generate
 from app.demo.inmemory import deal_rows
 from app.domain.enums import StatStatus
@@ -105,7 +105,12 @@ def test_unknown_workspace_is_one_line_error(cli_env) -> None:
 @pytest.mark.integration
 def test_notes_round_trip(cli_env, db_session: Session) -> None:
     assert _run("demo", "generate", "--variant", "noise", "--seed", "42").exit_code == 0
-    contact_id = db_session.scalars(select(Contact.id).limit(1)).one()
+    contact_id = db_session.scalars(
+        select(Contact.id)
+        .join(Workspace, Workspace.id == Contact.workspace_id)
+        .where(Workspace.slug == "demo-noise-42")
+        .limit(1)
+    ).one()
     ws = ("--workspace", "demo-noise-42")
 
     res = _run("crm", "notes", "add", *ws, "--contact", str(contact_id), "--body", "first")

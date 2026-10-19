@@ -3,7 +3,8 @@ import { Link } from "react-router";
 import { useWs } from "../context";
 import { Confirm, Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, useAction, useLoad } from "../ui";
 import { meetingsApi } from "./api";
-import { buildTurns, displaySegs, formatDate, legend, speakerNames } from "./text";
+import { formatDate } from "../lib";
+import { buildTurns, displaySegs, legend, speakerNames } from "./text";
 import type { DocumentOut } from "./types";
 import "./meetings.css";
 

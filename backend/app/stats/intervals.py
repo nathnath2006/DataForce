@@ -60,7 +60,7 @@ def _boot_medians(values: np.ndarray, resamples: int, rng: np.random.Generator) 
     return out
 
 
-def _percentile(boot: np.ndarray, conf: float) -> tuple[float, float]:
+def percentile_interval(boot: np.ndarray, conf: float) -> tuple[float, float]:
     a = (1 - conf) / 2
     lo, hi = np.quantile(boot, [a, 1 - a])
     return float(lo), float(hi)
@@ -72,7 +72,7 @@ def bootstrap_median(
     arr = np.asarray(values, dtype=float)
     if arr.size == 0:
         return _NAN
-    lo, hi = _percentile(_boot_medians(arr, resamples, rng), conf)
+    lo, hi = percentile_interval(_boot_medians(arr, resamples, rng), conf)
     return float(np.median(arr)), lo, hi
 
 
@@ -89,5 +89,5 @@ def bootstrap_median_diff(
     if x.size == 0 or y.size == 0:
         return _NAN
     boot = _boot_medians(x, resamples, rng) - _boot_medians(y, resamples, rng)
-    lo, hi = _percentile(boot, conf)
+    lo, hi = percentile_interval(boot, conf)
     return float(np.median(x) - np.median(y)), lo, hi

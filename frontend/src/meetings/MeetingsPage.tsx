@@ -6,7 +6,8 @@ import { themesVsWinRateGraph } from "../flows/graph";
 import { AiBadge, Empty, ErrorNote, Field, Loading, Tag, useAction, useLoad } from "../ui";
 import { meetingsApi } from "./api";
 import { DeleteMeeting, MeetingTable, TranscriptDialog } from "./MeetingsPanel";
-import { clampK, exactCount, formatDate } from "./text";
+import { formatDate, formatDateTime } from "../lib";
+import { clampK, exactCount } from "./text";
 import type { DocumentOut, ThemeOut } from "./types";
 import "./meetings.css";
 
@@ -78,7 +79,7 @@ function ThemesSection({ onChanged }: { onChanged: () => void }) {
       {r && (
         <>
           <p className="muted small">
-            Run of {new Date(r.created_at).toLocaleString()}: k={r.k}, {exactCount(r.n_chunks_used, "passage")} used,
+            Run of {formatDateTime(r.created_at)}: k={r.k}, {exactCount(r.n_chunks_used, "passage")} used,
             {" "}{r.n_unassigned} unassigned{r.dropped_themes > 0 ? `, ${r.dropped_themes} too-small theme(s) dropped` : ""}.
           </p>
           <div className="themes-grid">{r.themes.map((t) => <ThemeCard key={t.id} theme={t} />)}</div>

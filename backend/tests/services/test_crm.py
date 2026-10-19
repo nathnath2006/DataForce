@@ -231,7 +231,10 @@ def test_erase_contact_deletes_notes_and_unlinks_reports(db_session: Session, ws
     boss_id, rep_id, keep_id = boss.id, rep.id, keep.id
     contacts.erase_contact(db_session, ws_id, boss_id)
     assert db_session.get(Contact, boss_id) is None
-    assert db_session.scalar(select(func.count()).select_from(Note)) == 1
+    assert (
+        db_session.scalar(select(func.count()).select_from(Note).where(Note.workspace_id == ws_id))
+        == 1
+    )
     assert db_session.get(Note, keep_id) is not None
     assert db_session.get(Contact, rep_id).reports_to_id is None
     # the erasure switch is off again: plain deletes are refused
@@ -249,7 +252,12 @@ def test_erase_account_and_delete_workspace_cascade(db_session: Session, ws_id):
     )
     accounts.erase_account(db_session, ws_id, acc.id)
     for model in (Contact, Note, Comment):
-        assert db_session.scalar(select(func.count()).select_from(model)) == 0
+        assert (
+            db_session.scalar(
+                select(func.count()).select_from(model).where(model.workspace_id == ws_id)
+            )
+            == 0
+        )
     assert deals.list_deals(db_session, ws_id) == []
 
     acc2 = mk_account(db_session, ws_id, "B")
@@ -257,7 +265,10 @@ def test_erase_account_and_delete_workspace_cascade(db_session: Session, ws_id):
     notes.add_note(db_session, ws_id, contacts.list_contacts(db_session, ws_id)[0].id, None, "n")
     workspaces.delete_workspace(db_session, "test-ws")
     assert workspaces.get_workspace_by_slug(db_session, "test-ws") is None
-    assert db_session.scalar(select(func.count()).select_from(Note)) == 0
+    assert (
+        db_session.scalar(select(func.count()).select_from(Note).where(Note.workspace_id == ws_id))
+        == 0
+    )
 
 
 # --- SR4 hardening ----------------------------------------------------------------------------

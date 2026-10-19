@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from app.flows.blocks._common import Ctx
+from app.stats.intervals import percentile_interval as interval  # noqa: F401 (re-exported)
 
 _CHUNK_CELLS = 2_000_000
 
@@ -19,9 +20,3 @@ def boot_medians(values: np.ndarray, resamples: int, rng: np.random.Generator, c
         idx = rng.integers(0, n, size=(m, n))
         out[start : start + m] = np.median(values[idx], axis=1)
     return out
-
-
-def interval(boot: np.ndarray, conf: float) -> tuple[float, float]:
-    a = (1 - conf) / 2
-    lo, hi = np.quantile(boot, [a, 1 - a])
-    return float(lo), float(hi)

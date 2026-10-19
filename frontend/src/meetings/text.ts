@@ -86,11 +86,6 @@ export const THEME_CLASSES = 6;
 export const themeClass = (i: number): string => `th${((i % THEME_CLASSES) + THEME_CLASSES) % THEME_CLASSES}`;
 
 // ---- formatting ----
-export function formatDate(d: string | null | undefined): string {
-  if (!d) return "no date";
-  const t = new Date(d);
-  return Number.isNaN(t.getTime()) ? d : t.toISOString().slice(0, 10);
-}
 export function exactCount(n: number, noun: string): string {
   return `${n.toLocaleString("en-IE")} ${noun}${n === 1 ? "" : "s"}`;
 }

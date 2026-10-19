@@ -194,7 +194,13 @@ def test_flows_list_and_run(db_session, demo):
 
 def test_meetings_and_themes(db_session, demo):
     ms = call("list_meetings", db_session, demo.ws_id, limit=5).data
-    assert ms.page.total == db_session.scalar(select(func.count()).select_from(Document)) > 0
+    assert (
+        ms.page.total
+        == db_session.scalar(
+            select(func.count()).select_from(Document).where(Document.workspace_id == demo.ws_id)
+        )
+        > 0
+    )
     assert ms.page.returned == len(ms.meetings) <= 5
     m = ms.meetings[0]
     full = call("get_meeting", db_session, demo.ws_id, document_id=m.id).data

@@ -42,7 +42,10 @@ def test_adding_needs_the_secret_key(db_session, ws, contact):
 
     with pytest.raises(EnrichmentConfigError, match="secrets init"):
         add(db_session, ws, contact, Settings(_env_file=None, environment="test"))
-    assert db_session.scalars(select(ContactChannel)).all() == []
+    assert (
+        db_session.scalars(select(ContactChannel).where(ContactChannel.workspace_id == ws.id)).all()
+        == []
+    )
 
 
 def test_the_same_value_is_replaced_not_duplicated(db_session, settings, ws, contact):
@@ -113,5 +116,7 @@ def test_erasing_a_contact_cascades_to_its_channels(db_session, settings, ws, co
     sibling = make_contact(db_session, ws, "Sam Lee")
     add(db_session, ws, sibling, settings, "sam@acme.example")
     contacts.erase_contact(db_session, ws.id, contact.id)
-    remaining = db_session.scalars(select(ContactChannel)).all()
+    remaining = db_session.scalars(
+        select(ContactChannel).where(ContactChannel.workspace_id == ws.id)
+    ).all()
     assert [r.contact_id for r in remaining] == [sibling.id]

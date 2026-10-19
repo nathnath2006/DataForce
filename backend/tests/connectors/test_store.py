@@ -27,14 +27,17 @@ def make_pending(db, ws, state, **kw):
 
 def test_expired_pending_rows_are_purged_on_the_next_connect(db_session, ws):
     make_pending(db_session, ws, "old")
-    db_session.scalars(select(OAuthPending)).one().expires_at = datetime.now(UTC) - timedelta(
-        minutes=1
-    )
+    db_session.scalars(
+        select(OAuthPending).where(OAuthPending.workspace_id == ws.id)
+    ).one().expires_at = datetime.now(UTC) - timedelta(minutes=1)
     other = workspaces.create_workspace(db_session, "other-ws", "Other")
     make_pending(db_session, other, "new")
-    assert [p.state_hash for p in db_session.scalars(select(OAuthPending))] == [
-        store.sha256_hex("new")
-    ]
+    assert [
+        p.state_hash
+        for p in db_session.scalars(
+            select(OAuthPending).where(OAuthPending.workspace_id.in_([ws.id, other.id]))
+        )
+    ] == [store.sha256_hex("new")]
 
 
 def test_purge_counts_only_expired_rows(db_session, ws):
@@ -54,7 +57,7 @@ def test_take_is_single_use_and_does_not_touch_other_flows(db_session, ws):
 
 def test_only_hashes_are_stored(db_session, ws):
     make_pending(db_session, ws, "plain-state")
-    row = db_session.scalars(select(OAuthPending)).one()
+    row = db_session.scalars(select(OAuthPending).where(OAuthPending.workspace_id == ws.id)).one()
     assert "plain-state" not in (row.state_hash, row.browser_hash)
     assert len(row.state_hash) == 64
 

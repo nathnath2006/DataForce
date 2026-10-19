@@ -7,8 +7,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
-import threading
-import time
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Sequence
@@ -24,41 +22,25 @@ from app.llm.errors import LLMError
 from app.orgchart import meeting_ai
 from app.orgchart.meetings import ChunkRec, ContactRef
 from app.services import llm_settings
+from app.services._budget import FAILURE_TTL_S, Budget  # noqa: F401 (re-exported)
 from app.services.llm_usage import DbUsageRecorder
 
 # In-memory, process-wide, per workspace (like the title pass): a daily call cap on top of the
 # per-run cap, and a short memory of transcripts whose calls failed.
-FAILURE_TTL_S = 3_600.0
-_LOCK = threading.Lock()
-_DAILY: dict[tuple[uuid.UUID, int], int] = {}
-_FAILED: dict[tuple[uuid.UUID, uuid.UUID, str], float] = {}
+_BUDGET = Budget()
+_FAILED = _BUDGET.failed
 
 
 def reset_limits() -> None:
-    with _LOCK:
-        _DAILY.clear()
-        _FAILED.clear()
-
-
-def _day() -> int:
-    return int(time.time() // 86_400)
+    _BUDGET.reset()
 
 
 def _recently_failed(key: tuple[uuid.UUID, uuid.UUID, str]) -> bool:
-    with _LOCK:
-        at = _FAILED.get(key)
-        if at is not None and time.monotonic() - at > FAILURE_TTL_S:
-            del _FAILED[key]
-            return False
-        return at is not None
+    return _BUDGET.recently_failed(key)
 
 
 def _remember_failure(key: tuple[uuid.UUID, uuid.UUID, str]) -> None:
-    with _LOCK:
-        now = time.monotonic()
-        for k in [k for k, at in _FAILED.items() if now - at > FAILURE_TTL_S]:
-            del _FAILED[k]
-        _FAILED[key] = time.monotonic()
+    _BUDGET.remember_failure(key)
 
 
 # --- settings ---------------------------------------------------------------------------------
@@ -133,15 +115,10 @@ class AiPass:
 
     def _take(self) -> bool:
         """Check and spend the per-run and the per-day allowance under one lock."""
-        with _LOCK:
-            for key in [k for k in _DAILY if k[1] != _day()]:
-                del _DAILY[key]
-            k = (self.ws_id, _day())
-            if self._left <= 0 or _DAILY.get(k, 0) >= self.settings.org_ai_max_calls_per_day:
-                return False
-            self._left -= 1
-            _DAILY[k] = _DAILY.get(k, 0) + 1
-            return True
+        if self._left <= 0 or not _BUDGET.take(self.ws_id, self.settings.org_ai_max_calls_per_day):
+            return False
+        self._left -= 1
+        return True
 
     def _open(self) -> Any:
         cred = llm_settings.require_credential(self.session, self.ws_id)

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import threading
-import time
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -17,6 +15,7 @@ from app.config import Settings
 from app.db.models import Account, Contact, TitleCache
 from app.domain.enums import JobFunction, RunKind, RunStatus, Seniority, TitleSource
 from app.services import llm_settings
+from app.services._budget import Budget
 from app.services._common import require_contact
 from app.services.llm_usage import DbUsageRecorder
 from app.services.runs import finish_run, start_run
@@ -31,47 +30,27 @@ FLAG_UNKNOWN = "unknown title"
 
 # In-memory AI budget (process-wide, per workspace): a daily call cap on top of the per-run cap
 # (SR12-09), and a short negative cache so a title the provider failed on is not retried.
-FAILURE_TTL_S = 3_600.0
-_LOCK = threading.Lock()
-_DAILY: dict[tuple[uuid.UUID, int], int] = {}
-_FAILED: dict[tuple[uuid.UUID, str], float] = {}
+_BUDGET = Budget()
 
 
 def reset_ai_limits() -> None:
-    with _LOCK:
-        _DAILY.clear()
-        _FAILED.clear()
-
-
-def _day() -> int:
-    return int(time.time() // 86_400)
+    _BUDGET.reset()
 
 
 def _daily_remaining(ws_id: uuid.UUID, settings: Settings) -> int:
-    cap = settings.titles_max_llm_calls_per_day
-    with _LOCK:
-        for key in [k for k in _DAILY if k[1] != _day()]:
-            del _DAILY[key]
-        return max(0, cap - _DAILY.get((ws_id, _day()), 0))
+    return _BUDGET.remaining(ws_id, settings.titles_max_llm_calls_per_day)
 
 
 def _spend(ws_id: uuid.UUID, n: int) -> None:
-    with _LOCK:
-        _DAILY[(ws_id, _day())] = _DAILY.get((ws_id, _day()), 0) + n
+    _BUDGET.spend(ws_id, n)
 
 
 def _recently_failed(ws_id: uuid.UUID, title: str) -> bool:
-    with _LOCK:
-        at = _FAILED.get((ws_id, title))
-        if at is not None and time.monotonic() - at > FAILURE_TTL_S:
-            del _FAILED[(ws_id, title)]
-            return False
-        return at is not None
+    return _BUDGET.recently_failed((ws_id, title))
 
 
 def _remember_failure(ws_id: uuid.UUID, title: str) -> None:
-    with _LOCK:
-        _FAILED[(ws_id, title)] = time.monotonic()
+    _BUDGET.remember_failure((ws_id, title))
 
 
 def _apply(contact: Contact, cls: TitleClass) -> None:

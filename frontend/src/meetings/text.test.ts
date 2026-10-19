@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateGraph, themesVsWinRateGraph, TEMPLATES } from "../flows/graph";
-import { buildTurns, clampK, displaySegs, exactCount, formatDate, legend, safeOffset } from "./text";
+import { buildTurns, clampK, displaySegs, exactCount, legend, safeOffset } from "./text";
 import type { ChunkOut } from "./types";
 
 const ch = (id: string, seq: number, speaker: string | null, s: number, e: number): ChunkOut =>
@@ -48,8 +48,6 @@ describe("legend and formatting", () => {
     expect(l.map((x) => x.cls)).toEqual(["th0", "th1"]);
   });
   it("formats", () => {
-    expect(formatDate("2026-03-04")).toBe("2026-03-04");
-    expect(formatDate(null)).toBe("no date");
     expect(exactCount(1, "meeting")).toBe("1 meeting");
     expect(exactCount(2, "meeting")).toBe("2 meetings");
     expect(clampK(99)).toBe(30);

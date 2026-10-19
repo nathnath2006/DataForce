@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 
 from app.api.deps import get_app_settings
 from app.api.routes.ai import get_chat_factory
-from app.db.models import Document, LlmCall, MeetingOrgAiCache
+from app.db.models import Document, LlmCall, MeetingOrgAiCache, Workspace
 from app.llm.errors import LLMError
 from app.llm.fake import FakeLLM
 from app.orgchart.meeting_ai import AiAnswer
@@ -155,7 +155,12 @@ def test_cache_hit_sends_nothing_and_is_purged(client, ws, db_session, team, fak
     assert run(client, ws, team["acc"])["ai"]["calls"] == 1
     again = run(client, ws, team["acc"])
     assert again["ai"]["calls"] == 0 and again["created"] == 1 and len(fake["users"]) == 1
-    count = select(func.count()).select_from(MeetingOrgAiCache)
+    count = (
+        select(func.count())
+        .select_from(MeetingOrgAiCache)
+        .join(Workspace, Workspace.id == MeetingOrgAiCache.workspace_id)
+        .where(Workspace.slug == ws.rsplit("/", 1)[1])
+    )
     assert db_session.scalar(count) == 1
     # deleting the document deletes its cache
     assert client.delete(f"{ws}/documents/{d.id}").status_code == 204

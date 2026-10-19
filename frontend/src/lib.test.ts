@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ApiError, buildOrgTree, formatDiffWithCi, formatEur, formatPct, formatPts, formatStat,
+  ApiError, buildOrgTree, formatDate, formatDiffWithCi, formatEur, formatPct, formatPts, formatStat,
   formatWithCi, isSafeAuthorizeUrl, parseApiError, segmentLabel, tamtamReason,
 } from "./lib";
 import type { OrgChartNode, StatValue } from "./types";
@@ -107,5 +107,12 @@ describe("review fixes", () => {
     expect(segmentLabel("smb")).toBe("SMB");
     expect(segmentLabel("midmarket")).toBe("Mid-market");
     expect(segmentLabel(null)).toBe("—");
+  });
+});
+
+describe("formatDate", () => {
+  it("formats a calendar date in en-GB", () => {
+    expect(formatDate("2026-10-18")).toBe("18 Oct 2026");
+    expect(formatDate(null)).toBe("—");
   });
 });

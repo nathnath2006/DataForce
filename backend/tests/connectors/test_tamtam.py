@@ -55,8 +55,8 @@ def credential(db: Session, ws) -> ConnectorCredential:
     return cred
 
 
-def pending_count(db: Session) -> int:
-    return len(db.scalars(select(OAuthPending)).all())
+def pending_count(db: Session, ws) -> int:
+    return len(db.scalars(select(OAuthPending).where(OAuthPending.workspace_id == ws.id)).all())
 
 
 # --- connect --------------------------------------------------------------------------------
@@ -70,7 +70,9 @@ async def test_connect_registers_and_builds_the_authorize_url(db_session, settin
     assert q["code_challenge_method"] == "S256" and "scope" not in q
     assert q["redirect_uri"] == "http://127.0.0.1:8800/api/connectors/tamtam/callback"
     assert len(stub.register_calls) == 1
-    pending = db_session.scalars(select(OAuthPending)).one()
+    pending = db_session.scalars(
+        select(OAuthPending).where(OAuthPending.workspace_id == ws.id)
+    ).one()
     # only hashes of the state and the cookie, and the sealed verifier, are stored
     assert state not in (pending.state_hash, pending.browser_hash)
     assert pending.state_hash == store.sha256_hex(state)
@@ -93,7 +95,7 @@ async def test_connect_without_a_secret_key_is_a_config_error_and_sends_nothing(
 async def test_a_new_connect_replaces_the_flow_in_flight(db_session, settings, ws, stub):
     await start(db_session, settings, ws)
     await start(db_session, settings, ws)
-    assert pending_count(db_session) == 1
+    assert pending_count(db_session, ws) == 1
 
 
 async def test_reconnect_reuses_the_client_id_for_the_same_redirect_uri(
@@ -124,7 +126,7 @@ async def test_connect_refuses_a_tampered_discovery(db_session, settings, ws, st
     stub.as_meta["authorization_endpoint"] = "https://evil.example/authorize"
     with pytest.raises(oauth.OAuthError):
         await start(db_session, settings, ws)
-    assert pending_count(db_session) == 0
+    assert pending_count(db_session, ws) == 0
 
 
 # --- callback -------------------------------------------------------------------------------
@@ -140,7 +142,7 @@ async def test_happy_path_stores_sealed_tokens(db_session, settings, ws, stub):
         assert not any(s in sealed for s in SECRETS)
     assert unseal(cred.access_token_enc, settings) == ACCESS_1
     assert unseal(cred.refresh_token_enc, settings) == REFRESH_1
-    assert pending_count(db_session) == 0  # single use
+    assert pending_count(db_session, ws) == 0  # single use
     assert stub.token_calls[0]["code_verifier"]
 
 
@@ -161,12 +163,14 @@ async def test_unknown_or_missing_state(db_session, settings, ws, stub):
 
 async def test_expired_state(db_session, settings, ws, stub):
     _, browser, state = await start(db_session, settings, ws)
-    pending = db_session.scalars(select(OAuthPending)).one()
+    pending = db_session.scalars(
+        select(OAuthPending).where(OAuthPending.workspace_id == ws.id)
+    ).one()
     pending.expires_at = datetime.now(UTC) - timedelta(seconds=1)
     db_session.commit()
     result = await finish(db_session, settings, state, browser)
     assert result.reason == tamtam.EXPIRED and result.slug == ws.slug
-    assert stub.token_calls == [] and pending_count(db_session) == 0
+    assert stub.token_calls == [] and pending_count(db_session, ws) == 0
 
 
 @pytest.mark.parametrize("cookie", [None, "", "wrong-cookie"])
@@ -175,7 +179,7 @@ async def test_missing_or_wrong_cookie(db_session, settings, ws, stub, cookie):
     result = await finish(db_session, settings, state, cookie)
     assert result.reason == tamtam.INVALID_STATE
     assert stub.token_calls == []
-    assert pending_count(db_session) == 0  # a wrong attempt spends the flow
+    assert pending_count(db_session, ws) == 0  # a wrong attempt spends the flow
     assert store.get_credential(db_session, ws.id) is None
 
 
@@ -239,7 +243,9 @@ async def test_exchange_failures_leave_no_credential(db_session, settings, ws, s
 
 async def test_issuer_changed_between_connect_and_callback(db_session, settings, ws, stub):
     _, browser, state = await start(db_session, settings, ws)
-    pending = db_session.scalars(select(OAuthPending)).one()
+    pending = db_session.scalars(
+        select(OAuthPending).where(OAuthPending.workspace_id == ws.id)
+    ).one()
     pending.issuer = "https://api.tamtam.ai/other"
     db_session.commit()
     assert (await finish(db_session, settings, state, browser)).reason == tamtam.EXCHANGE_FAILED
@@ -548,7 +554,7 @@ async def test_disconnect_deletes_credential_and_pending_rows(db_session, settin
     await connect(db_session, settings, ws)
     await start(db_session, settings, ws)  # a flow in flight too
     await tamtam.disconnect(db_session, settings, ws.id)
-    assert store.get_credential(db_session, ws.id) is None and pending_count(db_session) == 0
+    assert store.get_credential(db_session, ws.id) is None and pending_count(db_session, ws) == 0
     assert stub.revoke_calls == []  # TamTam advertises no revocation endpoint
 
 

@@ -12,7 +12,6 @@ channels (emails, mobiles), secrets and keys are never read.
 
 from __future__ import annotations
 
-import re
 import threading
 import uuid
 from collections import Counter
@@ -98,6 +97,7 @@ from app.db.models import (
     Run,
 )
 from app.domain.enums import CLOSED_STAGES, ProposalStatus, RunKind, RunStatus
+from app.domain.redaction import SENSITIVE as _REDACT
 from app.domain.schemas import ScanReport
 from app.flows.schemas import FlowGraph
 from app.flows.sources.loader import DbSourceLoader
@@ -119,11 +119,6 @@ MAX_COLUMNS = 60
 MAX_THEMES = 100
 SCAN_REUSE_S = 60
 _SCAN_LOCK = threading.Lock()
-# Columns that may hold secrets or personal contact data are blanked in flow results (SR14-02).
-_REDACT = re.compile(
-    r"(?i)^(?:.*_enc|(?:.*[_\- .])?(?:password|passwd|secret|token|api_key|apikey|email|e-mail"
-    r"|mail|phone|mobile|tel|telephone|téléphone))$"
-)
 RECENT_ITEMS = 20
 
 
