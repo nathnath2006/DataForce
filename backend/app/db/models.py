@@ -304,7 +304,7 @@ class ConnectorCredential(Base):
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     workspace_id: Mapped[uuid.UUID] = _workspace_fk()
-    provider: Mapped[str] = mapped_column(String(32), nullable=False)  # ConnectorProvider
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)  # "tamtam"
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="connected")
     issuer: Mapped[str] = mapped_column(Text, nullable=False)  # authorization server origin
     resource: Mapped[str] = mapped_column(Text, nullable=False)  # the MCP URL (RFC 8707)

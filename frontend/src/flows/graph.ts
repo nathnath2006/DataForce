@@ -154,18 +154,6 @@ export function validateGraph(g: FlowGraph): string[] {
 }
 
 /** Ids of a node and everything upstream of it. */
-export function ancestors(g: FlowGraph, id: string): Set<string> {
-  const out = new Set<string>();
-  const stack = [id];
-  while (stack.length) {
-    const cur = stack.pop() as string;
-    if (out.has(cur)) continue;
-    out.add(cur);
-    for (const e of g.edges) if (e.target === cur) stack.push(e.source);
-  }
-  return out;
-}
-
 // ---- column inference for the pickers ----
 export interface ColumnCtx {
   results: Record<string, NodeResult>;

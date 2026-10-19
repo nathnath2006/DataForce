@@ -38,7 +38,6 @@ export const flowApi = {
 
   files: (ws: string) => request<FileOut[]>("GET", `${w(ws)}/files`),
   upload,
-  deleteFile: (ws: string, id: string) => request<void>("DELETE", `${w(ws)}/files/${e(id)}`),
 
   connections: (ws: string) => request<ConnectionOut[]>("GET", `${w(ws)}/connections`),
   createConnection: (ws: string, b: ConnectionIn) => request<ConnectionOut>("POST", `${w(ws)}/connections`, b),

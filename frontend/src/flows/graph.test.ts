@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BLOCKS, PORTS, TEMPLATES, ancestors, connectionError, defaultConfig, fromFlow, inputColumns, newId,
+  BLOCKS, PORTS, TEMPLATES, connectionError, defaultConfig, fromFlow, inputColumns, newId,
   toFlowEdges, toFlowNodes, validateGraph, wouldCycle,
 } from "./graph";
 import type { BlockType, FlowGraph } from "./types";
@@ -78,9 +78,6 @@ describe("validateGraph and templates", () => {
     const c = TEMPLATES[1]!.build();
     c.edges.push({ id: "e9", source: "n3", source_port: "out", target: "n2", target_port: "in" });
     expect(validateGraph(c).join()).toMatch(/cycle|two edges/);
-  });
-  it("collects ancestors", () => {
-    expect([...ancestors(chain, "n3")].sort()).toEqual(["n1", "n2", "n3"]);
   });
 });
 

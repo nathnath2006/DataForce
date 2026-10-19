@@ -56,4 +56,4 @@
   --banner: var(--warn-bg); --radius: var(--r-md);
 }
 /* Legacy --accent has always meant "the blue": it stays an alias of --primary. Yellow is --highlight. */
-:root { --accent: var(--primary); --accent-text: var(--primary-ink); }
+:root { --accent: var(--primary); }

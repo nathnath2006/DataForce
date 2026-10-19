@@ -25,8 +25,3 @@ def check_and_count(ws_id: uuid.UUID, limit: int, *, now: float | None = None) -
         if len(q) >= limit:
             raise AlreadyExistsError(f"too many questions this hour (limit {limit})")
         q.append(t)
-
-
-def reset() -> None:
-    with _lock:
-        _hits.clear()

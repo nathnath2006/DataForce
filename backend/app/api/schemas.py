@@ -4,7 +4,7 @@ Conventions (see docs/UI-CONTRACT.md):
 * every workspace route is under /api/w/{ws}/..., `ws` being the workspace slug;
 * lists answer `{"items": [...], "total": n}`;
 * PATCH bodies are partial: only the fields sent are changed, an explicit null clears a field;
-* errors answer `{"error": {"code": ..., "message": ...}}` (ErrorResponse);
+* errors answer `{"error": {"code": ..., "message": ...}}`;
 * numbers come from code (SQL or the stats engine), never from an LLM.
 """
 
@@ -39,24 +39,6 @@ class _In(BaseModel):
 class Page[T](BaseModel):
     items: list[T]
     total: int
-
-
-class ErrorBody(BaseModel):
-    code: Literal[
-        "not_found",
-        "invalid_input",
-        "conflict",
-        "forbidden",
-        "paid_lookup_refused",
-        "connector_not_configured",
-        "connector_error",
-        "internal",
-    ]
-    message: str  # human readable; never contains a secret, a token or a stack trace
-
-
-class ErrorResponse(BaseModel):
-    error: ErrorBody
 
 
 class Health(BaseModel):

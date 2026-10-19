@@ -121,16 +121,6 @@ class RunStatus(StrEnum):
 
 
 # --- connectors (M1b) --------------------------------------------------------------------------
-class ConnectorProvider(StrEnum):
-    TAMTAM = "tamtam"
-
-
-class ConnectorStatus(StrEnum):
-    CONNECTED = "connected"
-    EXPIRED = "expired"  # refresh failed: the user must click "Connect" again
-    ERROR = "error"
-
-
 class ChannelKind(StrEnum):
     EMAIL = "email"
     MOBILE = "mobile"

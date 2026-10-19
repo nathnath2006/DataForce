@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -50,10 +50,6 @@ def cycle_days(created: date | None, closed: date | None) -> int | None:
     if created is None or closed is None:
         return None
     return (closed - created).days
-
-
-def iso(value: datetime | date | None) -> str | None:
-    return None if value is None else value.isoformat()
 
 
 def require_account_row(session: Session, ws_id: uuid.UUID, account_id: uuid.UUID) -> Account:
