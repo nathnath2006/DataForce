@@ -130,6 +130,7 @@ def save_model(
         "n_train": getattr(view, "n_train", None),
         "n_test": getattr(view, "n_test", None),
         "reasons": list(getattr(view, "reasons", [])),
+        "caveats": list(getattr(view, "caveats", [])),
         "confusion": getattr(view, "confusion", None),
     }
     row = SavedModel(
@@ -249,6 +250,7 @@ def score_source(
         "status_note": note,
         "n_rows": len(loaded.df),
         "n_scored": int(len(s)),
+        "n_imputed": res.n_imputed,
         "summary": summary,
         "columns": cols,
         "rows": rows,

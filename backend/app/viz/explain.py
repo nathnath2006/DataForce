@@ -1,6 +1,6 @@
 """Explain: each group of each attribute against the rest, through the existing stats block
 (same gates, same Wilson / Newcombe / Fisher or bootstrap / Mann-Whitney, same BH). Nothing is
-reimplemented here; BH is applied per attribute, as the stats block does."""
+reimplemented here; one BH is applied across every comparison of the whole run."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from app.flows.blocks import stats as stats_block
 from app.flows.blocks._common import BlockError, Ctx
 from app.flows.ports import FlowLimits
 from app.flows.schemas import StatsConfig, StatsView
+from app.stats.significance import benjamini_hochberg
 from app.viz.engine import check_columns
 from app.viz.source import TIME_BUDGET_S
 
@@ -30,6 +31,7 @@ def explain(
         deadline=time.monotonic() + TIME_BUDGET_S,  # type: ignore[arg-type]
     )
     findings: list[ExplainFinding] = []
+    prepared: list[tuple[str, stats_block.Prepared]] = []
     notes: list[str] = []
     method = ""
     for a in attrs:
@@ -43,10 +45,16 @@ def explain(
             success_value=req.measure.success_value,
         )
         try:
-            out = stats_block.run(cfg, {"in": df}, ctx)
+            prep = stats_block.prepare(cfg, {"in": df}, ctx)
         except BlockError as exc:
             notes.append(f"'{a}': {exc}")
             continue
+        prepared.append((a, prep))
+    pooled = benjamini_hochberg([p for _, pr in prepared for p in pr.pvalues])
+    pos = 0
+    for a, prep in prepared:
+        out = prep.finish(pooled[pos : pos + len(prep.pvalues)])
+        pos += len(prep.pvalues)
         view = out.view
         assert isinstance(view, StatsView)
         method = view.method

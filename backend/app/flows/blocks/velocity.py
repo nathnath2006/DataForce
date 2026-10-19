@@ -1,14 +1,21 @@
-"""velocity: deal velocity index from stage-change events.
+"""velocity: deal velocity from stage-change events.
 
-Days in a stage = time from the event that entered it to the next event of the same deal. The
-stage a deal is in now (not a terminal one) counts up to the run date when `include_open_stage`.
-Benchmark of a stage = the median, over the input rows, of the days deals spent in it (completed
-stays only). velocity_index = sum of benchmarks / sum of actual days over the stages the deal
-passed through; above `fast_track_at` is fast_track, below `stagnant_below` is stagnant.
+Days in a stage = time from the event that entered it to the next event of the same deal. A
+completed stay (the deal moved on) is ranked within the completed stays of the same stage: its
+percentile (0 = the fastest, 1 = the slowest; ties share their mid-rank). A deal's index is the
+median of its stays' percentiles, not the geometric mean of ratios: it is bounded, ignores one
+extreme stay, and its quartile thresholds (fast track at or below 0.25, stagnant at or above
+0.75) have a plain meaning. Identical deals all sit at 0.5 and get no flag.
+
+A stage needs `min_stage_n` completed stays; otherwise its stays are "insufficient data" and a
+deal with no qualifying stage gets no flag, with a reason. The stay a deal is in now (open) is
+reported apart and never enters the benchmark: it is `stalled_in_stage` when its age already
+exceeds the p75 of the completed stays of its stage.
 """
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from app.flows.blocks._common import BlockError, BlockOutput, Ctx, fnum, require
@@ -16,13 +23,22 @@ from app.flows.schemas import VelocityConfig, VelocityStage, VelocityView
 
 MAX_STAGES = 30
 NOTE = (
-    "The benchmark of a stage is the median days deals spent in it, computed over the rows of "
-    "this input (completed stays only); it is not an industry figure."
+    "Each completed stay is ranked against the completed stays of the same stage in this input "
+    "(not an industry figure); a deal's index is the median of its stays' percentiles, 0 fastest "
+    "and 1 slowest. Open stays are reported separately and are not part of the benchmark."
 )
 
 
 def _slug(stage: str) -> str:
     return "days_in_" + "".join(c if c.isalnum() else "_" for c in stage.lower())[:60]
+
+
+def _percentile(vals: np.ndarray, ref: np.ndarray) -> np.ndarray:
+    """Mid-rank share of `ref` below each value of `vals`."""
+    ref = np.sort(ref)
+    lo = np.searchsorted(ref, vals, side="left")
+    hi = np.searchsorted(ref, vals, side="right")
+    return (lo + hi) / 2.0 / len(ref)
 
 
 def run(cfg: VelocityConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOutput:
@@ -53,26 +69,62 @@ def run(cfg: VelocityConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> Block
     if not cfg.include_open_stage:
         ev = ev[~ev["open"]]
 
-    done = ev[~ev["open"]].groupby(["deal", "stage"])["days"].sum()
-    bench = done.groupby("stage").agg(["median", "size"])
-    per = ev.groupby(["deal", "stage"], sort=False)["days"].sum().reset_index()
-    per = per[per["stage"].isin(bench.index)]  # a stage nobody completed has no benchmark
-    per["bench"] = per["stage"].map(bench["median"])
-    agg = per.groupby("deal", sort=False).agg(
-        n_stages=("stage", "size"), total_days=("days", "sum"), benchmark_days=("bench", "sum")
+    # completed stays (a deal re-entering a stage adds up) and the benchmark of each stage
+    done = ev[~ev["open"]].groupby(["deal", "stage"])["days"].sum().rename("days").reset_index()
+    bench = done.groupby("stage")["days"].agg(
+        n="size", median="median", p75=lambda x: float(np.quantile(x, 0.75))
     )
-    actual = agg["total_days"]
-    idx = (agg["benchmark_days"] / actual).where(actual > 0)
+    bench["ok"] = bench["n"] >= cfg.min_stage_n
+    thin = bench[~bench["ok"]]
+    if len(thin):
+        warnings.append(
+            f"{len(thin)} stage(s) have fewer than {cfg.min_stage_n} completed stays: "
+            "insufficient data, left out of the index"
+        )
+    done["pct"] = np.nan
+    for stage, grp in done.groupby("stage"):
+        if bench.loc[stage, "ok"]:
+            done.loc[grp.index, "pct"] = _percentile(grp["days"].to_numpy(), grp["days"].to_numpy())
+    scored = done.dropna(subset=["pct"])
+    by_deal = scored.groupby("deal", sort=False)["pct"].agg(["median", "size"])
+
+    ev_all = ev.groupby(["deal", "stage"], sort=False)["days"].sum().reset_index()
+    agg = ev_all.groupby("deal", sort=False).agg(
+        n_stages=("stage", "size"), total_days=("days", "sum")
+    )
+    agg["n_stages_scored"] = by_deal["size"].reindex(agg.index).fillna(0).astype(int)
+    idx = by_deal["median"].reindex(agg.index)
     flag = pd.Series(pd.NA, index=agg.index, dtype="object").where(idx.isna(), "normal")
-    flag[idx >= cfg.fast_track_at] = "fast_track"
-    flag[idx < cfg.stagnant_below] = "stagnant"
+    flag[idx <= cfg.fast_track_pct] = "fast_track"
+    flag[idx >= cfg.stagnant_pct] = "stagnant"
+    reason = pd.Series("", index=agg.index, dtype="object")
+    has_done = set(done["deal"])
+    for d in agg.index[idx.isna()]:
+        reason[d] = (
+            f"no stage with at least {cfg.min_stage_n} completed stays"
+            if d in has_done
+            else "no completed stay yet"
+        )
+
     out = agg.reset_index().rename(columns={"deal": cfg.deal_column})
-    out["velocity_index"] = idx.to_numpy()
+    out["velocity_percentile"] = idx.to_numpy()
     out["velocity_flag"] = flag.to_numpy()
-    top = per["stage"].value_counts().index[:MAX_STAGES]
-    if per["stage"].nunique() > MAX_STAGES:
+    out["velocity_reason"] = reason.replace("", None).to_numpy()
+
+    # open stays, apart from the benchmark
+    op = ev[ev["open"]].groupby("deal", sort=False).last()[["stage", "days"]]
+    p75 = op["stage"].map(bench["p75"])
+    sufficient = op["stage"].map(bench["ok"]).fillna(False).astype(bool)
+    op["stalled"] = (op["days"] > p75) & sufficient
+    out["open_stage"] = out[cfg.deal_column].map(op["stage"])
+    out["open_days"] = out[cfg.deal_column].map(op["days"])
+    out["stalled_in_stage"] = out[cfg.deal_column].map(op["stalled"]).fillna(False).astype(bool)
+    n_stalled = int(op["stalled"].sum())
+
+    top = ev_all["stage"].value_counts().index[:MAX_STAGES]
+    if ev_all["stage"].nunique() > MAX_STAGES:
         warnings.append(f"per-stage day columns limited to the {MAX_STAGES} most common stages")
-    wide = per[per["stage"].isin(top)].pivot_table(
+    wide = ev_all[ev_all["stage"].isin(top)].pivot_table(
         index="deal", columns="stage", values="days", aggfunc="sum"
     )
     wide.columns = [_slug(str(c)) for c in wide.columns]
@@ -80,17 +132,25 @@ def run(cfg: VelocityConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> Block
     out = out.merge(wide, on=cfg.deal_column, how="left")
     n_null = int(idx.isna().sum())
     if n_null:
-        warnings.append(f"{n_null} deals have no benchmarked time in a stage: no index")
+        warnings.append(f"{n_null} deals have no stage with enough completed stays: no flag")
     counts = {k: int((flag == k).sum()) for k in ("fast_track", "normal", "stagnant")}
-    counts["no_index"] = n_null
+    counts["no_flag"] = n_null
     view = VelocityView(
         benchmark_note=NOTE,
         benchmarks=[
-            VelocityStage(stage=str(s), median_days=fnum(r["median"]), n=int(r["size"]))
-            for s, r in bench.sort_values("size", ascending=False).iterrows()
+            VelocityStage(
+                stage=str(s),
+                median_days=fnum(r["median"]),
+                n=int(r["n"]),
+                p75_days=fnum(r["p75"]),
+                sufficient=bool(r["ok"]),
+            )
+            for s, r in bench.sort_values("n", ascending=False).iterrows()
         ],
-        fast_track_at=cfg.fast_track_at,
-        stagnant_below=cfg.stagnant_below,
+        fast_track_pct=cfg.fast_track_pct,
+        stagnant_pct=cfg.stagnant_pct,
+        min_stage_n=cfg.min_stage_n,
         counts=counts,
+        n_stalled=n_stalled,
     )
     return BlockOutput(frames={"out": out}, view=view, warnings=warnings)

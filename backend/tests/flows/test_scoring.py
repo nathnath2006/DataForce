@@ -156,3 +156,22 @@ def test_parameters_that_do_not_fit_give_a_scoring_error():
     broken = {k: v for k, v in lin.model_params.items() if k != "intercept"}
     with pytest.raises(ScoringError, match="do not fit"):
         score_frame(ModelSnapshot("i", "m", "linear", broken, [], "verified"), out2)
+
+
+def test_imputed_rows_flagged_per_row_and_in_notes():
+    res, out = train(
+        {
+            "type": "model",
+            "kind": "logistic_regression",
+            "target": "won",
+            "features": ["a", "b"],
+            "positive_value": True,
+        },
+        data(),
+    )
+    miss = out.head(6).copy()
+    miss.loc[miss.index[:2], "a"] = np.nan
+    r = score_frame(snap("logistic", res), miss)
+    assert r.columns["score_imputed"].tolist() == [True, True, False, False, False, False]
+    assert r.n_imputed == 2
+    assert any("2 rows" in n and "does not cover" in n for n in r.notes)

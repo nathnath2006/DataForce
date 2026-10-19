@@ -27,12 +27,31 @@ def run(cfg: TouchpointConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> Blo
     )
     g = t.groupby("by", sort=True).sum().reset_index()
     g["outreach"] = g["outbound_calls"] + g["emails"]
-    g["touchpoint_ratio"] = (g["meetings"] * cfg.meeting_weight) / g["outreach"].where(
-        g["outreach"] > 0
+    enough = g["outreach"] >= cfg.min_outreach
+    g["touchpoint_ratio"] = (g["meetings"] * cfg.meeting_weight) / g["outreach"].where(enough)
+    g["touchpoint_reason"] = pd.Series(
+        [
+            None
+            if ok
+            else f"fewer than {cfg.min_outreach} outreach ({o}): the ratio is too noisy to show"
+            for ok, o in zip(enough, g["outreach"], strict=True)
+        ],
+        index=g.index,
+        dtype="object",
     )
     n_zero = int((g["outreach"] == 0).sum())
+    n_low = int((~enough).sum())
     if n_zero:
         warnings.append(f"{n_zero} groups have no outreach: their ratio is empty, not infinite")
+    if n_low - n_zero:
+        warnings.append(
+            f"{n_low - n_zero} groups have fewer than {cfg.min_outreach} outreach: ratio empty"
+        )
+    if n_low < len(g):
+        warnings.append(
+            "no confidence interval is shown: meetings are not a subset of outreach, so a Wilson "
+            "interval does not apply"
+        )
     out = g.rename(columns={"by": cfg.by})
     view = TouchpointView(
         formula=(
@@ -41,5 +60,7 @@ def run(cfg: TouchpointConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> Blo
         ),
         n_groups=len(out),
         n_no_outreach=n_zero,
+        min_outreach=cfg.min_outreach,
+        n_below_min=n_low,
     )
     return BlockOutput(frames={"out": out}, view=view, warnings=warnings)

@@ -1,10 +1,11 @@
 """dedup: fuzzy deduplication of one text column (analysis only, never merges CRM records).
 
 Values are normalised (casefold, accents and punctuation removed, trailing legal suffixes such as
-SAS, Inc, Ltd, GmbH, Corp, Group dropped). Rows whose normalised values share a blocking prefix
-are compared with Jaro-Winkler or a Levenshtein ratio; pairs at or above the threshold are
+SAS, Inc, Ltd, GmbH, Corp, Group and leading articles the / le / la / les dropped). Rows whose
+normalised values share a blocking prefix or the first letter of their last word are compared
+with Jaro-Winkler or a Levenshtein ratio; pairs at or above the threshold are
 linked (single linkage). The master of a group is its most complete row, then the longest text,
-then the first row.
+then the first row. Values with different numbers never match. Groups are candidates to review.
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ LEGAL = frozenset(
     "sas sarl sa sasu eurl snc inc incorporated ltd limited llc llp plc gmbh ag bv nv srl spa "
     "corp corporation co company group groupe holding holdings".split()
 )
+ARTICLES = frozenset("the le la les l".split())
+_DIGITS = re.compile(r"\d+")
 _PUNCT = re.compile(r"[^0-9a-z]+")
 
 
@@ -35,7 +38,14 @@ def normalise(text: str) -> str:
     toks = _PUNCT.sub(" ", s).split()
     while len(toks) > 1 and toks[-1] in LEGAL:
         toks.pop()
+    while len(toks) > 1 and toks[0] in ARTICLES:
+        toks.pop(0)  # "The Acme" and "Acme" compare equal
     return " ".join(toks)
+
+
+def same_digits(a: str, b: str) -> bool:
+    """Names that differ only in their numbers ("Store 101", "Store 104") are never a match."""
+    return _DIGITS.findall(a) == _DIGITS.findall(b)
 
 
 def jaro(a: str, b: str) -> float:
@@ -112,12 +122,19 @@ def run(cfg: DedupConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
     uniq = sorted({k for k in keys if k})
     pos = {k: i for i, k in enumerate(uniq)}
     parent = list(range(len(uniq)))
+    # two blocking keys: the leading characters, and the first character of the last word
+    # (a pair is compared if it shares either; the second pass skips pairs the first one saw)
     blocks: dict[str, list[int]] = {}
+    tails: dict[str, list[int]] = {}
     for k in uniq:
         blocks.setdefault(k[: cfg.block_prefix], []).append(pos[k])
+        tails.setdefault(k.split()[-1][0], []).append(pos[k])
     big = 0
     pairs = 0
-    for members in blocks.values():
+    p = cfg.block_prefix
+    for second, members in [(False, m) for m in blocks.values()] + [
+        (True, m) for m in tails.values()
+    ]:
         ctx.check()
         big_block = len(members) > MAX_BLOCK
         big += big_block
@@ -129,6 +146,10 @@ def run(cfg: DedupConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
                 if pairs % CHECK_EVERY == 0:
                     ctx.check()
                 b = uniq[j]
+                if second and a[:p] == b[:p]:
+                    continue  # already compared through the first blocking key
+                if not same_digits(a, b):
+                    continue
                 if min(len(a), len(b)) / max(len(a), len(b)) < cfg.threshold - 0.5:
                     continue  # cheap length bound: cannot reach the threshold
                 if sim(a, b) >= cfg.threshold:
@@ -169,13 +190,22 @@ def run(cfg: DedupConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
             ),
         )
         master[best] = True
+    master_key = {g: keys[next(r for r in rs if master[r])] for g, rs in members_by_group.items()}
+    similarity = [
+        1.0 if not keys[r] or keys[r] == master_key[g] else round(sim(keys[r], master_key[g]), 4)
+        for r, g in enumerate(groups)
+    ]
     out = df.copy()
-    for name in ("dedup_group", "is_master"):
+    for name in ("dedup_group", "is_master", "dedup_similarity"):
         if name in out.columns:
             raise BlockError(f"the input already has a column named '{name}'")
     out["dedup_group"] = pd.array(groups, dtype="int64")
     out["is_master"] = master
+    out["dedup_similarity"] = similarity  # to the group's master; low values are weak links
     n_dup = len(df) - sum(master)
     if n_dup:
-        warnings.append(f"{n_dup} rows are duplicates of a master row (CRM records are not merged)")
+        warnings.append(
+            f"{n_dup} rows are candidates to review as duplicates of a master row "
+            "(CRM records are not merged); dedup_similarity shows how close each one is"
+        )
     return BlockOutput(frames={"out": out}, warnings=warnings)

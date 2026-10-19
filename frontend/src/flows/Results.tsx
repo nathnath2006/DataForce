@@ -7,7 +7,7 @@ import { ChartSvg } from "./Charts";
 import { fmtCell, isTotalColumn, pivotModel } from "./pivot";
 import type {
   ClusterView, EngagementView, MetricOut, ModelView, NodeResult, PivotView, ScoreView, StatsRow, StatsView,
-  TouchpointView, VelocityView,
+  TouchpointView, VelocityView, ForecastView,
 } from "./types";
 
 /** Where a model block of the open flow can be saved from: the server re-runs the SAVED flow. */
@@ -54,6 +54,7 @@ function ViewSwitch({ view }: { view: NonNullable<NodeResult["view"]> }) {
     case "velocity": return <VelocityPanel view={view} />;
     case "engagement": return <EngagementPanel view={view} />;
     case "touchpoint": return <TouchpointPanel view={view} />;
+    case "forecast": return <ForecastPanel view={view} />;
   }
 }
 
@@ -97,7 +98,9 @@ function ScorePanel({ view }: { view: ScoreView }) {
       <div className="row wrap">
         <StatusTag status={view.status} />
         <span className="muted small">{view.model_name} ({view.model_kind}) · {view.n_scored} of {view.n_rows} rows scored · scores take the model's status</span>
+        {view.n_imputed > 0 && <Tag kind="mute">{view.n_imputed} imputed rows: not covered by the verdict</Tag>}
       </div>
+      {view.n_imputed > 0 && <div className="note warn">{view.n_imputed} rows had a missing feature replaced by the training mean. The model was verified on complete rows only, so its verdict does not cover these rows (column score_imputed).</div>}
       {view.notes.map((n, i) => <div className="note warn" key={i}>{n}</div>)}
     </div>
   );
@@ -107,10 +110,11 @@ function VelocityPanel({ view }: { view: VelocityView }) {
   return (
     <div className="stack">
       <p className="muted small">{view.benchmark_note}</p>
-      <p className="muted small">Fast track at index {formatNum(view.fast_track_at, 2)} or more · stagnant below {formatNum(view.stagnant_below, 2)} · {Object.entries(view.counts).map(([k, n]) => `${k.replace("_", " ")} ${n}`).join(" · ")}</p>
+      <p className="muted small">Fast track at percentile {formatNum(view.fast_track_pct, 2)} or lower · stagnant at {formatNum(view.stagnant_pct, 2)} or higher · a stage needs {view.min_stage_n} completed stays · {Object.entries(view.counts).map(([k, n]) => `${k.replace("_", " ")} ${n}`).join(" · ")}</p>
+      <p className="muted small">{view.n_stalled} open stays already longer than 75% of the completed stays of their stage (stalled_in_stage).</p>
       <div className="tablewrap"><table>
-        <thead><tr><th>Stage</th><th className="num">Median days</th><th className="num">Deals</th></tr></thead>
-        <tbody>{view.benchmarks.map((b) => <tr key={b.stage}><td>{b.stage}</td><td className="num">{formatNum(b.median_days, 1)}</td><td className="num">{b.n}</td></tr>)}</tbody>
+        <thead><tr><th>Stage</th><th className="num">Median days</th><th className="num">p75 days</th><th className="num">Completed stays</th><th></th></tr></thead>
+        <tbody>{view.benchmarks.map((b) => <tr key={b.stage}><td>{b.stage}</td><td className="num">{formatNum(b.median_days, 1)}</td><td className="num">{formatNum(b.p75_days, 1)}</td><td className="num">{b.n}</td><td>{b.sufficient ? "" : <Tag kind="mute">insufficient data</Tag>}</td></tr>)}</tbody>
       </table></div>
     </div>
   );
@@ -119,8 +123,19 @@ function VelocityPanel({ view }: { view: VelocityView }) {
 function EngagementPanel({ view }: { view: EngagementView }) {
   return (
     <div className="stack">
+      <div className="note warn">{view.label ?? "heuristic: a weighted count, not a verified measure"}</div>
+      {(view.caveats ?? []).map((c, i) => <p className="muted small" key={i}>{c}</p>)}
       <p className="muted small">{view.formula}. Run date {view.today}.</p>
       <p className="muted small">Weights: {Object.entries(view.weights).map(([k, w]) => `${k} ${w}`).join(", ")} · {view.n_accounts} accounts · {view.n_penalised} penalised</p>
+    </div>
+  );
+}
+
+function ForecastPanel({ view }: { view: ForecastView }) {
+  return (
+    <div className="stack">
+      <div className="note warn">{view.label}</div>
+      <p className="muted small">Assumed probability per stage: {Object.entries(view.probabilities).map(([k, p]) => `${k} ${p}%`).join(" · ")}{view.n_unmapped > 0 ? ` · ${view.n_unmapped} rows without a probability` : ""}</p>
     </div>
   );
 }
@@ -129,7 +144,7 @@ function TouchpointPanel({ view }: { view: TouchpointView }) {
   return (
     <div className="stack">
       <p className="muted small">{view.formula}</p>
-      <p className="muted small">{view.n_groups} groups · {view.n_no_outreach} without outreach (empty ratio)</p>
+      <p className="muted small">{view.n_groups} groups · {view.n_below_min} below {view.min_outreach} outreach ({view.n_no_outreach} with none): empty ratio, with the reason in the table. No interval is shown.</p>
     </div>
   );
 }
@@ -267,6 +282,7 @@ function ModelPanel({ view }: { view: ModelView }) {
           <ul className="reasons">{view.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
         </div>
       )}
+      {(view.caveats ?? []).map((c, i) => <div className="note warn" key={i}>{c}</div>)}
       <MetricsTable metrics={view.metrics} />
       {view.confusion && (
         <div>

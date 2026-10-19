@@ -70,10 +70,17 @@ def run(cfg: EngagementConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> Blo
         weights={k: v for k, v in weights.items()},
         n_accounts=len(out),
         n_penalised=int(quiet.sum()),
+        caveats=[
+            "accounts with no activity at all are absent from this table, not scored 0: join to "
+            "the accounts table to list them",
+            "the score drops by the penalty at once when the last touchpoint passes the quiet "
+            "limit (a cliff, not a decay)",
+        ],
         formula=(
             f"engagement_score = sum of weights of activities in the last {cfg.window_days} days"
             f" x (1 - {cfg.penalty:g}) when the last touchpoint is more than {cfg.quiet_days}"
             " days old"
         ),
     )
+    warnings.append("heuristic: a weighted count, not a verified measure")
     return BlockOutput(frames={"out": out}, view=view, warnings=warnings)

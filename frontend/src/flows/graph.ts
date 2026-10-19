@@ -85,15 +85,15 @@ export function defaultConfig(type: BlockType): BlockConfig {
     case "score": return { type, model_id: "" };
     case "velocity":
       return {
-        type, deal_column: "deal_id", to_stage_column: "to_stage", date_column: "changed_at", fast_track_at: 1.25,
-        stagnant_below: 0.75, terminal_stages: ["closed_won", "closed_lost"], include_open_stage: true,
+        type, deal_column: "deal_id", to_stage_column: "to_stage", date_column: "changed_at", fast_track_pct: 0.25,
+        stagnant_pct: 0.75, min_stage_n: 30, terminal_stages: ["closed_won", "closed_lost"], include_open_stage: true,
       };
     case "engagement":
       return {
         type, by: "account_id", kind_column: "kind", date_column: "occurred_at", window_days: 90, quiet_days: 30,
         penalty: 0.5, weights: { ...DEFAULT_ENGAGEMENT_WEIGHTS },
       };
-    case "touchpoint": return { type, by: "author", kind_column: "kind", direction_column: "direction", meeting_weight: 3 };
+    case "touchpoint": return { type, by: "author", kind_column: "kind", direction_column: "direction", meeting_weight: 3, min_outreach: 10 };
   }
 }
 

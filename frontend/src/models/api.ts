@@ -6,13 +6,13 @@ export type SavedKind = "linear" | "logistic" | "svm" | "svr" | "kmeans";
 
 export interface SavedModel {
   id: string; name: string; kind: SavedKind; features: string[];
-  metrics: { metrics: MetricOut[]; n_train: number | null; n_test: number | null; reasons: string[]; confusion: number[][] | null };
+  metrics: { metrics: MetricOut[]; n_train: number | null; n_test: number | null; reasons: string[]; caveats?: string[]; confusion: number[][] | null };
   status: ModelStatus; flow_id: string | null; node_id: string | null; created_at: string;
 }
 
 export interface ScoreResult {
   model_id: string; model_kind: SavedKind; status: ModelStatus; status_note: string | null;
-  n_rows: number; n_scored: number;
+  n_rows: number; n_scored: number; n_imputed?: number;
   summary: { count: number; mean?: number | null; min?: number | null; max?: number | null; class_counts?: Record<string, number> | null };
   columns: string[]; rows: Record<string, unknown>[]; truncated_source: boolean; notes: string[];
 }

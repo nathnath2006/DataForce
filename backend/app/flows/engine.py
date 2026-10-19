@@ -114,6 +114,23 @@ def run_graph(
             edge = next((x for x in incoming[src] if x[0] == "in"), None)
         return None
 
+    def from_deals(nid: str) -> bool:
+        """Does any ancestor of `nid` read the CRM deals table?"""
+        seen: set[str] = set()
+        todo = [nid]
+        while todo:
+            i = todo.pop()
+            if i in seen:
+                continue
+            seen.add(i)
+            cfg = nodes[i].config
+            if cfg.type == "dataset":
+                src = cfg.dataset
+                if src.source == "crm" and getattr(src, "table", None) == "deals":
+                    return True
+            todo.extend(s for _, s, _ in incoming[i])
+        return False
+
     results: dict[str, NodeResult] = {}
     frames: dict[tuple[str, str], pd.DataFrame] = {}
     for nid in order:
@@ -138,6 +155,7 @@ def run_graph(
             node_ctx = replace(ctx, rows_multiplied=upstream)
             if node.config.type == "model":
                 tr, te = origin(nid, "train"), origin(nid, "test")
+                node_ctx.deals_source = from_deals(nid)
                 node_ctx.split_verified = (
                     tr is not None and te is not None and tr[0] == te[0] and tr[1] != te[1]
                 )

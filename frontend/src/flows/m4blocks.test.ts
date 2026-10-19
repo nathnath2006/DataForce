@@ -14,7 +14,7 @@ describe("phase 2 blocks", () => {
     }
   });
   it("uses the documented defaults", () => {
-    expect(defaultConfig("velocity")).toMatchObject({ fast_track_at: 1.25, stagnant_below: 0.75 });
+    expect(defaultConfig("velocity")).toMatchObject({ fast_track_pct: 0.25, stagnant_pct: 0.75, min_stage_n: 30 });
     expect(defaultConfig("engagement")).toMatchObject({ window_days: 90, quiet_days: 30, penalty: 0.5, weights: { meeting: 3, call: 2, email: 1, other: 1 } });
   });
   it("a score block is green only when its model is verified", () => {

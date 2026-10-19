@@ -7,6 +7,7 @@ gate passes (n, wins/losses, CI widths, BH q-value, difference CI excluding 0), 
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -29,7 +30,21 @@ def _unit_free(reasons: list[str]) -> list[str]:
     return [r.replace(" EUR includes 0", " includes 0") for r in reasons]
 
 
+class Prepared:
+    """Stats computed up to the multiple-comparison step: `pvalues` are pending, `finish(qs)`
+    applies the given q-values and the gates. Lets Explain pool one BH across attributes."""
+
+    def __init__(self, pvalues: list[float], finish: Callable[[list[float]], BlockOutput]):
+        self.pvalues = pvalues
+        self.finish = finish
+
+
 def run(cfg: StatsConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOutput:
+    prep = prepare(cfg, inputs, ctx)
+    return prep.finish(list(benjamini_hochberg(prep.pvalues)))
+
+
+def prepare(cfg: StatsConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> Prepared:
     df = inputs["in"]
     require(df, [cfg.group_by, cfg.outcome])
     gc = ctx.gates
@@ -142,49 +157,51 @@ def run(cfg: StatsConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
                 dlo = dhi = math.nan
         pending.append((name, n1, n2, k1, k2, e1, l1, h1, rv, d, dlo, dhi, p, side))
 
-    qs = benjamini_hochberg([x[12] for x in pending])
-    rows: list[StatsRow] = []
-    for (name, n1, n2, k1, k2, e1, l1, h1, rv, d, dlo, dhi, p, side), q in zip(
-        pending, qs, strict=True
-    ):
-        qv = fnum(q)
-        reasons = _unit_free(
-            G.gate_finding(metric, n1, k1, n2, k2, qv, fnum(dlo), fnum(dhi), gc, side)
-        )
-        if ctx.rows_multiplied:
-            reasons.append(MULTIPLIED)
-        rows.append(
-            StatsRow(
-                group=name,
-                n=n1,
-                value=fnum(e1),
-                ci_low=fnum(l1),
-                ci_high=fnum(h1),
-                rest_value=fnum(rv),
-                diff=fnum(d),
-                diff_ci_low=fnum(dlo),
-                diff_ci_high=fnum(dhi),
-                p_value=fnum(p),
-                q_value=qv,
-                status="not_verified" if reasons else "verified",
-                reasons=reasons,
+    def finish(qs: list[float]) -> BlockOutput:
+        rows: list[StatsRow] = []
+        for (name, n1, n2, k1, k2, e1, l1, h1, rv, d, dlo, dhi, p, side), q in zip(
+            pending, qs, strict=True
+        ):
+            qv = fnum(q)
+            reasons = _unit_free(
+                G.gate_finding(metric, n1, k1, n2, k2, qv, fnum(dlo), fnum(dhi), gc, side)
             )
+            if ctx.rows_multiplied:
+                reasons.append(MULTIPLIED)
+            rows.append(
+                StatsRow(
+                    group=name,
+                    n=n1,
+                    value=fnum(e1),
+                    ci_low=fnum(l1),
+                    ci_high=fnum(h1),
+                    rest_value=fnum(rv),
+                    diff=fnum(d),
+                    diff_ci_low=fnum(dlo),
+                    diff_ci_high=fnum(dhi),
+                    p_value=fnum(p),
+                    q_value=qv,
+                    status="not_verified" if reasons else "verified",
+                    reasons=reasons,
+                )
+            )
+        table = pd.DataFrame([r.model_dump() for r in rows])
+        if table.empty:
+            table = pd.DataFrame(columns=list(StatsRow.model_fields))
+        else:
+            table["reasons"] = table["reasons"].map("; ".join)
+        method = "wilson + newcombe + fisher, BH" if rate else "bootstrap median + mann-whitney, BH"
+        if excluded:
+            warnings.append(f"{excluded} rows with a missing group or outcome excluded")
+        view = StatsView(
+            outcome=cfg.outcome,
+            outcome_kind=cfg.outcome_kind,
+            method=method,
+            overall=overall,
+            rows=rows,
+            excluded_missing=excluded,
+            gates=gc.model_dump(),
         )
-    table = pd.DataFrame([r.model_dump() for r in rows])
-    if table.empty:
-        table = pd.DataFrame(columns=list(StatsRow.model_fields))
-    else:
-        table["reasons"] = table["reasons"].map("; ".join)
-    method = "wilson + newcombe + fisher, BH" if rate else "bootstrap median + mann-whitney, BH"
-    if excluded:
-        warnings.append(f"{excluded} rows with a missing group or outcome excluded")
-    view = StatsView(
-        outcome=cfg.outcome,
-        outcome_kind=cfg.outcome_kind,
-        method=method,
-        overall=overall,
-        rows=rows,
-        excluded_missing=excluded,
-        gates=gc.model_dump(),
-    )
-    return BlockOutput(frames={"out": table}, view=view, warnings=warnings)
+        return BlockOutput(frames={"out": table}, view=view, warnings=warnings)
+
+    return Prepared([x[12] for x in pending], finish)

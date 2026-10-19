@@ -524,3 +524,81 @@ def test_dedup_big_block_warns_and_long_keys_are_truncated():
         "accounts",
     )
     assert col(r, "dedup_group") == [1, 1]
+
+
+def _qoq(rows):
+    df = pd.DataFrame(rows, columns=["owner", "closed_on", "amount"])
+    df["closed_on"] = pd.to_datetime(df["closed_on"])
+    return chain(
+        {"deals": df},
+        {
+            "type": "window",
+            "fn": "pct_change",
+            "column": "amount",
+            "order_by": "closed_on",
+            "partition_by": ["owner"],
+            "period": "quarter",
+            "alias": "qoq",
+        },
+    )
+
+
+def test_window_qoq_gap_is_zero_not_absent():
+    # review #10: Q1=100, Q2=50, Q4=200 used to report Q4 as +3.0 "QoQ" (really Q4 vs Q2)
+    r = _qoq([("a", "2025-01-10", 100.0), ("a", "2025-04-10", 50.0), ("a", "2025-10-10", 200.0)])
+    assert col(r, "period") == ["2025-Q1", "2025-Q2", "2025-Q3", "2025-Q4"]
+    assert col(r, "amount") == [100.0, 50.0, 0.0, 200.0]
+    assert col(r, "qoq") == [None, -0.5, -1.0, None]  # Q4 follows a 0 quarter: no growth value
+    assert col(r, "qoq_abs_change") == [None, -50.0, -50.0, 200.0]
+    assert any("1 missing periods" in w for w in r.warnings)
+    assert any("1 growth values are empty" in w for w in r.warnings)
+
+
+def test_window_qoq_tiny_base_and_negative_base():
+    big = _qoq([("a", "2025-01-10", 1.0), ("a", "2025-04-10", 5000.0)])
+    assert col(big, "qoq") == [None, 4999.0]
+    assert col(big, "qoq_abs_change") == [None, 4999.0]  # the absolute change shows the scale
+    neg = _qoq([("a", "2025-01-10", -100.0), ("a", "2025-04-10", 50.0)])
+    assert col(neg, "qoq") == [None, None]  # -1.5 would have the wrong sign for a rise
+    assert col(neg, "qoq_abs_change") == [None, 150.0]
+    assert any("zero or negative" in w for w in neg.warnings)
+
+
+def test_dedup_articles_second_block_digit_guard_and_similarity():
+    assert normalise("The Acme Corp") == "acme"
+    assert normalise("Les Jardins") == "jardins"
+    assert normalise("The") == "the"
+    df = pd.DataFrame(
+        {
+            "n": [
+                "The Acme",
+                "Acme",
+                "Store 101",
+                "Store 104",
+                "Dupont Consulting",
+                "Consulting Dupont",
+            ]
+        }
+    )
+    r = chain({"accounts": df}, {"type": "dedup", "column": "n", "threshold": 0.9}, "accounts")
+    g = col(r, "dedup_group")
+    assert g[0] == g[1]  # leading article ignored
+    assert g[2] != g[3]  # numbers differ: never a match
+    assert col(r, "dedup_similarity")[:2] == [1.0, 1.0]
+    # second blocking key: same last-word initial although the first letters differ
+    d2 = pd.DataFrame({"n": ["Xavier Industries", "Zavier Industries"]})
+    r2 = chain({"accounts": d2}, {"type": "dedup", "column": "n", "threshold": 0.9}, "accounts")
+    assert col(r2, "dedup_group") == [1, 1]
+    assert col(r2, "dedup_similarity")[1] < 1.0 or col(r2, "dedup_similarity")[0] < 1.0
+
+
+def test_engagement_and_forecast_views_are_labelled():
+    act = pd.DataFrame(
+        {"account_id": ["A"], "kind": ["email"], "occurred_at": [pd.Timestamp("2026-03-30")]}
+    )
+    r = chain({"activities": act}, {"type": "engagement"}, "activities")
+    assert "not a verified measure" in r.view.label
+    assert any("absent" in c and "not scored 0" in c for c in r.view.caveats)
+    deals = pd.DataFrame({"amount": [100.0], "stage": ["proposal"]})
+    f = chain({"deals": deals}, {"type": "forecast", "amount": "amount", "stage": "stage"})
+    assert "assumptions" in f.view.label and f.view.probabilities["proposal"] == 40

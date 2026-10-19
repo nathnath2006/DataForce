@@ -22,6 +22,16 @@ CHUNK_ROWS = 2_000  # rows per kernel block: bounds the memory of the RBF sum
 _CHUNK = 5_000  # rows per distance block
 
 
+PROBABILITY_CAVEAT = (
+    "probabilities are calibrated estimates; the verdict covers ranking and accuracy, "
+    "not probability calibration"
+)
+IMPUTED_NOTE = (
+    "{n} rows had a missing numeric feature, replaced by the training mean: the model's verdict "
+    "does not cover them (it was checked on complete rows only); see score_imputed"
+)
+
+
 class ScoringError(Exception):
     """The saved model cannot be applied to this table. The message is shown to the user."""
 
@@ -59,8 +69,8 @@ def _numeric(col: pd.Series, name: str) -> np.ndarray:
     return out
 
 
-def design_matrix(df: pd.DataFrame, params: dict[str, Any]) -> tuple[np.ndarray, int]:
-    """(matrix, rows with an imputed numeric value)."""
+def design_matrix(df: pd.DataFrame, params: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
+    """(matrix, boolean mask of rows with an imputed numeric value)."""
     spec = params["features"]
     n = len(df)
     parts: list[np.ndarray] = []
@@ -83,8 +93,8 @@ def design_matrix(df: pd.DataFrame, params: dict[str, Any]) -> tuple[np.ndarray,
                 block[r, j] = 1.0
         parts.append(block)
     if not parts:
-        return np.zeros((n, 0)), 0
-    return np.hstack(parts), int(imputed.sum())
+        return np.zeros((n, 0)), imputed
+    return np.hstack(parts), imputed
 
 
 def _svm_decision(a: np.ndarray, p: dict[str, Any]) -> np.ndarray:
@@ -154,7 +164,8 @@ def _score_frame(model: ModelSnapshot, df: pd.DataFrame) -> ScoreResult:
         if res.n_unscored:
             res.notes.append(f"{res.n_unscored} rows with a missing feature have no cluster")
         return res
-    a, n_imputed = design_matrix(df, p)
+    a, imputed = design_matrix(df, p)
+    n_imputed = int(imputed.sum())
     kind = model.kind
     cols = pd.DataFrame(index=idx)
     if kind == "linear":
@@ -170,7 +181,10 @@ def _score_frame(model: ModelSnapshot, df: pd.DataFrame) -> ScoreResult:
         cols["score"] = _svm_decision(a, p) * float(p["y_std"]) + float(p["y_mean"])
     else:
         raise ScoringError(f"unknown model kind '{kind}'")
+    cols["score_imputed"] = imputed
     res = ScoreResult(cols, n_imputed=n_imputed)
+    if kind == "svm":
+        res.notes.append(PROBABILITY_CAVEAT)
     if n_imputed:
-        res.notes.append(f"{n_imputed} rows had a missing numeric feature, replaced by the mean")
+        res.notes.append(IMPUTED_NOTE.format(n=n_imputed))
     return res

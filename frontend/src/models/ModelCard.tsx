@@ -55,6 +55,7 @@ export function ModelCard({ slug, model, onChanged }: { slug: string; model: Sav
           ))}</tbody>
         </table></div>
       )}
+      {(model.metrics.caveats ?? []).map((c, i) => <p className="note warn" key={i}>{c}</p>)}
       {!ok && model.metrics.reasons.length > 0 && (
         <ul className="reasons">{model.metrics.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
       )}

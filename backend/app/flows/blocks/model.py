@@ -19,6 +19,7 @@ from scipy.stats import rankdata
 from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVC, SVR
 
@@ -34,6 +35,7 @@ from app.flows.blocks._common import (
     to_float,
 )
 from app.flows.schemas import Metric, ModelConfig, ModelView
+from app.flows.scoring import PROBABILITY_CAVEAT
 from app.stats.intervals import wilson
 
 TOP_VALUES = 30
@@ -46,7 +48,13 @@ MAX_SVM_ROWS = 20_000  # SVM training is O(n^2)
 MAX_EXPORTED_SV = 2_000  # support vectors are training rows: keep the run payload small
 REGRESSION = ("linear_regression", "svr")
 LEAK = "test rows may overlap the training rows: connect train and test from the same split block"
+PLATT_CAVEAT = PROBABILITY_CAVEAT
 MULTIPLIED = "rows were duplicated by an upstream join, so n is inflated"
+
+
+# columns of the CRM deals table that only exist once the deal is closed (or encode the outcome)
+OUTCOME_TARGETS = ("is_won", "is_closed")
+POST_OUTCOME = ("cycle_days", "closed_on", "lost_reason", "is_closed", "is_won", "stage")
 
 
 def _lst(a: Any) -> list[float | None]:
@@ -97,6 +105,32 @@ def _svm_params(mdl: Any, cfg: ModelConfig, warnings: list[str]) -> dict[str, An
             + ("" if cfg.kernel == "linear" else ": this RBF model cannot be saved for scoring")
         )
     return p
+
+
+def _oof_decision(
+    cfg: ModelConfig,
+    gamma: float | str,
+    a: np.ndarray,
+    y: np.ndarray,
+    seed: int,
+    warnings: list[str],
+) -> np.ndarray:
+    """Out-of-fold SVM decision values (3-fold stratified) for the Platt sigmoid. Costs three
+    extra fits on two thirds of the rows each (about 1.3 extra full fits: SVM time is
+    superlinear in rows)."""
+    smallest = int(min(y.sum(), len(y) - y.sum()))
+    if smallest < 3:
+        warnings.append(
+            "too few rows of one class for out-of-fold calibration: probabilities use "
+            "in-sample decision values and are overconfident"
+        )
+        full = SVC(kernel=cfg.kernel, C=cfg.C, gamma=gamma).fit(a, y)
+        return full.decision_function(a)
+    out = np.empty(len(y))
+    for tr, te in StratifiedKFold(3, shuffle=True, random_state=seed).split(a, y):
+        fold = SVC(kernel=cfg.kernel, C=cfg.C, gamma=gamma).fit(a[tr], y[tr])
+        out[te] = fold.decision_function(a[te])
+    return out
 
 
 def _resample_idx(n: int, b: int, rng: np.random.Generator, ctx: Ctx):
@@ -297,10 +331,12 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
         if cfg.kind == "svm":
             mdl = SVC(kernel=cfg.kernel, C=cfg.C, gamma=gamma_arg).fit(a_tr, ytr)
             coefs = mdl.coef_[0] if cfg.kernel == "linear" else None
-            # Platt scaling: a sigmoid fitted on the training decision values (optimistic on
-            # training data; the verdict below uses held-out rows only)
+            # Platt scaling: a sigmoid fitted on out-of-fold decision values (3 folds on the
+            # training rows). In-sample values are overconfident, most of all at a high C. The SVM
+            # above is already refit on all training rows.
             platt = LogisticRegression(C=1e4, max_iter=1000).fit(
-                mdl.decision_function(a_tr).reshape(-1, 1), ytr
+                _oof_decision(cfg, gamma_arg, a_tr, ytr, gc.random_seed, warnings).reshape(-1, 1),
+                ytr,
             )
             pa, pb = float(platt.coef_[0, 0]), float(platt.intercept_[0])
             params.update(_svm_params(mdl, cfg, warnings))
@@ -363,10 +399,18 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
         else:
             metrics = [Metric(name="accuracy", value=None), Metric(name="auc", value=None)]
             reasons.append(f"test set too small (n = 0 < {gc.min_n})")
+    if ctx.deals_source and cfg.target in OUTCOME_TARGETS:
+        for f in cfg.features:
+            if f in POST_OUTCOME:
+                reasons.append(
+                    f"feature '{f}' is known only after the deal closes: it would not exist when "
+                    "scoring an open deal"
+                )
     if not ctx.split_verified:
         reasons.append(LEAK)
     if ctx.rows_multiplied:
         reasons.append(MULTIPLIED)
+    caveats = [PLATT_CAVEAT] if cfg.kind == "svm" else []
     view = ModelView(
         model=cfg.kind,
         n_train=len(train),
@@ -379,5 +423,6 @@ def run(cfg: ModelConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
         confusion=confusion,
         status="not_verified" if reasons else "verified",
         reasons=reasons,
+        caveats=caveats,
     )
     return BlockOutput(frames={"out": out_test}, view=view, warnings=warnings, model_params=params)

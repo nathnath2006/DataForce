@@ -343,24 +343,35 @@ class ScoreConfig(_Cfg):
 
 
 class VelocityConfig(_Cfg):
-    """Deal velocity index on stage-change events (deal_id, from_stage, to_stage, changed_at).
-    The benchmark of a stage is the median days spent in it over the input rows."""
+    """Deal velocity on stage-change events (deal_id, from_stage, to_stage, changed_at).
+    Each completed stay is ranked within the completed stays of the same stage; a deal's index is
+    the median of its stays' percentiles (0 = fastest, 1 = slowest). Fast track = at or below
+    `fast_track_pct`, stagnant = at or above `stagnant_pct`. A stage with fewer than
+    `min_stage_n` completed stays is "insufficient data"."""
 
     type: Literal["velocity"] = "velocity"
     deal_column: COLUMN = "deal_id"
     to_stage_column: COLUMN = "to_stage"
     date_column: COLUMN = "changed_at"
-    fast_track_at: float = Field(default=1.25, gt=0, le=100, allow_inf_nan=False)
-    stagnant_below: float = Field(default=0.75, gt=0, le=100, allow_inf_nan=False)
+    fast_track_pct: float = Field(default=0.25, gt=0, lt=1, allow_inf_nan=False)
+    stagnant_pct: float = Field(default=0.75, gt=0, lt=1, allow_inf_nan=False)
+    min_stage_n: int = Field(default=30, ge=2, le=100_000)
     terminal_stages: list[str] = Field(
         default_factory=lambda: ["closed_won", "closed_lost"], max_length=20
     )
-    include_open_stage: bool = True  # the stage a deal is in now counts up to the run date
+    include_open_stage: bool = True  # report the stay a deal is in now (against completed stays)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy(cls, data: Any) -> Any:
+        if isinstance(data, dict):  # the former sum-of-medians thresholds no longer apply
+            data = {k: v for k, v in data.items() if k not in ("fast_track_at", "stagnant_below")}
+        return data
 
     @model_validator(mode="after")
     def _order(self) -> VelocityConfig:
-        if self.stagnant_below >= self.fast_track_at:
-            raise ValueError("stagnant_below must be lower than fast_track_at")
+        if self.fast_track_pct >= self.stagnant_pct:
+            raise ValueError("fast_track_pct must be lower than stagnant_pct")
         return self
 
 
@@ -398,6 +409,7 @@ class TouchpointConfig(_Cfg):
     kind_column: COLUMN = "kind"
     direction_column: COLUMN = "direction"
     meeting_weight: float = Field(default=3, gt=0, le=1000, allow_inf_nan=False)
+    min_outreach: int = Field(default=10, ge=1, le=100_000)  # below it the ratio is empty
 
 
 BlockConfig = Annotated[
@@ -640,6 +652,7 @@ class ModelView(BaseModel):
     confusion: list[list[int]] | None = None  # logistic: [[tn, fp], [fn, tp]]
     status: Literal["verified", "not_verified"]
     reasons: list[str] = []  # e.g. "test set too small (n = 18 < 30)", "AUC CI includes 0.5"
+    caveats: list[str] = []  # true whatever the status, e.g. the SVM probability caveat
 
 
 class ClusterView(BaseModel):
@@ -666,16 +679,30 @@ class ScoreView(BaseModel):
 class VelocityStage(BaseModel):
     stage: str
     median_days: float | None
-    n: int
+    n: int  # completed stays
+    p75_days: float | None = None
+    sufficient: bool = True  # n >= min_stage_n
 
 
 class VelocityView(BaseModel):
     kind: Literal["velocity"] = "velocity"
     benchmark_note: str  # states that the benchmark is a median over the input rows
     benchmarks: list[VelocityStage]
-    fast_track_at: float
-    stagnant_below: float
+    fast_track_pct: float
+    stagnant_pct: float
+    min_stage_n: int
     counts: dict[str, int]  # flag -> deals
+    n_stalled: int = 0  # open stays longer than p75 of the completed stays of their stage
+
+
+HEURISTIC_LABEL = "heuristic: a weighted count, not a verified measure"
+
+
+class ForecastView(BaseModel):
+    kind: Literal["forecast"] = "forecast"
+    label: str  # says the probabilities are assumptions
+    probabilities: dict[str, float]  # percent, by stage, as used
+    n_unmapped: int = 0
 
 
 class EngagementView(BaseModel):
@@ -688,6 +715,8 @@ class EngagementView(BaseModel):
     n_accounts: int
     n_penalised: int
     formula: str
+    label: str = HEURISTIC_LABEL
+    caveats: list[str] = []
 
 
 class TouchpointView(BaseModel):
@@ -695,6 +724,8 @@ class TouchpointView(BaseModel):
     formula: str
     n_groups: int
     n_no_outreach: int
+    min_outreach: int = 10
+    n_below_min: int = 0  # groups with outreach below the minimum (includes the empty ones)
 
 
 View = Annotated[
@@ -706,7 +737,8 @@ View = Annotated[
     | ScoreView
     | VelocityView
     | EngagementView
-    | TouchpointView,
+    | TouchpointView
+    | ForecastView,
     Field(discriminator="kind"),
 ]
 

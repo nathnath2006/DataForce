@@ -37,7 +37,9 @@ function ScoreResultView({ res }: { res: ScoreResult }) {
       <div className="row wrap">
         {ok ? <Tag kind="ok">verified</Tag> : <Tag kind="mute">{res.status === "exploratory" ? "exploratory" : "not verified"}</Tag>}
         <span className="muted small">{res.n_scored.toLocaleString("en-US")} of {res.n_rows.toLocaleString("en-US")} rows scored</span>
+        {(res.n_imputed ?? 0) > 0 && <Tag kind="mute">{res.n_imputed!.toLocaleString("en-US")} imputed rows: not covered by the verdict</Tag>}
       </div>
+      {(res.n_imputed ?? 0) > 0 && <div className="note warn">{res.n_imputed!.toLocaleString("en-US")} rows had a missing feature replaced by the training mean. The model was verified on complete rows only, so its verdict does not cover these rows (column score_imputed).</div>}
       {res.status_note && <div className="note warn">{res.status_note}</div>}
       {res.notes.map((n, i) => <div className="note warn" key={i}>{n}</div>)}
       <p className="small">

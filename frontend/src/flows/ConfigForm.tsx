@@ -355,8 +355,9 @@ export function ConfigForm(p: FormProps) {
         <Field label="Deal column"><ColSelect cols={p.cols} value={c.deal_column} onChange={(deal_column) => p.onChange({ ...c, deal_column })} /></Field>
         <Field label="New stage column"><ColSelect cols={p.cols} value={c.to_stage_column} onChange={(to_stage_column) => p.onChange({ ...c, to_stage_column })} /></Field>
         <Field label="Date column"><ColSelect cols={p.cols} value={c.date_column} onChange={(date_column) => p.onChange({ ...c, date_column })} /></Field>
-        <Field label="Fast track at index of at least"><input type="number" min={0.01} step={0.05} value={c.fast_track_at} onChange={(ev) => p.onChange({ ...c, fast_track_at: clamp(Number(ev.target.value), 0.01, 100) })} /></Field>
-        <Field label="Stagnant below index of"><input type="number" min={0.01} step={0.05} value={c.stagnant_below} onChange={(ev) => p.onChange({ ...c, stagnant_below: clamp(Number(ev.target.value), 0.01, 100) })} /></Field>
+        <Field label="Fast track at percentile of at most"><input type="number" min={0.01} max={0.99} step={0.05} value={c.fast_track_pct} onChange={(ev) => p.onChange({ ...c, fast_track_pct: clamp(Number(ev.target.value), 0.01, 0.99) })} /></Field>
+        <Field label="Stagnant at percentile of at least"><input type="number" min={0.01} max={0.99} step={0.05} value={c.stagnant_pct} onChange={(ev) => p.onChange({ ...c, stagnant_pct: clamp(Number(ev.target.value), 0.01, 0.99) })} /></Field>
+        <Field label="Minimum completed stays per stage"><input type="number" min={2} step={1} value={c.min_stage_n} onChange={(ev) => p.onChange({ ...c, min_stage_n: clamp(Math.round(Number(ev.target.value)), 2, 100000) })} /></Field>
         <Field label="Closed stages (comma separated)">
           <input key={c.terminal_stages.join(",")} defaultValue={c.terminal_stages.join(", ")} onBlur={(ev) => p.onChange({ ...c, terminal_stages: ev.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} />
         </Field>
@@ -391,6 +392,7 @@ export function ConfigForm(p: FormProps) {
         <Field label="Kind column"><ColSelect cols={p.cols} value={c.kind_column} onChange={(kind_column) => p.onChange({ ...c, kind_column })} /></Field>
         <Field label="Direction column"><ColSelect cols={p.cols} value={c.direction_column} onChange={(direction_column) => p.onChange({ ...c, direction_column })} /></Field>
         <Field label="Meeting weight"><input type="number" min={0.1} step={0.5} value={c.meeting_weight} onChange={(ev) => p.onChange({ ...c, meeting_weight: clamp(Number(ev.target.value), 0.1, 1000) })} /></Field>
+        <Field label="Minimum outreach per group"><input type="number" min={1} step={1} value={c.min_outreach} onChange={(ev) => p.onChange({ ...c, min_outreach: clamp(Math.round(Number(ev.target.value)), 1, 100000) })} /></Field>
         <p className="muted small">Use the activities table. Ratio = meetings x weight / outreach, where outreach is outbound calls plus emails. No outreach gives an empty ratio, not infinity.</p>
       </div>
     );

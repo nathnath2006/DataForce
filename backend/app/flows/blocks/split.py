@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from app.flows.blocks._common import BlockError, BlockOutput, Ctx, require
+from app.flows.blocks._common import BlockError, BlockOutput, Ctx, dtype_of, require
 from app.flows.schemas import SplitConfig
 
 
@@ -35,11 +35,21 @@ def run(cfg: SplitConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> BlockOut
             if strat is not None
             else "cannot split: too few rows for this test fraction"
         ) from e
+    warnings: list[str] = []
+    dated = [str(c) for c in df.columns if dtype_of(df[c]) in ("date", "datetime")]
+    if dated:
+        shown = ", ".join(f"'{c}'" for c in dated[:3])
+        warnings.append(
+            f"random split: the time order is ignored although the data has a date ({shown}); "
+            "a model can then look better than it will on future rows. Consider the "
+            "chronological split"
+        )
     return BlockOutput(
         frames={
             "train": df.iloc[np.sort(tr)].reset_index(drop=True),
             "test": df.iloc[np.sort(te)].reset_index(drop=True),
-        }
+        },
+        warnings=warnings,
     )
 
 
@@ -65,6 +75,12 @@ def _chronological(cfg: SplitConfig, df: pd.DataFrame) -> BlockOutput:
         cut -= 1  # rows sharing the boundary date all go to the test set: no overlap in time
     if cut == 0:
         raise BlockError("cannot split chronologically: the rows do not span enough dates")
+    realised = (len(order) - cut) / len(order)
+    if abs(realised - cfg.test_fraction) > 0.05:
+        warnings.append(
+            f"rows sharing the boundary date all go to the test set: the test share is "
+            f"{realised:.0%}, not the {cfg.test_fraction:.0%} requested"
+        )
     return BlockOutput(
         frames={
             "train": df.iloc[np.sort(order[:cut])].reset_index(drop=True),

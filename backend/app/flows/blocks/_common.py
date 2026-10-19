@@ -28,6 +28,7 @@ class Ctx:
     deadline: float | None = None  # time.monotonic() value after which blocks must stop
     rows_multiplied: bool = False  # an upstream join produced more rows than its left input
     split_verified: bool = False  # model only: train/test come from the same split block
+    deals_source: bool = False  # model only: the training data comes from the CRM deals table
     today: date | None = None  # the run's start date (injected in tests)
     models: dict[str, Any] = field(default_factory=dict)  # saved models by id, set at run start
 

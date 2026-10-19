@@ -31,6 +31,7 @@ class ModelMetrics(BaseModel):
     n_train: int | None = None
     n_test: int | None = None
     reasons: list[str] = []
+    caveats: list[str] = []
     confusion: list[list[int]] | None = None
 
 
@@ -67,6 +68,7 @@ class ScoreResponse(BaseModel):
     status_note: str | None  # set when the scores are not verified
     n_rows: int
     n_scored: int
+    n_imputed: int = 0  # rows with an imputed feature: not covered by the model's verdict
     summary: ScoreSummary
     columns: list[str]
     rows: list[dict[str, Any]]  # the first 200 rows, input columns then score columns

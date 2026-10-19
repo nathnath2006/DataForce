@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from app.flows.blocks._common import BlockError, BlockOutput, Ctx, require, to_float
-from app.flows.schemas import ForecastConfig
+from app.flows.schemas import ForecastConfig, ForecastView
 
 
 def _key(s: object) -> str:
@@ -50,4 +50,12 @@ def run(cfg: ForecastConfig, inputs: dict[str, pd.DataFrame], ctx: Ctx) -> Block
             )
             .reset_index()
         )
-    return BlockOutput(frames={"out": out.reset_index(drop=True)}, warnings=warnings)
+    view = ForecastView(
+        label=(
+            "stage probabilities are assumptions (yours or the defaults), not estimated from "
+            "your history; the weighted amount has no confidence band"
+        ),
+        probabilities={str(k): float(v) for k, v in cfg.probabilities.items()},
+        n_unmapped=unmapped,
+    )
+    return BlockOutput(frames={"out": out.reset_index(drop=True)}, view=view, warnings=warnings)
