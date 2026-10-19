@@ -29,6 +29,12 @@
     "contact": "Thaddeus Quercival",
     "kind": "blocker",
     "sentence": "c'est un vrai point bloquant pour moi"
+   },
+   {
+    "contact": "Callum A. Ankerwood",
+    "kind": "champion",
+    "sentence": "Je défends votre outil en interne depuis le début",
+    "added_by": "evaluator, after the AI-pass run (missing from the writer's key)"
    }
   ],
   "org_decoys": [
@@ -105,6 +111,12 @@
     "contact": "Maëlle Hautecourt",
     "kind": "champion",
     "sentence": "Je porte ce dossier auprès de la direction depuis des mois"
+   },
+   {
+    "contact": "Tabitha Ferrandaz",
+    "kind": "blocker",
+    "sentence": "Moi je freine des quatre fers sur ce projet",
+    "added_by": "evaluator, after the AI-pass run (missing from the writer's key)"
    }
   ],
   "org_decoys": [
@@ -169,6 +181,12 @@
     "contact": "Noémie A. Calderwick",
     "kind": "blocker",
     "sentence": "je m'opposerai à tout déploiement avant l'audit de sécurité complet"
+   },
+   {
+    "contact": "Marlowe Quercival",
+    "kind": "champion",
+    "sentence": "je suis le plus grand fan de cette plateforme ici, j'en parle à tout le monde",
+    "added_by": "evaluator, after the AI-pass run (missing from the writer's key)"
    }
   ],
   "org_decoys": [
@@ -227,6 +245,12 @@
     "contact": "Roxane Dunsmoor",
     "kind": "champion",
     "sentence": "C'est moi qui ai poussé pour qu'on prenne votre solution"
+   },
+   {
+    "contact": "Corentin Pellegrand",
+    "kind": "blocker",
+    "sentence": "Corentin Pellegrand n'a jamais voulu de cet outil, il est contre depuis le début",
+    "added_by": "evaluator, after the AI-pass run (missing from the writer's key)"
    }
   ],
   "org_decoys": []
@@ -260,6 +284,12 @@
     "contact": "Maëlle Lavandrier",
     "kind": "blocker",
     "sentence": "I'd rather we didn't go ahead this quarter"
+   },
+   {
+    "contact": "Gaspard Eastlowe",
+    "kind": "decision_maker",
+    "sentence": "ultimately it's my signature on the PO",
+    "added_by": "evaluator, after the AI-pass run (missing from the writer's key)"
    }
   ],
   "org_decoys": [
@@ -290,6 +320,12 @@
     "contact": "Thaddeus Casterel",
     "kind": "decision_maker",
     "sentence": "Thaddeus Casterel, notre CEO, décide seul au bout du compte"
+   },
+   {
+    "contact": "Soline Lavandrier",
+    "kind": "champion",
+    "sentence": "Je me bats pour ce projet auprès de toute l'équipe",
+    "added_by": "evaluator, after the AI-pass run (missing from the writer's key)"
    }
   ],
   "org_decoys": []
@@ -422,6 +458,12 @@
     "contact": "Odette Merriwick",
     "kind": "blocker",
     "sentence": "je voterai contre tant qu'on n'a pas de preuve"
+   },
+   {
+    "contact": "Evrard Hautecourt",
+    "kind": "champion",
+    "sentence": "je le répète en interne à qui veut l'entendre",
+    "added_by": "evaluator, after the AI-pass run (missing from the writer's key)"
    }
   ],
   "org_decoys": []

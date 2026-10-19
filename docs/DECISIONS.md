@@ -323,8 +323,25 @@ measurement.
   - a reports-to manager is named in the turn;
   - it is not hypothetical, already true, cyclic or rejected.
 - Findings stay suggestions tagged "found by AI".
-- Live accuracy is not measured yet: it needs the PO's key on `test-data`, then
-  `score.py <set3> --ai`.
+- **Measured live on held-out set 3 (2026-10-19)** with the PO's saved model (Gemini 3.5 Flash):
+  15 calls, 0 failed. Verification dropped 12 of the model's findings.
+
+  | Set 3, 15 unseen meetings | Patterns only | Patterns + AI pass |
+  |---|---|---|
+  | Reports-to, links missing from the CRM | 0 of 12 | **4 of 12**, all 4 correct |
+  | Signals found (writer's key) | 8 of 27 | **23 of 27** |
+  | Signals, precision after a hand check | 8 of 8 | **30 of 30** |
+
+  - The 7 signals scored "false" were all true statements the writer had left out of the key
+    ("je freine des quatre fers", "it's my signature on the PO", …). They were checked by
+    hand and added to `key.json`, marked `added_by`.
+  - Because those additions come from what the systems found, signal recall on the corrected
+    key (30 of 34) is optimistic. The writer's key gives 23 of 27.
+- **Where reports-to is still lost.** The AI pass keeps a link only when the manager is named
+  in the same speaker turn and in the quote shown. Statements that name the manager earlier, or
+  only through a pronoun, are dropped on purpose, and the candidate filter skips some wordings
+  ("go to bat for this"). Raising recall further means relaxing one of these guards: a decision
+  for the PO, not a tuning step. Set 3 has now been seen.
 
 ## K. Open
 1. CRM scope, TamTam, AI key: as in M2a (the PO is testing).
