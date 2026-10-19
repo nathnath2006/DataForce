@@ -58,3 +58,19 @@ def test_engine_attaches_profile():
     r = run({"deals": df}, [("d", ds())], [])["d"]
     assert r.profile and r.profile[0].non_null == 3
     assert r.profile[1].top and r.profile[1].top[0].value == "b"
+
+
+def test_sensitive_columns_keep_counts_but_hide_values():
+    df = pd.DataFrame(
+        {
+            "contact_email": ["a@x.example", "a@x.example", "b@y.example"],
+            "Mobile": ["+33600000001"] * 3,
+            "api_token": ["s3cr3t", "s3cr3t", None],
+            "segment": ["smb", "smb", "enterprise"],
+        }
+    )
+    prof = {p.name: p for p in profile_frame(df)}
+    for col in ("contact_email", "Mobile", "api_token"):
+        assert prof[col].top and all(t.value == "(hidden)" for t in prof[col].top)
+    assert [t.count for t in prof["contact_email"].top] == [2, 1]
+    assert {t.value for t in prof["segment"].top} == {"smb", "enterprise"}

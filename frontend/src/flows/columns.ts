@@ -34,8 +34,9 @@ export function sparkBars(values: number[], width: number, height: number, gap =
   const n = values.length;
   if (n === 0) return [];
   const bw = Math.max(1, (width - gap * (n - 1)) / n);
-  const max = Math.max(...values, 0);
-  return values.map((v, i) => {
+  const safe = values.map((v) => (Number.isFinite(v) ? v : 0));
+  const max = Math.max(...safe, 0);
+  return safe.map((v, i) => {
     const h = max <= 0 || v <= 0 ? 0 : Math.max(1, (v / max) * height);
     return { x: i * (bw + gap), y: height - h, w: bw, h };
   });

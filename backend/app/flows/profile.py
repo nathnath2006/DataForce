@@ -6,6 +6,7 @@ At most MAX_PROFILE_COLUMNS columns; n_unique is capped (with a flag); numeric c
 
 from __future__ import annotations
 
+import re
 import time
 
 import numpy as np
@@ -19,6 +20,13 @@ MAX_UNIQUE = 10_000
 HIST_BINS = 8
 TOP_N = 5
 VALUE_CHARS = 60
+HIDDEN = "(hidden)"
+# Columns whose values look like secrets or contact details keep their counts but never show
+# values (SR16-01; the same rule as the agent tools' flow output).
+SENSITIVE = re.compile(
+    r"(?i)^(?:.*_enc|(?:.*[_\- .])?(?:password|passwd|secret|token|api_key|apikey|email|e-mail"
+    r"|mail|phone|mobile|tel|telephone|téléphone))$"
+)
 
 
 def _profile_column(name: str, s: pd.Series, dtype: str) -> ColumnProfile:
@@ -46,7 +54,11 @@ def _profile_column(name: str, s: pd.Series, dtype: str) -> ColumnProfile:
             )
     elif dtype in ("text", "boolean") and non_null:
         vc = s.dropna().astype(str).value_counts().head(TOP_N)
-        p.top = [TopValue(value=str(v)[:VALUE_CHARS], count=int(c)) for v, c in vc.items()]
+        hide = bool(SENSITIVE.match(name.strip()))
+        p.top = [
+            TopValue(value=HIDDEN if hide else str(v)[:VALUE_CHARS], count=int(c))
+            for v, c in vc.items()
+        ]
     return p
 
 
