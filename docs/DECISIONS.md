@@ -567,3 +567,29 @@ Specification". Analysis has four tabs: Flows, Workbooks, Models (phase 2) and I
 RBF training rows, HTML parsing time), 11 low. All are fixed, except those accepted with reasons:
 the RBF rows, the model-cap race, the Gmail host-matched redirect and the Outlook login CSRF
 residual on loopback.
+
+## O. M4 phase 3: methods review and fixes (2026-10-19) [build]
+Review: `docs/review/M4-METHODS.md`. It is an independent, read-only check with synthetic
+experiments, followed by the fixes listed in its *Resolution* section.
+
+**Fixes that change what a user sees.**
+- **Explain:** one Benjamini-Hochberg correction across the whole run, instead of one per attribute.
+- **Deal velocity:**
+  - the index is a within-stage percentile;
+  - a stage needs at least 30 completed stays, otherwise its stays are marked *insufficient*;
+  - an open stay is flagged *stalled in stage* once it exceeds the p75 of completed stays.
+- **Scored rows** with an imputed feature are flagged, and are not covered by the model's verdict.
+- **Split and leakage:**
+  - a warning when a random split cuts dated data;
+  - a warning when boundary ties move the test share;
+  - a model of a deal outcome that uses a post-outcome column is *not verified*.
+- **SVM probabilities** are calibrated out-of-fold. The verdict covers ranking and accuracy, not
+  calibration, and the result says so.
+- **Labels:** touchpoint ratio needs 10 outreach actions; QoQ growth is empty on a gap, zero or
+  negative base; engagement is labelled a heuristic; forecast probabilities are labelled
+  assumptions.
+
+**Left for later:**
+- historical stage-to-win rates for the forecast (needs a second input);
+- an interval for the touchpoint ratio;
+- smoothing the engagement cliff.
