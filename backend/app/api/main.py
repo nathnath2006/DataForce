@@ -26,6 +26,8 @@ from app.api.routes import (
     stats,
     themes,
     titles,
+    viz,
+    workbooks,
     workspaces,
 )
 from app.api.schemas import Health
@@ -57,6 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     routers += (agent,)  # M3a
     routers += (quality,)  # data quality
     routers += (admin,)  # admin view
+    routers += (viz, workbooks)  # M4 workbooks
     routers += (activities, pipeline)  # M4 activities, tasks, stage control, timeline
     for module in routers:
         app.include_router(module.router, prefix="/api")

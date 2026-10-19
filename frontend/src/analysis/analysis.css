@@ -1,0 +1,3 @@
+.an-tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--hairline); overflow-x: auto; }
+.an-tabs a { padding: .5rem .9rem; color: var(--ink-soft); text-decoration: none; font-weight: 500; border-bottom: 2px solid transparent; white-space: nowrap; }
+.an-tabs a.active { color: var(--primary); border-bottom-color: var(--primary); }

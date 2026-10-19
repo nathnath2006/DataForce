@@ -1,0 +1,57 @@
+.wb-name { font-weight: 600; min-width: 12rem; }
+.wb-tabs { display: flex; gap: .3rem; align-items: center; flex-wrap: wrap; }
+.wb-tabs button[role="tab"].on { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.wb-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr) 280px; gap: .8rem; align-items: start; }
+.wb-side { display: flex; flex-direction: column; gap: .6rem; padding: .8rem; position: sticky; top: .5rem; max-height: calc(100vh - 2rem); overflow: auto; }
+.wb-side h3, .wb-side h4 { margin: 0; }
+.wb-canvas { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: .8rem; min-width: 0; }
+.wb-tile { position: relative; display: flex; flex-direction: column; gap: .4rem; padding: .7rem; cursor: pointer; overflow: hidden; }
+.wb-tile.sel { border-color: var(--primary); outline: 1px solid var(--primary); }
+.wb-tile > header { flex-wrap: nowrap; gap: .4rem; }
+.wb-tile-title { cursor: grab; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 0; min-width: 0; }
+/* floats over the tile's corner, so hidden controls never take the title's room */
+.wb-tile-ctl { position: absolute; top: .45rem; right: .45rem; flex-wrap: nowrap; gap: .2rem; padding: .1rem; background: var(--surface); border-radius: var(--r-sm); opacity: 0; }
+.wb-tile.sel .wb-tile-ctl, .wb-tile:hover .wb-tile-ctl, .wb-tile:focus-within .wb-tile-ctl { opacity: 1; }
+.wb-tile-ctl select { padding: .1rem .2rem; }
+.wb-add { flex-direction: row; align-items: center; gap: .4rem; }
+.wb-opts label.check { justify-content: flex-start; align-self: flex-start; }
+.wb-tile-body { container-type: inline-size; flex: 1; display: flex; flex-direction: column; min-height: 0; gap: .3rem; }
+.wb-chart { flex: 1; min-height: 180px; width: 100%; }
+.wb-empty { margin: auto; }
+.wb-kpi { margin: auto; text-align: center; max-width: 100%; }
+.wb-kpi b { display: block; font-size: clamp(1rem, 10cqi, 2.2rem); white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.wb-kpi span { color: var(--ink-soft); display: block; font-size: clamp(.7rem, 7cqi, .9rem); overflow-wrap: break-word; }
+.wb-table { flex: 1; max-height: none; }
+.wb-table button.on { font-weight: 700; }
+.wb-fields { max-height: 30vh; overflow: auto; margin: 0; }
+.wb-field { width: 100%; text-align: left; display: flex; gap: .5rem; align-items: center; padding: .25rem .5rem; cursor: grab; }
+.wb-dt { font-size: .7rem; color: var(--ink-soft); background: var(--mute-bg); border-radius: var(--r-sm); padding: 0 .3rem; min-width: 2rem; text-align: center; }
+.wb-types { display: flex; flex-wrap: wrap; gap: .25rem; }
+.wb-types button { padding: .2rem .5rem; font-size: .85rem; }
+.wb-types button.on { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.wb-slot { border: 1px dashed var(--hairline); border-radius: var(--r-md); padding: .4rem; display: flex; flex-direction: column; gap: .3rem; }
+.wb-slot.over { border-color: var(--primary); background: var(--mute-bg); }
+.wb-slot-label { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
+.wb-slot-chips { display: flex; flex-wrap: wrap; gap: .25rem; }
+.wb-chip { display: inline-flex; align-items: center; gap: .3rem; border-radius: var(--r-pill); background: var(--mute-bg); padding: 0 .2rem 0 .6rem; font-size: .85rem; }
+.wb-chip select { padding: 0 .2rem; border: none; background: transparent; font-size: .8rem; }
+.wb-chip em { font-style: normal; color: var(--ink-soft); }
+.wb-chip.filter { border: 1px solid var(--hairline); background: var(--surface); }
+.wb-chip.cross { background: var(--primary); color: var(--primary-ink); }
+.wb-chip.cross button { color: var(--primary-ink); }
+.wb-chip button.ghost { padding: 0 .4rem; font-size: 1rem; }
+.wb-finding { border-left: 3px solid var(--ok); padding-left: .6rem; }
+.wb-finding.not_verified { border-left-color: var(--mute-bg); border-left-style: dashed; }
+.wb-reasons { margin: .2rem 0 0; padding-left: 1rem; }
+.wb-attrs { border: 1px solid var(--hairline); border-radius: var(--r-md); display: flex; flex-direction: column; gap: .2rem; max-height: 14rem; overflow: auto; }
+
+/* Phones: read-only, one column, no editing controls. */
+@media (max-width: 899px) {
+  .wb-tile-ctl { display: none; }
+  .wb-edit { display: none !important; }
+  .wb-layout, .wb-layout.with-explain { grid-template-columns: minmax(0, 1fr); }
+  .wb-canvas { grid-template-columns: minmax(0, 1fr); }
+  .wb-tile { grid-column: 1 / -1 !important; }
+  .wb-side { position: static; max-height: none; }
+  .wb-tile-title { cursor: default; }
+}

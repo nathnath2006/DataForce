@@ -16,6 +16,8 @@ import { CompaniesPage } from "./companies/CompaniesPage";
 import { CompanyDetailPage } from "./companies/CompanyDetail";
 import { MeetingsPage } from "./meetings/MeetingsPage";
 import { FlowsPage } from "./flows/FlowsPage";
+import { ModelsPage } from "./analysis/ModelsPage";
+import { WorkbooksPage } from "./workbooks/WorkbooksPage";
 import { ThemeToggle } from "./theme";
 import { AssistantDrawer, useDrawerOpen } from "./shell/AssistantDrawer";
 import { ScopeProvider } from "./shell/scope";
@@ -23,6 +25,11 @@ import { ScopeProvider } from "./shell/scope";
 // The flow editor (and its canvas library) is the largest part of the bundle: load it on demand.
 const FlowEditorPage = lazy(() =>
   import("./flows/FlowEditor").then((m) => ({ default: m.FlowEditorPage })),
+);
+
+// Workbooks pull in ECharts: the editor is its own chunk.
+const WorkbookEditorPage = lazy(() =>
+  import("./workbooks/WorkbookEditor").then((m) => ({ default: m.WorkbookEditorPage })),
 );
 
 export function App() {
@@ -42,6 +49,9 @@ export function App() {
         <Route path="meetings" element={<MeetingsPage />} />
         <Route path="analysis" element={<FlowsPage />} />
         <Route path="analysis/scan" element={<AnalysisPage />} />
+        <Route path="analysis/models" element={<ModelsPage />} />
+        <Route path="analysis/workbooks" element={<WorkbooksPage />} />
+        <Route path="analysis/workbooks/:id" element={<Suspense fallback={<Loading />}><WorkbookEditorPage /></Suspense>} />
         <Route path="analysis/:flowId" element={<Suspense fallback={<Loading />}><FlowEditorPage /></Suspense>} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="admin" element={<AdminPage />} />

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useWs } from "../context";
+import { AnalysisTabs } from "../analysis/AnalysisTabs";
 import { Confirm, Empty, ErrorNote, Field, Loading, Modal, useAction, useLoad } from "../ui";
 import { flowApi } from "./flowApi";
 import { TEMPLATES, emptyGraph } from "./graph";
@@ -16,6 +17,7 @@ export function FlowsPage() {
   const [deleting, setDeleting] = useState<FlowSummary | null>(null);
   return (
     <section className="stack">
+      <AnalysisTabs />
       <div className="row between wrap">
         <h1>Analysis flows</h1>
         <div className="row">

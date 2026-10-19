@@ -5,6 +5,7 @@ import {
   formatDiffWithCi, formatNum, formatEur, formatPct, formatQ, formatStat, formatDateTime, label, unitOf,
 } from "../lib";
 import type { EffectFinding, GateConfig, Metric, ScanOut, StatValue } from "../types";
+import { AnalysisTabs } from "../analysis/AnalysisTabs";
 import { ErrorNote, Loading, Tag, useAction, useLoad } from "../ui";
 
 const METRIC_LABEL: Record<Metric, string> = {
@@ -35,8 +36,9 @@ export function AnalysisPage() {
   const r = scan?.report;
   return (
     <section className="stack">
+      <AnalysisTabs />
       <div className="row between wrap">
-        <h1>Analysis</h1>
+        <h1>Insights</h1>
         <button className="primary" disabled={act.busy} onClick={() => void run()}>{act.busy ? "Running…" : "Run analysis"}</button>
       </div>
 
