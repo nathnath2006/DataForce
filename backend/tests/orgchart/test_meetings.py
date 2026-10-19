@@ -350,3 +350,24 @@ def test_decision_maker_first_person(text):
 )
 def test_decision_maker_negatives(text):
     assert [f for f in extract(text)[0] if f.kind == "decision_maker"] == []
+
+
+def test_extract_multi_account_same_as_chunk_by_chunk():
+    """Patterns compiled once per call must give the same findings as one call per chunk."""
+    texts = [
+        "Ana reports to Bob. Marie Curie is our champion.",
+        "I am the decision maker here. Zoé is a blocker.",
+        "nothing relevant at all",
+    ]
+    for names in (CONTACTS, CONTACTS[:3], CONTACTS[2:]):
+        ids = [c.id for c in names]
+        docs, chunks = {}, []
+        for i, t in enumerate(texts * 2):
+            did = uuid.uuid4()
+            doc = "X: " + t
+            docs[did] = doc
+            chunks.append(ChunkRec(did, uuid.uuid4(), "X", ids[i % len(ids)], 3, len(doc), t))
+        whole = meetings.extract(chunks, names, docs)
+        single = [f for c in chunks for f in meetings.extract([c], names, docs)]
+        key = lambda f: (f.evidence["chunk_id"], f.pattern, f.kind)  # noqa: E731
+        assert sorted(whole, key=key) == sorted(single, key=key)

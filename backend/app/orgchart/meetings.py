@@ -443,7 +443,6 @@ _NEGATION = re.compile(r"\b(?:not|never|ne|jamais)\b|n't\b|\bn'|\bpas\b")
 PATTERN_IDS = tuple(p[0] for p in _PATTERNS)
 
 
-@lru_cache(maxsize=256)
 def _compile(src: str, names_key: tuple[str, ...]) -> re.Pattern[str]:
     alt = "|".join(re.escape(n).replace(r"\ ", r"\s+") for n in names_key)
     body = src.replace("{N}", rf"(?<!\w)(?P<name>{alt})(?!\w)")
@@ -499,6 +498,7 @@ def extract(
     names_key = tuple(sorted(alias, key=lambda a: (-len(a), a)))
     ids = {c.id for c in contacts}
     found: list[Finding] = []
+    compiled: list[tuple[str, str, str, str, re.Pattern[str]]] | None = None
     for chunk in sorted(chunks, key=lambda c: (str(c.document_id), c.char_start)):
         if chunk.contact_id is None or chunk.contact_id not in ids:
             continue
@@ -506,10 +506,19 @@ def extract(
         if doc_text is None:
             continue
         folded = fold(chunk.text)
-        for pid, kind, subject, src in _PATTERNS:
-            if "{N}" not in src and subject == "name":
-                continue
-            rx = _compile(src, names_key) if "{N}" in src else _compile_plain(src)
+        if compiled is None:  # once per call (= per account), reused across its chunks
+            compiled = [
+                (
+                    pid,
+                    kind,
+                    subject,
+                    src,
+                    _compile(src, names_key) if "{N}" in src else _compile_plain(src),
+                )
+                for pid, kind, subject, src in _PATTERNS
+                if "{N}" in src or subject != "name"
+            ]
+        for pid, kind, subject, src, rx in compiled:
             for m in rx.finditer(folded):
                 named = alias.get(re.sub(r"\s+", " ", m.group("name"))) if "{N}" in src else None
                 if "{N}" in src and named is None:

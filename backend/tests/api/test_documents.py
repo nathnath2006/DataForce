@@ -132,3 +132,12 @@ def test_add_document_signature(client, ws, db_session):
         source="demo",
     )
     assert doc.source == "demo" and doc.n_chars == len(doc.text)
+
+
+def test_list_items_have_no_text_and_detail_has(client, ws):
+    acc = mk_account(client, ws)
+    d = up(client, ws, acc["id"]).json()
+    assert "text" not in d
+    assert all("text" not in x for x in client.get(f"{ws}/documents").json()["items"])
+    assert all("text" not in x for x in client.get(f"{ws}/accounts/{acc['id']}/documents").json())
+    assert client.get(f"{ws}/documents/{d['id']}").json()["text"]

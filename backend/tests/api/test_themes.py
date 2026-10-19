@@ -166,3 +166,42 @@ def test_known_themes_labels_and_naming_only_for_other_topics(client, ws, world,
     assert {t["kind"] for t in by_origin["known"]} == {"objection"}
     latest = client.get(f"{ws}/themes/latest").json()
     assert set(latest["known_themes"]) == {"price", "security"}
+
+
+def test_themes_of_run_matches_per_theme_reference(client, ws, world, db_session):
+    from sqlalchemy import select
+
+    from app.db.models import Account, Document, DocumentChunk, ThemeAssignment
+    from app.services import themes as svc
+    from app.themes import discover as disc
+
+    body = client.post(f"{ws}/themes/run", json={"k": 6, "use_ai": False}).json()
+    run = svc.latest_run(db_session, svc_ws_id(db_session))
+    views = svc.themes_of_run(db_session, run.workspace_id, run.id)
+    assert len(views) == len(body["themes"])
+    for v in views:
+        rows = db_session.execute(
+            select(DocumentChunk, Document, Account.name)
+            .select_from(ThemeAssignment)
+            .join(DocumentChunk, DocumentChunk.id == ThemeAssignment.chunk_id)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .join(Account, Account.id == Document.account_id)
+            .where(ThemeAssignment.theme_id == v.theme.id)
+            .order_by(ThemeAssignment.weight.desc(), DocumentChunk.id)
+            .limit(disc.N_EXCERPTS * 10)
+        ).all()
+        want = [r[0].id for r in svc._distinct_documents(rows)[: disc.N_EXCERPTS]]  # noqa: SLF001
+        assert [e.chunk_id for e in v.excerpts] == want
+
+
+def svc_ws_id(db):
+
+    return db.scalars(select_ws("t1")).one().id
+
+
+def select_ws(slug):
+    from sqlalchemy import select
+
+    from app.db.models import Workspace
+
+    return select(Workspace).where(Workspace.slug == slug)

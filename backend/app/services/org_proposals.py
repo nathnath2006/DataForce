@@ -221,7 +221,35 @@ def propose(
 
             factory = get_chat_llm
         ai = org_ai.AiPass(session, ws_id, settings, factory)
+    with_chunks: set[uuid.UUID] | None = None
+    if account_id is None and ProposalOrigin.MEETING.value in origin_values:
+        with_chunks = set(
+            session.scalars(
+                select(Document.account_id)
+                .join(DocumentChunk, DocumentChunk.document_id == Document.id)
+                .where(
+                    Document.workspace_id == ws_id,
+                    DocumentChunk.workspace_id == ws_id,
+                    DocumentChunk.contact_id.is_not(None),
+                )
+                .distinct()
+            )
+        )
     for acc_id in account_ids:
+        no_meetings = with_chunks is not None and acc_id not in with_chunks
+        if no_meetings and origin_values == [ProposalOrigin.MEETING.value]:
+            # nothing to extract: only clear stale open meeting proposals
+            session.execute(
+                delete(OrgProposal)
+                .where(
+                    OrgProposal.workspace_id == ws_id,
+                    OrgProposal.account_id == acc_id,
+                    OrgProposal.status.in_(_OPEN),
+                    OrgProposal.origin.in_(origin_values),
+                )
+                .execution_options(synchronize_session="fetch")
+            )
+            continue
         contact_service._lock_org_chart(session, acc_id)  # noqa: SLF001
         contacts = contact_service.list_contacts(session, ws_id, acc_id)
         session.execute(
@@ -240,7 +268,7 @@ def propose(
             batches.append(
                 (ProposalOrigin.RULE.value, _rule_rows(session, ws_id, acc_id, contacts, blocked))
             )
-        if ProposalOrigin.MEETING.value in origin_values:
+        if ProposalOrigin.MEETING.value in origin_values and not no_meetings:
             batches.append(
                 (
                     ProposalOrigin.MEETING.value,

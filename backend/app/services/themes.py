@@ -245,18 +245,34 @@ def themes_of_run(db: Session, ws_id: uuid.UUID, run_id: uuid.UUID) -> list[Them
             .group_by(ThemeAssignment.theme_id)
         )
     }
+    ranked = (
+        select(
+            ThemeAssignment.theme_id.label("tid"),
+            DocumentChunk.id.label("cid"),
+            func.row_number()
+            .over(
+                partition_by=ThemeAssignment.theme_id,
+                order_by=(ThemeAssignment.weight.desc(), DocumentChunk.id),
+            )
+            .label("rn"),
+        )
+        .join(DocumentChunk, DocumentChunk.id == ThemeAssignment.chunk_id)
+        .where(ThemeAssignment.theme_id.in_([t.id for t in themes]))
+        .subquery()
+    )
+    tops: dict[uuid.UUID, list] = {t.id: [] for t in themes}
+    for tid, c, d, name in db.execute(
+        select(ranked.c.tid, DocumentChunk, Document, Account.name)
+        .join(DocumentChunk, DocumentChunk.id == ranked.c.cid)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .join(Account, Account.id == Document.account_id)
+        .where(ranked.c.rn <= disc.N_EXCERPTS * 10)
+        .order_by(ranked.c.tid, ranked.c.rn)
+    ):
+        tops[tid].append((c, d, name))
     views = []
     for t in themes:
-        top = db.execute(
-            select(DocumentChunk, Document, Account.name)
-            .select_from(ThemeAssignment)
-            .join(DocumentChunk, DocumentChunk.id == ThemeAssignment.chunk_id)
-            .join(Document, Document.id == DocumentChunk.document_id)
-            .join(Account, Account.id == Document.account_id)
-            .where(ThemeAssignment.theme_id == t.id)
-            .order_by(ThemeAssignment.weight.desc(), DocumentChunk.id)
-            .limit(disc.N_EXCERPTS * 10)
-        ).all()
+        top = tops[t.id]
         top = _distinct_documents(top)[: disc.N_EXCERPTS]
         n, nd, na = counts.get(t.id, (0, 0, 0))
         views.append(

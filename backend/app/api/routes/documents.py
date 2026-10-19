@@ -9,6 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile
 from sqlalchemy import func, select
+from sqlalchemy.orm import defer
 
 from app.api.deps import AppSettings, CurrentWorkspace, Db
 from app.api.schemas import Page
@@ -80,7 +81,8 @@ def _outs(db: Db, ws_id: uuid.UUID, docs: list[Document]) -> list[DocumentOut]:
 
 
 def _order(stmt):
-    return stmt.order_by(
+    """Ordering for the list endpoints; the full transcript text is never fetched for them."""
+    return stmt.options(defer(Document.text)).order_by(
         Document.meeting_date.desc().nulls_last(), Document.created_at.desc(), Document.id
     )
 
