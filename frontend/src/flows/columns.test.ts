@@ -29,7 +29,7 @@ describe("sparkBars", () => {
     const bars = sparkBars([3, Number.NaN, Number.POSITIVE_INFINITY, 1], 40, 10);
     expect(bars.every((b) => Number.isFinite(b.x) && Number.isFinite(b.y) && Number.isFinite(b.h))).toBe(true);
     expect(bars.slice(0, 3).map((b) => b.h)).toEqual([10, 0, 0]);
-    expect(bars[3].h).toBeCloseTo(10 / 3);
+    expect(bars[3]?.h).toBeCloseTo(10 / 3);
   });
   it("scales to the max", () => {
     const b = sparkBars([1, 2, 4], 30, 20, 0);
