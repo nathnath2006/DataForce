@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { useWs } from "../context";
 import { flowApi } from "../flows/flowApi";
 import { themesVsWinRateGraph } from "../flows/graph";
-import { Empty, ErrorNote, Field, Loading, Tag, useAction, useLoad } from "../ui";
+import { AiBadge, Empty, ErrorNote, Field, Loading, Tag, useAction, useLoad } from "../ui";
 import { meetingsApi } from "./api";
 import { DeleteMeeting, MeetingTable, TranscriptDialog } from "./MeetingsPanel";
 import { clampK, exactCount, formatDate } from "./text";
@@ -107,7 +107,7 @@ function ThemeCard({ theme: t }: { theme: ThemeOut }) {
           {t.origin === "known" || t.named_by === "lexicon"
             ? <Tag kind="ok">known theme · found by keywords</Tag>
             : <Tag kind="mute">discovered topic</Tag>}
-          {t.named_by === "llm" && <Tag kind="warn">named by AI</Tag>}
+          {t.named_by === "llm" && <AiBadge>named by AI</AiBadge>}
         </span>
       </div>
       {t.description && <p>{t.description}</p>}

@@ -29,7 +29,7 @@ tell the AI: "Follow VISUAL-IDENTITY.md exactly; use only the tokens; ask before
 | `--highlight` | `#FACC15` Accent Yellow | `#FACC15` | Markers, active step edge, AI/auto badge, highlights |
 | `--highlight-ink` | `#1F2937` | `#1F2937` | Text on `--highlight` (never white-on-yellow) |
 | `--ink` | `#1F2937` Charcoal | `#F3F4F6` | Body text, headings |
-| `--ink-soft` | `#4B5563` *(derived)* | `#9CA3AF` | Secondary text, labels |
+| `--ink-soft` | `#4B5563` *(derived)* | `#AEB6C2` (was `#9CA3AF`, 4.1:1; now 5.0:1 on `--mute-bg`) | Secondary text, labels |
 | `--canvas` | `#F3F4F6` Subtle Gray | `#111827` | Page background |
 | `--surface` | `#FFFFFF` | `#1F2937` | Cards, panels, tables |
 | `--glass` | `rgba(255,255,255,.80)` Glass White | `rgba(31,41,55,.72)` | Top bar, drawers, popovers (with blur) |
@@ -38,6 +38,8 @@ tell the AI: "Follow VISUAL-IDENTITY.md exactly; use only the tokens; ask before
 | `--warn` / `--warn-bg` | `#854D0E` / `#FEF9C3` | `#FACC15` / `#3A2E10` | Needs attention |
 | `--bad` / `--bad-bg` | `#B91C1C` / `#FEE2E2` | `#F87171` / `#3B1B19` | Error, destructive |
 | `--mute-bg` | `#E5E7EB` | `#374151` | "Not verified", disabled, neutral tags |
+| `--chart-1` … `--chart-6` *(derived)* | `#2A6FDB` `#B5651D` `#2E9D6B` `#B04FB0` `#9A7B0C` `#5F6B7A` | `#6C9CF5` `#F0A860` `#6FD39A` `#D58AD5` `#E6C860` `#A0ABBA` | Chart series (marks >= 3:1). Light `-2` and `-5` darkened from `#D9822B` / `#C4A21A` to reach 3:1 on white. |
+| `--mark-0` … `--mark-5` *(derived)* | `rgba` tints of blue, green, amber, red, violet, teal (.20 to .28 alpha) | same | Theme highlights behind transcript text (`.th0` … `.th5`) and `.mark-swatch` keys |
 
 Rules: yellow is never body-text color on a light surface (contrast). Max one `--primary` button per
 view region. Text contrast must stay ≥ 4.5:1 (checked: `#1D4ED8` on white 6.7:1, `#1F2937` on
@@ -46,16 +48,20 @@ view region. Text contrast must stay ≥ 4.5:1 (checked: `#1D4ED8` on white 6.7:
 ## 3. Shape, depth, space, type
 
 - **Radius:** `--r-lg` 16px (cards, drawers, dialogs), `--r-md` 10px (buttons, inputs, nodes),
-  `--r-pill` 999px (tags, chips, avatar). *(16px is on the board; 10px/pill derived.)*
+  `--r-pill` 999px (tags, chips, avatar), `--r-sm` 4px *(derived)* (inline marks, `code`). *(16px is on the board; others derived.)*
 - **Shadow:** `--shadow-1` very soft for cards (`0 1px 2px rgba(17,24,39,.06), 0 4px 16px rgba(17,24,39,.05)`),
   `--shadow-2` for floating layers (dialog, popover). Dark mode drops shadow, keeps hairline.
 - **Glass:** top bar and drawers use `--glass` + `backdrop-filter: saturate(180%) blur(14px)`.
   Fallback when blur is unsupported: solid `--surface`.
 - **Spacing:** 4px base: 4, 8, 12, 16, 24, 32, 48. Page gutter 24px (16px on phones).
-- **Type:** `"SF Pro Text", "SF Pro Display", Inter, system-ui, sans-serif`; mono
-  `"SF Mono", ui-monospace, Menlo, monospace`. Sizes *(derived)*: display 28/34 semibold, title 20/28
-  semibold, body 15/22, label 12/16 medium uppercase-tracking .04em, mono 13/20. Numbers in tables use
-  tabular figures. No external font download (privacy; the app is local-first).
+- **Type:** Helvetica everywhere, code included: `--font` and `--mono` are both
+  `"Helvetica Neue", Helvetica, Arial, sans-serif`. Scale *(derived)*: h1 28/34 semibold, tracking -.02em;
+  h2 (card and dialog titles) 20/28 semibold; h3 15/22 semibold; body 15/22; table headers and labels
+  12/16 medium, uppercase, tracking .04em. Numbers in tables use tabular figures. No external font
+  download (privacy; the app is local-first).
+- **AI badge:** `AiBadge` (`.ai-pill`): `--highlight` fill, `--highlight-ink` text, `--r-pill`, 12px
+  semibold, never clickable. Marks AI-made items (org-chart proposals found by AI, titles classified
+  by AI, themes named by AI); the item keeps its honest-state styling.
 - **Icons:** 1.5px outline, rounded joins, 20px; one blue or charcoal stroke with at most one yellow
   accent element (as on the board).
 
@@ -92,6 +98,10 @@ view region. Text contrast must stay ≥ 4.5:1 (checked: `#1D4ED8` on white 6.7:
 5. Never present unverified or AI-generated content with the same styling as verified data.
 
 ## 7. Legacy names
+
+The duplicate `.swatch` class is resolved: the meetings key is `.mark-swatch` (this file's `--mark-*`
+tokens); the flows `.swatch` stays in `flows.css`.
+
 
 `--accent` is kept as an alias of `--primary` (it always meant blue in DataForce). Yellow is
 `--highlight`. `--bg/--panel/--text/--muted/--line` alias `--canvas/--surface/--ink/--ink-soft/--hairline`.

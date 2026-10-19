@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useWs } from "../context";
-import { Empty, ErrorNote, Loading, Modal, Tag, useAction, useLoad } from "../ui";
+import { Empty, ErrorNote, Loading, Modal, useAction, useLoad } from "../ui";
 import { titlesApi, type NormalizeResult } from "./api";
-import { ClassPicker, sourceKind } from "./TitleClass";
-import { classLabel, sourceLabel } from "../orgchart/model";
+import { ClassPicker, SourceBadge } from "./TitleClass";
+import { classLabel } from "../orgchart/model";
 
 export function NormalizeButton({ onDone }: { onDone: () => void }) {
   const { ws } = useWs();
@@ -73,7 +73,7 @@ export function ReviewTitles({ onChanged }: { onChanged: () => void }) {
                     setEditId(null); r.reload(); onChanged();
                   })} />
               ) : (
-                <>{classLabel(it.function, it.seniority)} <Tag kind={sourceKind(it.source)}>{sourceLabel(it.source)}</Tag>{" "}
+                <>{classLabel(it.function, it.seniority)} <SourceBadge source={it.source} />{" "}
                   <button className="link" onClick={() => setEditId(it.contact_id)}>Fix</button></>
               )}</td>
               <td className="small">{it.flag ?? "—"}</td>

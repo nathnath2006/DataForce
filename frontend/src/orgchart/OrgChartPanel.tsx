@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { useWs } from "../context";
 import type { OrgChartNode } from "../types";
 import type { OrgTreeNode } from "../lib";
-import { Confirm, Empty, ErrorNote, Tag, useAction, useLoad } from "../ui";
+import { AiBadge, Confirm, Empty, ErrorNote, Tag, useAction, useLoad } from "../ui";
 import { aiApi } from "../assistant/api";
 import { orgApi } from "./api";
 import {
@@ -80,7 +80,7 @@ function ProposalItem({ p, onDone }: { p: ProposalOut; onDone: () => void }) {
           ? <> reports to <strong>{p.manager?.full_name ?? "(choose below)"}</strong></>
           : <> is a <strong>{kindLabel(p.kind).toLowerCase()}</strong></>}
         {" "}<Tag kind="mute">suggested</Tag> <Tag>{p.origin === "rule" ? "from rule" : "from meeting"}</Tag>
-        {aiBadge(p) && <> <Tag kind="warn">{aiBadge(p)}</Tag></>}
+        {aiBadge(p) && <> <AiBadge>{aiBadge(p)}</AiBadge></>}
         {p.rule && p.origin === "rule" && <span className="muted small"> {p.rule.replace(/_/g, " ")}</span>}
       </div>
       <Evidence p={p} />

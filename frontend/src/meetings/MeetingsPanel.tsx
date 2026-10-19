@@ -96,7 +96,7 @@ export function TranscriptDialog({ id, onClose }: { id: string; onClose: () => v
             <div className="muted small">{formatDate(d.meeting_date)} · {d.account_name} · {d.n_chars.toLocaleString("en-IE")} characters</div>
             {leg.length > 0 && (
               <div className="row wrap" aria-label="Legend">
-                {leg.map((l) => <span key={l.id} className={`swatch ${l.cls}`}>{l.label}</span>)}
+                {leg.map((l) => <span key={l.id} className={`mark-swatch ${l.cls}`}>{l.label}</span>)}
               </div>
             )}
             <div className="transcript">

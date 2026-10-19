@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useWs } from "../context";
 import { classLabel, sourceLabel } from "../orgchart/model";
-import { ErrorNote, Tag, useAction } from "../ui";
+import { AiBadge, ErrorNote, Tag, useAction } from "../ui";
 import { FUNCTIONS, SENIORITIES, titlesApi } from "./api";
 
 export function ClassPicker(props: {
@@ -27,6 +27,11 @@ export function sourceKind(s: string | null | undefined): "ok" | "warn" | "mute"
   return s === "manual" ? "ok" : s === "llm" ? "warn" : "mute";
 }
 
+/** Source badge: AI-classified titles get the AiBadge, others a plain tag. */
+export function SourceBadge({ source }: { source: string | null | undefined }) {
+  return source === "llm" ? <AiBadge>{sourceLabel(source)}</AiBadge> : <Tag kind={sourceKind(source)}>{sourceLabel(source)}</Tag>;
+}
+
 /** Title class row for ContactDetail: class, source badge, flag, manual change. */
 export function TitleClassRow(props: {
   contactId: string; fn: string | null; sen: string | null; source?: string | null; flag?: string | null; onChanged: () => void;
@@ -46,7 +51,7 @@ export function TitleClassRow(props: {
             })} />
         ) : (
           <>
-            {classLabel(props.fn, props.sen)} <Tag kind={sourceKind(props.source)}>{sourceLabel(props.source)}</Tag>{" "}
+            {classLabel(props.fn, props.sen)} <SourceBadge source={props.source} />{" "}
             <button className="link" onClick={() => setEditing(true)}>Change</button>
             {props.flag && <div><Tag kind="warn">check</Tag> <span className="small">{props.flag}</span></div>}
           </>

@@ -112,6 +112,11 @@ export function Tag({ children, kind }: { children: ReactNode; kind?: "ok" | "wa
   return <span className={`tag ${kind ?? ""}`}>{children}</span>;
 }
 
+/** Marks AI-made content. Never clickable; the item keeps its own honest-state styling. */
+export function AiBadge({ children }: { children: ReactNode }) {
+  return <span className="ai-pill">{children}</span>;
+}
+
 export function Empty({ children }: { children: ReactNode }) { return <p className="muted empty">{children}</p>; }
 
 export function emptyToNull(s: string): string | null {

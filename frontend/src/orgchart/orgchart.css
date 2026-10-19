@@ -1,5 +1,5 @@
 .oc-suggest { border-left: 2px dashed var(--muted); margin-left: .4rem; padding-left: .5rem; color: var(--muted); font-style: italic; }
 .oc-fact { border-left: 2px solid var(--line); }
-.oc-item { border: 1px solid var(--line); border-radius: 6px; padding: .5rem .7rem; margin: .5rem 0; }
+.oc-item { border: 1px solid var(--line); border-radius: var(--r-md); padding: .5rem .7rem; margin: .5rem 0; }
 .oc-item blockquote { margin: .3rem 0; padding-left: .6rem; border-left: 3px solid var(--line); white-space: pre-wrap; }
-.oc-pop { border: 1px solid var(--line); border-radius: 6px; padding: .4rem .6rem; margin: .2rem 0; font-size: .85rem; }
+.oc-pop { border: 1px solid var(--line); border-radius: var(--r-md); padding: .4rem .6rem; margin: .2rem 0; font-size: .85rem; }
