@@ -360,6 +360,14 @@ measurement.
   - Signal recall stays at about half on this set: the misses are mostly blockers and decision
     makers phrased indirectly.
   - Set 4 is now seen.
+- **Security review SR17** (2026-10-19) found that a "manager named earlier" mention could be a
+  speaker label, sit in a hypothetical or negated sentence, or lie hundreds of turns back.
+  - The mention now passes the same guards as the statement and lies within 40 turns; the
+    second quote is capped at 300 characters.
+  - Re-measured on set 4 (already seen, so this measures the cost, not quality): reports-to
+    **11 of 16** (was 14), signals 17 of 34, everything still correct.
+  - Part of the drop may be model variance between runs. The 40-turn window and the guard on
+    the mention sentence are the knobs if recall matters more.
 
 ## K. Open
 1. CRM scope, TamTam, AI key: as in M2a (the PO is testing).
