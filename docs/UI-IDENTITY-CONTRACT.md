@@ -32,7 +32,7 @@ Shared rules:
 
 ## 1. Foundation (F)
 
-- **Fonts.** In `tokens.css`, `--font` and `--mono` both become `"Helvetica Neue", Helvetica, Arial, sans-serif`: the PO asked for Helvetica everywhere, code included. Update `VISUAL-IDENTITY.md` §3 to match.
+- **Fonts.** In `tokens.css`, `--font` and `--mono` both become `Helvetica, "Helvetica Neue", Arial, sans-serif` (classic Helvetica first): the PO asked for Helvetica everywhere, code included. Update `VISUAL-IDENTITY.md` §3 to match.
 - **Contrast fixes** (both `tokens.css` dark blocks, and the doc):
   - dark `--ink-soft` becomes `#aeb6c2` (5.0:1 on dark `--mute-bg`, was 4.1:1);
   - light chart colors: `--chart-2` becomes `#b5651d` and `--chart-5` becomes `#9a7b0c` (both at least 3:1 on white).

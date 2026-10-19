@@ -16,8 +16,8 @@
   --shadow-2: 0 8px 32px rgba(17, 24, 39, .18);
   --topbar-h: 56px;
   /* type */
-  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --mono: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font: Helvetica, "Helvetica Neue", Arial, sans-serif;
+  --mono: Helvetica, "Helvetica Neue", Arial, sans-serif;
   /* chart + mark colors (derived) */
   --chart-1: #2a6fdb; --chart-2: #b5651d; --chart-3: #2e9d6b; --chart-4: #b04fb0; --chart-5: #9a7b0c; --chart-6: #5f6b7a;
   --mark-0: rgba(36, 86, 214, .22); --mark-1: rgba(27, 122, 67, .24); --mark-2: rgba(214, 140, 0, .28);

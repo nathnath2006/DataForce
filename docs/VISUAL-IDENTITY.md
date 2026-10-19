@@ -56,7 +56,7 @@ view region. Text contrast must stay ≥ 4.5:1 (checked: `#1D4ED8` on white 6.7:
   Fallback when blur is unsupported: solid `--surface`.
 - **Spacing:** 4px base: 4, 8, 12, 16, 24, 32, 48. Page gutter 24px (16px on phones).
 - **Type:** Helvetica everywhere, code included: `--font` and `--mono` are both
-  `"Helvetica Neue", Helvetica, Arial, sans-serif`. Scale *(derived)*: h1 28/34 semibold, tracking -.02em;
+  `Helvetica, "Helvetica Neue", Arial, sans-serif`. Scale *(derived)*: h1 28/34 semibold, tracking -.02em;
   h2 (card and dialog titles) 20/28 semibold; h3 15/22 semibold; body 15/22; table headers and labels
   12/16 medium, uppercase, tracking .04em. Numbers in tables use tabular figures. No external font
   download (privacy; the app is local-first).
