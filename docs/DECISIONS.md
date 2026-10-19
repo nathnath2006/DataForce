@@ -564,7 +564,7 @@ Specification". Analysis has four tabs: Flows, Workbooks, Models (phase 2) and I
   emails naming it.
 
 **Security review** (`docs/security/SR19-m4-phase2.md`): 0 high, 3 medium (summary number check,
-RBF training rows, HTML parsing time), 11 low. All are fixed, except those accepted with reasons:
+RBF training rows, HTML parsing time), 10 low. All are fixed, except those accepted with reasons:
 the RBF rows, the model-cap race, the Gmail host-matched redirect and the Outlook login CSRF
 residual on loopback.
 

@@ -1,6 +1,6 @@
-# DataForce — build report (M1, M1b, M2a, M2b, M3a)
+# DataForce — build report (M1 to M4)
 
-**Status (18 October 2026):**
+**Status (19 October 2026):**
 
 | Milestone | What it added | State |
 |---|---|---|
@@ -9,8 +9,13 @@
 | **M2a** | Your feedback: drag-and-drop **analysis flows** with a pivot, statistics and model blocks; a **Companies** tab with the public French registry; an **AI model** in Settings with an **Ask** panel; a **light / dark** theme | complete, reviewed and fixed |
 | **M2b** | Job titles normalised; org-chart **suggestions** from titles and from what people said in meetings (a person accepts them); **meeting transcripts** with known sales themes and discovered topics | complete, reviewed (security and methods) and fixed |
 | **M3a** | An **MCP server**: Claude Desktop, Claude Code or another AI assistant on this computer queries one workspace read-only and gets exact results. Three **independent transcript tests**. An **opt-in AI pass** for org statements in meetings | complete, reviewed (SR14, SR15) and fixed; the AI pass awaits a live measurement |
+| **UI identity** | One look for the whole app: Helvetica, colour and spacing **tokens**, **light and dark**; an assistant drawer, a deal stage roadmap, data-quality bars, a columns grid and honest node states on the flow canvas | complete, reviewed (SR16, 0 high or medium, 3 low) and fixed |
+| **Code audit and quick wins** | A board of five reviewers measured unused code, speed and system risks; unused code removed; indexes, compression and faster queries added | complete; the ranked list is in `docs/review/CODE-AUDIT.md`; the structural items wait for the UI rework and M3b |
+| **Admin page** | Database size, AI usage, recent runs and the real limits, read-only | complete |
+| **Company-wide assistant context** | Ask on an account or a deal now sees the whole company's CRM data; a minimal deal page; a relaxed meeting AI pass (a manager named earlier in the meeting counts) | complete, reviewed (SR17, 3 medium, 4 low, 1 info) and fixed; reports-to on held-out set 4: 11 of 16 found, all correct |
+| **M4** | The analytics suite: **activities and a timeline** on deals; **new flow blocks**; **workbooks** (visual canvases); **saved models and scoring**; **opt-in AI** on deals; **Gmail / Outlook mailbox** linking; a **methods review** | built and reviewed (SR18, SR19, M4-METHODS) and fixed; the mailbox awaits your OAuth clients |
 
-Every part was built by Sonnet agents, independently reviewed for security, fixed and re-verified. **1,489 automated tests pass** (1,417 backend, 72 frontend).
+Every part was built by Sonnet agents, independently reviewed for security, fixed and re-verified. **1,772 automated tests pass** (1,608 backend, 164 frontend).
 
 **Sources of truth.**
 
@@ -24,6 +29,12 @@ Every part was built by Sonnet agents, independently reviewed for security, fixe
 | `docs/review/M2b-methods-review.md` | the independent, held-out check of the M2b methods |
 | `docs/M3A-CONTRACT.md` | the M3a contract (MCP server and agent tools) |
 | `docs/ORG-AI-CONTRACT.md` | the contract of the opt-in AI pass on meeting sentences |
+| `docs/M4-ANALYTICS-CONTRACT.md` | the M4 contract (analytics suite), with your decisions |
+| `docs/review/M4-METHODS.md` | the independent methods review of the M4 blocks, with its resolution |
+| `docs/review/CODE-AUDIT.md` | the code audit: unused code, speed, system risks, ranked |
+| `docs/security/SR16` to `SR19` | the security reviews of the UI identity, the company-wide context, M4 phase 1 and M4 phase 2 |
+| `docs/UI-IDENTITY-CONTRACT.md`, `docs/VISUAL-IDENTITY.md` | the look of the app and its tokens |
+| `docs/MAILBOX-SETUP.md` | how to register your Gmail and Outlook OAuth clients |
 | `backend/eval/meetings/` | the independently written transcript sets, their answer keys and the scorer |
 | `docs/BUILD-REPORT.md` | the source of this PDF, rendered by `docs/tools/build_pdf.py` |
 
@@ -58,13 +69,20 @@ The AI never computes numbers. Any number it writes that is not in the data is f
 | **Job titles (M2b)** | Every title mapped to a function and a seniority by a French / English dictionary; unknown titles optionally classified once by your AI model (title text only), flagged for review |
 | **Org-chart suggestions (M2b)** | Managers proposed from titles (same account, next level up) and from meeting sentences ("I report to…"), plus champion / blocker / decision-maker signals, each with its evidence; nothing becomes a fact until a person accepts it |
 | **Meetings and themes (M2b)** | Transcripts (PDF, Markdown, text) on accounts and deals; known sales themes found by keywords with exact quotes, other recurring topics discovered; "Themes vs win rate" as a screening flow. All local |
+| **Activities and timeline (M4)** | A rep logs calls, emails and meetings on a deal; moving a deal to a stage takes a date and is recorded. The deal and account pages show one timeline with stage changes, activities, tasks, notes, comments and meeting titles |
+| **Analysis tabs (M4)** | **Flows**, **Workbooks**, **Models** and **Insights**; new blocks (duplicates, aging, weighted forecast, window / QoQ, domain, SVM, deal velocity, engagement, touchpoint ratio, score) |
+| **AI on deals (M4)** | Opt-in *Summarize* and *Suggest tasks*, after a dialog that shows what is sent |
+| **Mailbox (M4)** | Read-only Gmail and Outlook linking of emails to open deals |
+| **Admin and data quality** | An Admin page; health bars that count exactly what is missing |
 | Connect TamTam (M1b) | Sign in on TamTam's page. The token is encrypted; paid lookups happen only after a confirmed click |
 | Synthetic demo | 350 deals with planted effects (seed 42) and a pure-noise twin (seed 1), with companies, a year of dated notes, half the org charts left to rediscover, and 160 meetings with planted themes |
 | Command line and notebook | `dataforce …`; a proof notebook run against the answer key |
 
 **Not delivered yet (by plan).**
 
-- M3: the MCP server and API for outside AI agents, login and hosting.
+- M3b: login and hosting.
+- The big UI rework you asked for after your UI report.
+- The mailbox is built but not connected: it needs your OAuth clients.
 
 ## 2. How it was built
 
@@ -82,10 +100,12 @@ The team works the same way for every milestone:
 | M1b | API and CRM, TamTam connector, frontend, 350-deal demo | SR6 (API), SR7 (OAuth), SR8 (frontend) | 2 fixers + tech lead |
 | **M2a** | flow engine, flow API and data sources, companies and registry, AI assistant, flow-editor UI, companies/AI/theme UI | SR9 (flows and data), SR10 (companies and AI), SR11 (frontend) | 3 fixers + tech lead |
 | **M2b** | titles, org proposals, transcripts and themes, demo meetings, org/titles UI, meetings UI; then a second and third theme method and realistic demo transcripts | SR12 (backend), SR13 (frontend), an **independent methods review** on held-out data | 2 fixers + tech lead |
+| **UI identity, audit, SR17** | tokens and shell, the five-reviewer audit, company-wide context, relaxed AI pass | SR16, SR17, the audit board | fixes by the tech lead |
+| **M4** | contract, activities, blocks, workbooks, saved models, AI, mailbox | SR18, SR19, an independent **methods review** | fixes by a developer, checked by the tech lead |
 
 **During M2a and M2b** the agents hit usage limits mid-build. They were resumed where they stopped once the limit reset, with no work lost.
 
-**Version control.** Logical commits on `main`, with the tags `m1`, `m1b`, `m2a` and `m2b`, in the private GitHub repository `nathnath2006/DataForce`; new commits are pushed when you ask.
+**Version control.** Logical commits on `main`, with the tags `m1`, `m1b`, `m2a`, `m2b` and `m3a`, in the private GitHub repository `nathnath2006/DataForce`; new commits are pushed when you ask.
 
 ## 3. Product decisions (and why)
 
@@ -108,6 +128,10 @@ The team works the same way for every milestone:
 | **Suggestions are never facts** (M2b). A rule or a meeting may only *suggest* a manager or a signal; a person accepts or rejects it. | An org chart is about people; a wrong "reports to" must never appear as certain. |
 | **Meeting text stays on the computer** (M2b). Themes are found locally; the AI only names discovered topics, from top words and short excerpts with names masked. | Transcripts are the most sensitive data in the tool. |
 | **Erasing a person erases them from transcripts too** (M2b). Their turns and their name are replaced by same-length placeholders. | GDPR erasure must not leave their words behind. |
+| **Opt-in AI on deals; a person accepts every suggested task** (M4). Summaries cite real items and are not stored. | The AI may help read a deal, but never changes it alone. |
+| **The mailbox is read-only, stores only candidate emails, and you register your own OAuth clients** (M4). | Minimal data, and no key of ours sits between you and your mail. |
+| **Scoring is "run now", no scheduler** (M4). | A scheduler comes with hosting (M3b). |
+| **Methods review before trust** (M4). An independent read-only review tested the new blocks on synthetic data and the fixes were measured. | Same rule as M2b: do not trust our own accuracy claims. |
 | **350 demo deals; noise demo on seed 1.** | Your choices. Seed 42 of the noise twin is one of the ~4 % that show a chance finding. |
 
 ## 4. How the statistics work (plain language)
@@ -243,6 +267,60 @@ What this says:
 - Everything a customer wrote (notes, transcripts, names, titles, column headers) is marked as data, and the assistant is told not to follow instructions inside it.
 - Each call is logged under *Recent calls*, without the data.
 
+## 4d. The analytics suite (M4, plain language)
+
+**Analysis has four tabs.**
+- **Flows**: the canvas of blocks. M4 adds blocks for duplicate accounts (fuzzy matching, which only proposes groups and never merges records), days since a date, a weighted forecast, month-to-month and quarter-to-quarter growth, web domains, SVM models (a model that draws a boundary between wins and losses), deal velocity, an engagement score, the touchpoint ratio of each rep, and *Score*.
+- **Workbooks**: visual canvases of charts (bar, line, area, scatter, pie, donut, heatmap, treemap, funnel), plus number tiles, tables and pivots. Charts are computed on the server; a tile built on a capped source says "computed on the first N rows". **Cross-filtering**: clicking a bar or a slice filters the other tiles. Names in the data are drawn as text, so a name cannot inject markup.
+- **Models**: your saved models and *Score now*.
+- **Insights**: *Explain*.
+
+**Activities and the timeline.** On a deal, a rep logs calls, emails and meetings, and moves the deal to a stage on a date (not in the future, not before the deal existed). Each change is recorded. The deal and account pages show one vertical timeline of stage changes, activities, tasks, notes, comments and meeting titles. Flows can read this history, but only the length of each text, never its body.
+
+**Saved models and scoring.**
+- *Save model* appears on a successful model block whose flow is saved. The server re-runs the flow itself and stores its own numbers: the browser sends only a name.
+- A saved model is a plain list of numbers, never a program file.
+- *Score now* applies it to a CRM table, with the model's own status: **a score is only as verified as its model**. A not-verified model gives scores that say so.
+- Rows where a missing value was filled in by an average carry an *imputed* flag. They are not covered by the model's verdict.
+- A model that keeps training rows (an RBF SVM, up to 2,000) says so before saving; a linear one keeps none.
+
+**Explain.** Pick a deal outcome and several attributes; DataForce runs the same statistics as the stats block on each and lists what differs, verified or not. One correction for many comparisons now covers the whole run.
+
+**Opt-in AI on deals.** *Summarize* and *Suggest tasks* work only after a dialog that shows, without calling the model, what is sent (items, characters, provider, model, calls left today).
+- A summary sentence is kept only if it cites a real item of this deal and every number in it appears whole in a cited item. Summaries are not stored.
+- A suggested task must quote its source word for word. It stays a *suggestion* until a person accepts it.
+- At most 200 calls a day.
+
+**The mailbox (Gmail and Outlook).**
+- You register your own OAuth clients (see `docs/MAILBOX-SETUP.md`); connections are read-only.
+- A sync reads the metadata of the last 30 days, at most 500 emails. Only *candidates* are kept: a participant is a CRM contact, or the address is on an account's own domain. Everything else is never stored.
+- What is stored: the subject (300 characters), a 200-character snippet, up to 20 addresses.
+- Each candidate is scored against open deals, locally: contact email +45, account domain +25, shared words up to +25, recency up to +5. From 40 points an email is *suggested*, with its reasons. You can always link by hand.
+- The body is fetched only when an email is linked, cut at 10,000 characters, and becomes an *email* activity on the timeline.
+- Disconnecting deletes the tokens and unlinked emails; erasing a contact deletes the stored emails naming them.
+
+**What *verified* means here.** Unchanged: a model is verified only if, on rows it never saw, it beats the "learnt nothing" baseline with its interval. SVM models follow the same rule. Engagement, velocity and the forecast are labelled as rules of thumb (*heuristic* or *assumptions*), not as verified results.
+
+## 4e. What the methods review changed (M4)
+
+An independent, read-only reviewer tested the new blocks on synthetic data, then a developer fixed them and the numbers were measured again. The review rated 4 methods high and 6 medium; 7 fixes are done and 3 are partly done.
+
+| Method | Problem found | Fix | Measured after |
+|---|---|---|---|
+| **Explain** | One correction per attribute let false "verified" results through | One correction across the whole run | Runs with a false verified finding, 5 null attributes, 120 runs: **16 % to 3 %** |
+| **Deal velocity** | The index flagged many identical deals as stagnant | Within-stage percentile; a stage needs 30 completed stays or its stays are *insufficient*; open stays past the 75th percentile are *stalled* | Flags on a null world with 3 stages: **68 % to 31 %**; identical deals: 0 flags |
+| **SVM probability** | Probabilities were overconfident with a high setting | Calibration (Platt) fitted on out-of-fold values; the result says the verdict covers ranking and accuracy, not calibration | Calibration error at C = 100: **0.28 to 0.045** (about 9 s more at 20,000 rows) |
+| **Scoring** | Rows with filled-in values looked verified | A per-row *imputed* flag; those rows are not covered | n/a |
+| **Split and leakage** | A random split of dated data, or a column known only after close, could be verified | Warnings; a deal-outcome model using a post-outcome column is *not verified*, naming the column | n/a |
+| **Touchpoint ratio** | A ratio from one email and one meeting looked precise | Needs 10 outreach actions, else empty with a reason | No interval: meetings are not a subset of outreach |
+| **Growth (QoQ)** | A missing quarter was read as the previous one; tiny or negative bases gave absurd growth | Missing periods count as 0 in a sum; growth is empty on a zero, negative or missing base | n/a |
+| **Duplicates** | Names sharing a prefix matched; "The Acme" missed "Acme" | Articles stripped, a second blocking key, numbers must agree, a similarity column | n/a |
+| **Engagement, forecast** | Rules of thumb without a label | Labelled *heuristic* / *assumptions*; accounts with no activity are said to be absent | The 30-day cliff and historical forecast rates are left |
+
+**Left for later:** historical stage-to-win rates for the forecast (it needs a second input), an interval for the touchpoint ratio, and smoothing the engagement cliff.
+
+**Honest limits.** All experiments are synthetic and show direction and size, not exact production rates.
+
 ## 5. The synthetic demo data
 
 **What the generator builds** for a realistic small company:
@@ -286,10 +364,10 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 
 | Part | Lines |
 |---|---|
-| Backend code | about 16,200 |
-| Migrations | 750 |
-| Tests | 10,800 |
-| Frontend | 4,600 |
+| Backend code | about 33,400 |
+| Migrations | 1,500 |
+| Backend tests | 19,400 |
+| Frontend (with its tests) | 11,000 |
 
 **Main folders.**
 
@@ -299,9 +377,11 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 | `backend/app/stats/` | Intervals, tests, gates (shared with the flow blocks) |
 | `backend/app/flows/` | Graph contract, engine, one module per block, data sources |
 | `backend/app/registry/`, `backend/app/assistant/` | Public registry client; Ask context, checks and rate limit |
-| `backend/app/connectors/`, `backend/app/llm/` | TamTam OAuth; Gemini / Anthropic / fake providers |
+| `backend/app/connectors/`, `backend/app/llm/` | TamTam OAuth; Gmail and Outlook (M4); Gemini / Anthropic / fake providers |
+| `backend/app/viz/` (M4) | Workbook queries, sources and Explain |
+| `backend/app/flows/scoring.py` (M4) | Applies a saved model's plain parameters to new rows |
 | `backend/app/api/` | Routes, request guards, error mapping, hosting of the interface |
-| `frontend/src/` | Pages; `flows/` (canvas editor); `companies/`; `assistant/`; theme |
+| `frontend/src/` | Pages; `flows/` (canvas editor); `workbooks/` (ECharts, M4); `models/`, `activity/`, `genai/`, `mailbox/` (M4); `companies/`; `assistant/`; theme |
 
 **Data model.**
 
@@ -317,6 +397,9 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 | `llm_credential` (M2a) | the workspace's AI provider, model and encrypted key |
 | `title_cache`, `org_proposal` (M2b) | AI title classifications (cached once); suggested links and signals with their evidence and status |
 | `document`, `document_chunk`, `theme`, `theme_assignment` (M2b) | transcript text (cleaned, the file itself is not kept) and speaker turns with exact offsets; themes and which turns carry them |
+| `deal_stage_event`, `activity`, `activity_participant`, `task` (M4) | every stage change with its date; calls, emails and meetings with who took part; tasks, including AI-suggested ones with their quoted evidence |
+| `workbook`, `saved_model` (M4) | visual workbooks (their layout and chart definitions); saved models as plain parameters (never pickle) with their metrics and verdict |
+| `mailbox_connection`, `mailbox_message` (M4) | Gmail / Outlook connections (tokens encrypted); candidate email metadata only, never unrelated mail |
 
 **Technology.**
 
@@ -325,6 +408,7 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 | Python 3.13, FastAPI, SQLAlchemy 2, PostgreSQL 16 | Mature, typed, one database for everything |
 | numpy, scipy, **pandas, scikit-learn, openpyxl** (M2a) | Reference implementations for statistics, tables, models and Excel files |
 | React 19 + Vite + TypeScript, **@xyflow/react** for the canvas (M2a) | Small, fast, no UI kit; the canvas is loaded only when a flow is opened |
+| **Apache ECharts 5.6.0** (M4) | The charts of workbooks; pinned and integrity-checked, loaded only on workbook pages, tooltips drawn as text |
 | **pypdf** in a separate process with a time limit (M2b) | Reads PDF transcripts; a crafted PDF cannot hold the app or exhaust its memory |
 | Fernet encryption | Tokens, keys, passwords and enriched values are unreadable in the database and in backups |
 | Hashed lock files (pip-tools, `package-lock.json`) | Reproducible, tamper-evident installs |
@@ -353,6 +437,16 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 | **Methods review** (M2b) | accuracy of titles, rules, meeting statements and themes on held-out data | no blocker; 6 should-fix | fixed (see section 4b) |
 | **SR14** (M3a) | MCP server and agent tools | 2 medium, 4 low, 2 info | all fixed with tests |
 | **SR15** (M3a) | opt-in AI pass on meeting sentences | 3 medium, 3 low, 1 info | all fixed with tests |
+| **SR16** | UI identity: profiles, drawer, quality bars | 0 high or medium, 3 low, 2 info | 3 low fixed; the profile cost accepted |
+| **SR17** | company-wide assistant context, relaxed AI pass | 3 medium, 4 low, 1 info | all 8 fixed with tests |
+| **SR18** (M4 phase 1) | activities, timeline, new blocks, workbooks | 0 high, 2 medium, 6 low | all 8 fixed with a test each |
+| **SR19** (M4 phase 2) | saved models, AI on deals, mailbox | 0 high, 3 medium, 10 low | all fixed except the residuals below |
+| **M4-METHODS** | accuracy of the M4 blocks | 4 high, 6 medium (methods) | fixed or partly fixed (section 4e) |
+
+**M4 and later findings, in plain words.**
+- **SR17.** Capping a big company's context for the assistant took 21 s per question; now 0.19 s. A "manager named earlier" quote could be a speaker label, a joke or a negation; it must now pass the same guards as the statement, lie within 40 turns, and is cut at 300 characters. Names and titles are wrapped as data, and only code-computed numbers verify an answer.
+- **SR18.** Chart tooltips built HTML from data values, so a name like `<img onerror>` could inject markup; they are now drawn as text. Fuzzy duplicate matching could run for minutes before its time limit was checked; it is now bounded. Erasure also masks a contact's name, email and phone inside activities and task evidence.
+- **SR19.** A crafted email could freeze a worker for 11 to 15 seconds in the HTML-to-text step; it is now linear (0.1 s). The AI number check was a substring test ("4" passed inside "40000"); numbers now match as whole values.
 
 **The M2a high finding.** A crafted PostgreSQL query could end the read-only transaction and write to the connected database. The cause was a hand-written statement splitter, fooled by `$$` quoting. The query now runs as a *prepared statement*, which the database server itself refuses to split into two commands, whatever the quoting. Regression tests try every quoting trick; a watchdog also cancels any query that runs past its time limit.
 
@@ -388,7 +482,11 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 
 **Accepted residuals** (written down):
 
-- **No login until M3.** Any program on this computer can use the app.
+- **No login until M3b.** Any program on this computer can use the app. The author of a note or activity comes from the request, not from an identity, until then.
+- **RBF training rows (SR19-M1).** A saved RBF SVM keeps up to 2,000 training rows as standardised numbers, which survive the erasure of a contact. They are deal and account columns, not contact identifiers, and the Save dialog says so. Deleting the model removes them.
+- **Outlook login CSRF on loopback (SR19-B3).** The Outlook callback returns on `localhost`, so the `127.0.0.1` cookie is not sent. The state (single-use, 256-bit, hashed, expiring) and PKCE still bind it; only another local process that learnt the state could race it. Settings shows the connected address.
+- **The model cap race (SR19-M5).** Two simultaneous saves can pass the 200-model cap by one.
+- **Gmail redirect follows the Host header (SR19-B2).** It is restricted to loopback names on two ports; `docs/MAILBOX-SETUP.md` says which address to open.
 - **PostgreSQL.** The database role you connect with remains the real boundary: use a read-only role. `sslmode=require` encrypts but does not verify the server certificate; use `verify-full` for remote databases.
 - **Timed-out runs.** A run that times out keeps its worker until the current computation step ends. It holds its slot meanwhile, so runs cannot pile up.
 - **Encryption key.** One key, kept in `backend/.env`, with no rotation yet. Losing it means re-entering the AI key and reconnecting TamTam.
@@ -403,14 +501,17 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 
 | Check | Result |
 |---|---|
-| Backend tests | **1,417 pass**: CRM, statistics, demo, LLM, TamTam, API, flows, sources, companies, registry, assistant, titles, org proposals, transcripts and PDFs, themes, erasure redaction, **the 14 agent tools, the MCP server (including a real stdio session), the AI pass with a fake model, and one regression test per SR14 and SR15 finding** |
-| Frontend tests | **72 pass**: everything earlier, plus the AI assistants panel, the *found by AI* tag and the AI switch notice; type check and build clean |
-| Lint, migrations | ruff clean; models and migrations identical; dev database at `0007_org_ai` |
+| Backend tests | **1,608 pass** (1,417 at M3a; M4, the audit and SR16 to SR19 added the rest), including: CRM, statistics, demo, LLM, TamTam, API, flows, sources, companies, registry, assistant, titles, org proposals, transcripts and PDFs, themes, erasure redaction, **the 14 agent tools, the MCP server (including a real stdio session), the AI pass with a fake model, and one regression test per SR14 and SR15 finding** |
+| Frontend tests | **164 pass**: everything earlier, plus the workbook options (tooltip text, never HTML), column profiles, the timeline logic, the AI assistants panel, the *found by AI* tag and the AI switch notice; type check and build clean |
+| Lint, migrations | ruff clean; models and migrations identical; dev database migrated (indexes added by migration 0008, then the M4 tables) |
 | AI assistant, live | the MCP server started from `/` the way Claude Desktop starts it; 14 tools listed; overview, comparison, text search and meetings answered on *Test data*, with customer text only in untrusted fields |
 | Independent transcripts | three sets of 15, scored through the running app (section 4b) |
 | M2b against the answer key | titles, rule and meeting links, signals, themes and the price-vs-win-rate test scored through the running app on the seed-42 demo (section 4b) |
 | End to end, through the running app | one flow using all 12 block types on the demo. Inbound and outbound verified, referral not verified (as in M1); the logistic model verified (AUC 0.85); clusters returned; the leakage and join traps caught |
 | Screens | every page opened in a headless browser, in light and dark mode, with no console error; a real registry search for "Dataiku" returned the public record |
+| M4 methods, measured | Explain false verified runs 16 % to 3 %; velocity flags on a null world 68 % to 31 %; SVM calibration error 0.28 to 0.045 (section 4e) |
+| Audit quick wins, measured | workspace delete at 10 times the data 14.6 s to 1.1 s; whole-workspace org proposals at 10 times 72.6 s to 48.6 s; main JS 407 KB to 118 KB, contacts list 418 KB to 55 KB; company context cap 21 s to 0.19 s per question |
+| Held-out set 4 | reports-to found 11 of 16, all correct, after the SR17 guards |
 | Notebook | re-run: planted seed 42 finds 5 of 5; noise seed 1 verifies nothing out of 93 comparisons |
 
 **Caught during the verification itself.**
@@ -418,9 +519,10 @@ That is the 5 % false-discovery control doing what it promises. Companies and no
 - **M2b themes failed twice before working.** First, small talk and people's names came out as themes. Second, the demo transcripts were too repetitive to judge anything: 25 % distinct sentences, now 85 %. The keyword-first method came out of these measurements.
 - **The first "themes vs win rate" table counted deals with no meeting as "not mentioned"**, which biased the comparison. Those deals are now left out.
 - **An independent reviewer found the demo accuracy flattering**, and the report now shows the held-out numbers next to the demo ones.
-
 - **Every demo company showed "last interaction: today".** The demo notes had no dates. They now carry a year of synthetic history, which needed a checked "original date" option for imported notes.
 - **Dates showed a stray "02:00".** Dates are now shown without a time.
+- **The first fix for slot-starved workbooks failed in the browser.** A canvas sends one query per tile at once, so a three-tile workbook got two "another analysis is still running" errors. A tile now waits up to 15 s for a slot.
+- **The audit's four "failing tests" were residue of an interrupted run**, not defects; the real fragility (tests counting whole tables) was fixed.
 - **The canvas stayed light in dark mode.** It now follows the theme switch.
 - **The editor's field names drifted from the API on one point** (a connection's last error). The two now match.
 
@@ -447,12 +549,24 @@ backend/.venv/bin/dataforce mcp config --workspace test-data   # snippet for Cla
 | **Theme** | the button in the header |
 | **Claude Desktop / Claude Code** | paste the snippet from *Settings → AI assistants (MCP)*, then ask "what is the win rate by lead source, and which differences are verified?" |
 | **Settings → AI model** | tick *Read meeting sentences for org statements*, then *Suggest links* on an account with meetings |
+| **A deal** (M4) | *Move to stage* with a date, *Log a call, email or meeting*, add a task, then read the timeline; *Summarize with AI* shows what it would send before sending |
+| **Analysis → Workbooks** (M4) | open *Pipeline by stage*, click a bar to cross-filter, then *Explain* |
+| **Analysis → Models** (M4) | open *Win probability (sample)* and *Score now* on deals |
+| **Settings → Mailbox** (M4) | after registering your OAuth clients (`docs/MAILBOX-SETUP.md`), *Connect*, *Sync now*, then link a suggested email on a deal |
 
 ## 10. What comes next
 
-| Milestone | Content |
+| Item | Content |
 |---|---|
-| **M3b** | Login (email and password, invite-only) and hosting; flow results saved and shared |
+| **Your UI report and the big UI rework** | The structural items of the audit go in with it: real paging and windowed tables, no request waterfalls, route-level code splitting, generated API types, a background job for the statistics scan |
+| **M3b** | Login (email and password, invite-only) and hosting; flow results saved and shared. First, the audit's must-dos: identity and roles with the author set by the server; enforced workspace isolation in the database; shared state for AI budgets and locks; hosting guards; a GDPR erasure registry; versioned encryption keys; a remote story for the MCP server; searchable logs. A scheduler for scoring comes here |
+| **Phase-2 leftovers** | Historical stage-to-win rates for the forecast; an interval for the touchpoint ratio; smoothing the engagement cliff; a cache for flow sources in workbooks (a tile on a flow re-runs that flow for every query) |
+| **Mailbox** | Needs your OAuth clients with Google and Microsoft (`docs/MAILBOX-SETUP.md`); then a live trial |
+
+**Open decisions for you** (from the audit).
+1. **The embedding stack** (about 150 lines, only tests use it, meant for a semantic search that never shipped): delete it, or build semantic search soon.
+2. **`GET /titles/preview`**, which only tests call: delete it, or keep it for the title editor of the UI rework.
+3. **`llm_max_calls_per_run`**, never enforced: wire it in, or delete it.
 
 **Open questions for you.**
 
@@ -463,6 +577,8 @@ backend/.venv/bin/dataforce mcp config --workspace test-data   # snippet for Cla
 5. **Real transcripts.** Can you share 5–10 real (anonymised) transcripts? They would give the themes, meeting patterns and the AI pass their first real measurement.
 6. **AI pass.** Once your key is saved on *Test data*, the AI pass is measured on set 3. Is a "found by AI" suggestion something you would accept after reading its quote?
 7. **Assistant.** After connecting Claude Desktop or Claude Code, which questions did it answer well, and which tool was missing?
+8. **M4.** Are the workbook charts, *Explain* and the deal timeline what you pictured? Which chart or block is still missing?
+9. **Mailbox.** Can you register the Gmail and Outlook OAuth clients so the linking can be tried on a real mailbox?
 
 ## Glossary
 
@@ -481,3 +597,13 @@ backend/.venv/bin/dataforce mcp config --workspace test-data   # snippet for Cla
 | SIREN | The 9-digit French company identifier |
 | Prepared statement | A query the database checks as one single command before running it |
 | MCP | Model Context Protocol: the standard way AI agents call tools |
+| Workbook | A canvas of charts and tiles in the Analysis tab, computed on the server |
+| Cross-filtering | Clicking a mark in one chart filters the other tiles of the canvas |
+| Explain | The workbook tool that compares a measure across the groups of one or more attributes, verified findings first, with the usual verdicts |
+| Saved model | A fitted model kept as plain numbers (never a program file), so it can be reused |
+| Scoring | Applying a saved model to rows; a score is only as verified as its model |
+| Platt calibration | Turning a model's raw output into a probability; fitted on data the model did not train on |
+| Out-of-fold | Predictions made on rows that were left out of that fold's training, so they are honest |
+| BH / false discovery | Benjamini-Hochberg: the correction that keeps the expected share of false findings at 5 % across many comparisons |
+| PKCE | A one-time proof that the program finishing a sign-in is the one that started it |
+| OAuth client | The registration of an app with Google or Microsoft (an id and a secret) that lets you sign in and grant read-only access |

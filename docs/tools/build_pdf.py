@@ -96,12 +96,12 @@ def build(font_dir: str) -> Path:
     # A literal "<pdf:nextpage />" line in the Markdown (kept by the md parser as raw HTML)
     # forces a page break.
     footer = (
-        '<div id="footer" class="footer">DataForce · build report (M1, M1b, M2a, M2b, M3a) · generated '
+        '<div id="footer" class="footer">DataForce · build report (M1 to M4) · generated '
         f"{dt.date.today().isoformat()} · page <pdf:pagenumber /> / <pdf:pagecount /></div>"
     )
     doc = (
         '<html><head><meta charset="utf-8"><title>'
-        + html.escape("DataForce — build report (M1, M1b, M2a, M2b, M3a)")
+        + html.escape("DataForce — build report (M1 to M4)")
         + "</title><style>"
         + CSS.format(fonts=font_dir)
         + "</style></head><body>"
