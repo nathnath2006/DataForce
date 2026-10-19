@@ -8,6 +8,7 @@ export interface AiPreview {
 export interface Citation { item_id: string; kind: string; at: string; origin_id: string }
 export interface SummaryOut {
   ai: boolean; provider: string; model: string; dropped: number;
+  dropped_reasons?: Record<string, number>;
   sentences: { text: string; cites: Citation[] }[];
 }
 export interface SuggestedTask { id: string; title: string; status: string; quote: string }

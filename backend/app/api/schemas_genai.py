@@ -58,6 +58,8 @@ class SummaryOut(BaseModel):
     model: str
     sentences: list[SummarySentenceOut]
     dropped: int
+    # why sentences were dropped: no_citation, number_not_in_source, too_long
+    dropped_reasons: dict[str, int] = {}
 
 
 class SuggestedTaskOut(BaseModel):

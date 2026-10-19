@@ -103,8 +103,8 @@ def test_preview(client, ws, deal, fake):
     r = client.get(f"{ws}/deals/{deal}/ai/preview")
     assert r.status_code == 200, r.text
     p = r.json()
-    assert p["n_items"] == 2 and p["truncated"] is False
-    assert p["n_chars"] > 50 and p["by_kind"] == {"call": 1, "note": 1}
+    assert p["n_items"] == 3 and p["truncated"] is False  # the deal facts, the call, the note
+    assert p["n_chars"] > 50 and p["by_kind"] == {"deal": 1, "call": 1, "note": 1}
     assert (p["provider"], p["model"]) == ("gemini", "gemini-2.5-flash")
     assert p["calls_today"] == 0 and p["daily_cap"] > 0
     assert fake["users"] == []  # nothing was sent
@@ -269,7 +269,7 @@ def test_erasing_a_contact_masks_ai_task_evidence(client, ws, deal, fake):
     client.post(f"{ws}/deals/{deal}/ai/tasks")
     genai.reset_limits()
     prompt = fake["users"][-1]
-    ref = next(r for r, _ in refs(prompt) if said in prompt.split(f'<source id="{r}">', 1)[1][:200])
+    ref = next(r for r, _ in refs(prompt) if said in _block(prompt, r))
     fake["items"] = lambda: [{"title": "Send order form", "quote": said, "item_id": ref}]
     t = client.post(f"{ws}/deals/{deal}/ai/tasks").json()["tasks"][0]
     assert "Maria L" in t["quote"]
@@ -277,3 +277,32 @@ def test_erasing_a_contact_masks_ai_task_evidence(client, ws, deal, fake):
     after = next(x for x in client.get(f"{ws}/deals/{deal}/tasks").json() if x["id"] == t["id"])
     assert "Maria L" not in after["evidence"]["quote"]
     assert "wants the signed order form" in after["evidence"]["quote"]
+
+
+def _block(prompt: str, ref: str) -> str:
+    return prompt.split(f'<source id="{ref}">', 1)[1].split("</source>", 1)[0]
+
+
+def test_summary_accepts_item_dates_and_crm_facts_and_says_why_it_drops(client, ws, deal, fake):
+    """The live failure of 2026-10-19: every sentence dated an activity from its header, and all
+    were dropped as invented numbers."""
+    enable(client, ws)
+    client.post(f"{ws}/deals/{deal}/ai/summary")  # learn the ids
+    genai.reset_limits()
+    prompt = fake["users"][-1]
+    kinds = {k: r for r, k in refs(prompt)}
+    assert list(dict(refs(prompt)).values())[0] == "deal"  # the facts come first
+    facts, call = kinds["deal"], kinds["call"]
+    assert "created on 2026-01-05" in _block(prompt, facts)
+    day = datetime.fromisoformat(NOW)
+    fake["summary"] = lambda: [
+        {"text": f"An intro call took place on {day:%Y-%m-%d}.", "cites": [call]},
+        {"text": f"The call happened on {day.day} {day:%B}.", "cites": [f"source {call}"]},
+        {"text": "The deal was created on 2026-01-05 and is in prospecting.", "cites": [facts]},
+        {"text": "A call on 1999-02-03 went well.", "cites": [call]},  # a date it never saw
+        {"text": "Nothing cited here.", "cites": ["N99"]},
+    ]
+    out = client.post(f"{ws}/deals/{deal}/ai/summary").json()
+    assert len(out["sentences"]) == 3, out
+    assert out["dropped"] == 2
+    assert out["dropped_reasons"] == {"no_citation": 1, "number_not_in_source": 1}

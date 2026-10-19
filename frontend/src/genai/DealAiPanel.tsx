@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { formatDate } from "../lib";
 import { AiBadge, ErrorNote, Modal, useAction } from "../ui";
 import { genaiApi, type AiPreview, type Scope, type SummaryOut } from "./api";
-import { capLeft, consentText } from "./logic";
+import { capLeft, consentText, droppedText } from "./logic";
 import "./genai.css";
 
 type Kind = "summary" | "tasks";
@@ -67,7 +67,7 @@ export function DealAiPanel({ ws, dealId, accountId, onChanged }: {
       {summary && (
         <div className="genai-sum">
           <AiBadge>AI summary</AiBadge>
-          {summary.sentences.length === 0 && <p className="muted">The model gave nothing that could be checked against your notes.</p>}
+          {summary.sentences.length === 0 && <p className="muted">No sentence could be checked against the items sent, so none is shown.</p>}
           {summary.sentences.map((s, i) => (
             <p key={i}>
               {s.text}
@@ -77,7 +77,7 @@ export function DealAiPanel({ ws, dealId, accountId, onChanged }: {
             </p>
           ))}
           <p className="genai-note">
-            {summary.provider} {summary.model}. Every sentence cites its source; {summary.dropped} unchecked sentence{summary.dropped === 1 ? "" : "s"} dropped. Not saved.
+            {summary.provider} {summary.model}. Every sentence shown cites its source. {droppedText(summary.dropped, summary.dropped_reasons)} Not saved.
           </p>
         </div>
       )}
