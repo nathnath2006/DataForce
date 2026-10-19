@@ -9,6 +9,7 @@ import typer
 
 from app.cli._common import fail
 from app.config import get_settings
+from app.services import runs
 
 
 class _DropQueryString(logging.Filter):
@@ -50,6 +51,8 @@ def ui(
         typer.echo("note: frontend not built (run `make ui`); serving the API only.", err=True)
     typer.echo(f"DataForce UI: http://127.0.0.1:{chosen}  (Ctrl+C to stop)")
     logging.getLogger("uvicorn.access").addFilter(_DropQueryString())
+    # SYS-05: runs left "running" by a crash are marked failed before the app serves again.
+    runs.reap_stale_runs_at_startup()
     uvicorn.run(
         create_app(settings), host=settings.ui_host, port=chosen, workers=1, log_level="info"
     )

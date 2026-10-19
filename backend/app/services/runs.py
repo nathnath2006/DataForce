@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.db.models import Run
@@ -16,6 +17,10 @@ from app.services.errors import InvalidInputError, NotFoundError
 from app.services.textclean import scrub_json, scrub_text
 
 _ERROR_MAX_CHARS = 4000
+# A run still "running" after this long was cut off by an app stop (the longest configured
+# timeout is 600 s; 2 h is far beyond it).
+STALE_RUN_AFTER = timedelta(hours=2)
+INTERRUPTED_ERROR = "interrupted (the app stopped during the run)"
 
 
 def _jsonable(value: Any) -> Any:
@@ -104,3 +109,30 @@ def list_runs(
     if status is not None:
         stmt = stmt.where(Run.status == str(getattr(status, "value", status)))
     return list(session.scalars(stmt.limit(limit)))
+
+
+def reap_stale_runs(session: Session, *, now: datetime | None = None) -> int:
+    """Mark runs left "running" for longer than STALE_RUN_AFTER as failed (the app stopped
+    mid-run). Returns the number of runs closed. The caller commits."""
+    now = now or datetime.now(UTC)
+    result = session.execute(
+        update(Run)
+        .where(Run.status == RunStatus.RUNNING.value, Run.started_at < now - STALE_RUN_AFTER)
+        .values(
+            status=RunStatus.FAILED.value,
+            finished_at=now,
+            error=INTERRUPTED_ERROR,
+        )
+    )
+    return int(result.rowcount or 0)  # type: ignore[attr-defined]
+
+
+def reap_stale_runs_at_startup() -> None:
+    """App start hook (API startup, so also `dataforce ui`). A DB hiccup must not stop the app."""
+    from app.db.session import session_scope
+
+    try:
+        with session_scope() as session:
+            reap_stale_runs(session)
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("stale-run reaper skipped", exc_info=True)

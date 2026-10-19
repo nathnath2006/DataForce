@@ -663,3 +663,41 @@ class MeetingOrgAiCache(Base):
     model: Mapped[str] = mapped_column(String(64), nullable=False)
     findings: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = _created()
+
+
+# Performance indexes (migration 0008_indexes): `workspace_id` on the big tables, and every foreign
+# key with ON DELETE CASCADE / SET NULL, so a parent delete does not scan the child table. The
+# nullable ones are partial (`IS NOT NULL`): most rows hold NULL.
+def _not_null(column: str) -> Any:
+    return text(f"{column} IS NOT NULL")
+
+
+Index("ix_contact_ws_name", Contact.workspace_id, Contact.full_name, Contact.id)
+Index("ix_document_ws_date", Document.workspace_id, Document.meeting_date)
+Index("ix_document_chunk_ws", DocumentChunk.workspace_id)
+Index("ix_run_ws_kind_started", Run.workspace_id, Run.kind, Run.started_at.desc())
+Index("ix_comment_ws", Comment.workspace_id)
+Index("ix_contact_channel_ws", ContactChannel.workspace_id)
+Index("ix_note_ws", Note.workspace_id)
+Index("ix_meeting_org_ai_cache_ws", MeetingOrgAiCache.workspace_id)
+Index("ix_oauth_pending_ws", OAuthPending.workspace_id)
+Index("ix_org_proposal_ws", OrgProposal.workspace_id)
+Index("ix_theme_ws", Theme.workspace_id)
+Index("ix_theme_assignment_ws", ThemeAssignment.workspace_id)
+for _idx, _col in (
+    ("ix_comment_author", Comment.author_id),
+    ("ix_comment_deleted_by", Comment.deleted_by_id),
+    ("ix_contact_reports_to", Contact.reports_to_id),
+    ("ix_contact_reports_to_proposal", Contact.reports_to_proposal_id),
+    ("ix_deal_owner", Deal.owner_id),
+    ("ix_document_created_by", Document.created_by_id),
+    ("ix_document_chunk_contact", DocumentChunk.contact_id),
+    ("ix_document_chunk_user", DocumentChunk.user_id),
+    ("ix_llm_call_run", LlmCall.run_id),
+    ("ix_note_author", Note.author_id),
+    ("ix_note_deleted_by", Note.deleted_by_id),
+    ("ix_org_proposal_decided_by", OrgProposal.decided_by_id),
+    ("ix_org_proposal_manager", OrgProposal.manager_id),
+    ("ix_org_proposal_run", OrgProposal.run_id),
+):
+    Index(_idx, _col, postgresql_where=_not_null(_col.key))
