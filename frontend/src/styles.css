@@ -1,5 +1,6 @@
 @import "./tokens.css";
 :root { font-family: var(--font); font-size: 15px; }
+code, kbd, pre, samp { font-family: var(--mono); }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.45; }
 body { font-size: 15px; line-height: 22px; }
