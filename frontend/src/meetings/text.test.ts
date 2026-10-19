@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateGraph, themesVsWinRateGraph, TEMPLATES } from "../flows/graph";
-import { buildTurns, clampK, exactCount, formatDate, legend, safeOffset } from "./text";
+import { buildTurns, clampK, displaySegs, exactCount, formatDate, legend, safeOffset } from "./text";
 import type { ChunkOut } from "./types";
 
 const ch = (id: string, seq: number, speaker: string | null, s: number, e: number): ChunkOut =>
@@ -65,5 +65,21 @@ describe("themes template", () => {
     expect(JSON.stringify(g)).toContain("Prix · budget");
     const t = TEMPLATES.find((x) => x.key === "themes");
     expect(t && validateGraph(t.build())).toEqual([]);
+  });
+});
+
+describe("displaySegs", () => {
+  const seg = (text: string, themeId: string | null = null) => ({ text, themeId, label: themeId ? "Price" : null });
+  it("drops the repeated speaker prefix and the blank line before it", () => {
+    expect(displaySegs({ speaker: "Ana Dupont", segs: [seg("\nAna Dupont: "), seg("Le prix est élevé.", "t1")] }))
+      .toEqual([seg("Le prix est élevé.", "t1")]);
+    expect(displaySegs({ speaker: "Ana Dupont", segs: [seg("**Ana Dupont:** Bonjour")] }).map((x) => x.text)).toEqual(["Bonjour"]);
+    expect(displaySegs({ speaker: "Ana Dupont", segs: [seg("  **Ana Dupont**: Bonjour")] }).map((x) => x.text)).toEqual(["Bonjour"]);
+  });
+  it("leaves other text alone, and names with regex characters are safe", () => {
+    expect(displaySegs({ speaker: "Ana Dupont", segs: [seg("Bob said: hi")] }).map((x) => x.text)).toEqual(["Bob said: hi"]);
+    expect(displaySegs({ speaker: "J. (Rep)", segs: [seg("J. (Rep): ok")] }).map((x) => x.text)).toEqual(["ok"]);
+    expect(displaySegs({ speaker: null, segs: [seg("\nfree text")] }).map((x) => x.text)).toEqual(["free text"]);
+    expect(displaySegs({ speaker: "A", segs: [] })).toEqual([]);
   });
 });

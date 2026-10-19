@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { useWs } from "../context";
 import { Confirm, Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, useAction, useLoad } from "../ui";
 import { meetingsApi } from "./api";
-import { buildTurns, formatDate, legend, speakerNames } from "./text";
+import { buildTurns, displaySegs, formatDate, legend, speakerNames } from "./text";
 import type { DocumentOut } from "./types";
 import "./meetings.css";
 
@@ -103,7 +103,7 @@ export function TranscriptDialog({ id, onClose }: { id: string; onClose: () => v
               {turns.slice(0, shown).map((t, i) => (
                 <div className="turn" key={i}>
                   {t.speaker && <span className="who">{t.speaker}</span>}
-                  <p className="says">{t.segs.map((s, j) => (
+                  <p className="says">{displaySegs(t).map((s, j) => (
                     s.themeId ? <mark key={j} className={cls.get(s.themeId) ?? "th0"} title={s.label ?? undefined}>{s.text}</mark>
                       : <span key={j}>{s.text}</span>
                   ))}</p>

@@ -61,6 +61,20 @@ export function buildTurns(text: string, chunks: ChunkOut[], themes: ChunkTheme[
   return turns;
 }
 
+/** The segments of a turn as shown under its speaker label: the leading "Name:" (or
+ *  "**Name:**") that repeats the label, and the blank line before it, are dropped from the first
+ *  segment. buildTurns itself stays lossless; this only affects display. */
+export function displaySegs(turn: Turn): Turn["segs"] {
+  const [first, ...rest] = turn.segs;
+  if (!first) return [];
+  let text = first.text.replace(/^\s+/, "");
+  if (turn.speaker) {
+    const name = turn.speaker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    text = text.replace(new RegExp(`^(?:\\*\\*)?\\s*${name}\\s*(?:\\*\\*)?\\s*:\\s*(?:\\*\\*)?\\s*`), "");
+  }
+  return text ? [{ ...first, text }, ...rest] : rest;
+}
+
 /** Distinct themes of a document in first-seen order (for the legend). */
 export function legend(themes: ChunkTheme[]): { id: string; label: string; cls: string }[] {
   const seen = new Map<string, string>();
