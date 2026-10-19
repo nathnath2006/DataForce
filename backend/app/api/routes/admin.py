@@ -39,7 +39,6 @@ _LIMITS: tuple[tuple[str, str], ...] = (
     ("assistant_max_asks_per_hour", "Assistant questions per workspace and hour"),
     ("assistant_max_context_chars", "Assistant: maximum context characters sent to the model"),
     ("assistant_max_output_tokens", "Assistant: maximum answer tokens"),
-    ("llm_max_calls_per_run", "AI calls, hard ceiling per run"),
     ("flow_max_concurrent_runs", "Analysis flows that may run at the same time"),
     ("flow_max_rows", "Maximum rows per dataset or block in a flow"),
     ("flow_run_timeout_s", "Flow run timeout (seconds)"),

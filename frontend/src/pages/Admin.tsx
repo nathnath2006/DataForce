@@ -19,8 +19,9 @@ export function AdminPage() {
   const runs = useLoad(() => adminApi.runs(ws.slug, kind, status), [ws.slug, kind, status]);
   const db = ov.data?.database;
   const sc = ov.data?.schema_status;
-  const used = db ? Math.min(db.size_bytes, db.quota_mb * 1048576) : 0;
-  const quota = db ? db.quota_mb * 1048576 : 0;
+  // The bar counts whole megabytes, so its "x of y" and key read as MB, not bytes.
+  const quota = db ? db.quota_mb : 0;
+  const used = db ? Math.min(Math.ceil(db.size_bytes / 1048576), quota) : 0;
 
   return (
     <section className="stack">
@@ -34,8 +35,8 @@ export function AdminPage() {
               label={`${formatBytes(db.size_bytes)} of ${db.quota_mb} MB (${db.used_pct ?? "—"}%)`}
               total={quota}
               segments={[
-                { kind: db.used_pct != null && db.used_pct >= 90 ? "bad" : db.used_pct != null && db.used_pct >= 70 ? "warn" : "ok", label: "Used", count: used },
-                { kind: "unknown", label: "Free", count: Math.max(0, quota - used) },
+                { kind: db.used_pct != null && db.used_pct >= 90 ? "bad" : db.used_pct != null && db.used_pct >= 70 ? "warn" : "ok", label: "Used (MB)", count: used },
+                { kind: "unknown", label: "Free (MB)", count: Math.max(0, quota - used) },
               ]}
             />
             <p>Schema: {sc.up_to_date
