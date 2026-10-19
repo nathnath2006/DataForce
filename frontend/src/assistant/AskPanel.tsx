@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useWs } from "../context";
-import { ErrorNote, useAction } from "../ui";
+import { ErrorNote, useAction, useLoad } from "../ui";
 import { ApiError } from "../lib";
 import type { AskOut, AskScope, AskTurn } from "../types";
 import { aiApi } from "./api";
@@ -20,12 +20,19 @@ export function AnswerText({ out }: { out: AskOut }) {
   );
 }
 
+/** What an ask sends (shown above the question box). */
+export function askNotice(target: string, provider: string): string {
+  return `Your question and the CRM data of ${target}, including all its accounts' people with their titles, deals, notes, comments and meeting titles, are sent to ${provider}.`;
+}
+
 export function AskPanel({ scope, bare }: { scope: AskScope; bare?: boolean }) {
   const { ws } = useWs();
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const a = useAction();
   const what = scope.kind;
+  const info = useLoad(() => aiApi.scope(ws.slug, scope), [ws.slug, scope.kind, scope.id]);
+  const target = info.data?.company_name ?? `this ${what === "company" ? "company" : "account"}`;
   const notConfigured = a.error instanceof ApiError && a.error.code === "connector_not_configured";
   const provider = turns.length ? turns[turns.length - 1]!.out.provider : "your configured AI provider";
 
@@ -47,7 +54,7 @@ export function AskPanel({ scope, bare }: { scope: AskScope; bare?: boolean }) {
     <div className={bare ? "stack" : "card stack"}>
       {!bare && <h2>Ask about this {what}</h2>}
       <p className="muted small">
-        Your question and the CRM data of {what === "company" ? "this company" : `the company of this ${what}`} — all its accounts, people, deals, notes and meeting titles — are sent to {provider}.
+        {askNotice(target, provider)}
         Answers can be wrong: check the cited facts.
       </p>
       {turns.map((t, i) => (

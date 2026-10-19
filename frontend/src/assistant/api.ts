@@ -8,6 +8,8 @@ export const aiApi = {
     request<T.AiSettingsOut>("PUT", `${w(ws)}/ai/meeting-org`, { enabled }),
   remove: (ws: string) => request<void>("DELETE", `${w(ws)}/ai`),
   test: (ws: string) => request<T.AiSettingsOut>("POST", `${w(ws)}/ai/test`),
+  scope: (ws: string, s: T.AskScope) =>
+    request<T.AskScopeInfo>("GET", `${w(ws)}/assistant/scope?kind=${s.kind}&id=${encodeURIComponent(s.id)}`),
   ask: (ws: string, b: { scope: T.AskScope; question: string; history: T.AskTurn[] }) =>
     request<T.AskOut>("POST", `${w(ws)}/assistant/ask`, b),
 };

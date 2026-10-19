@@ -51,6 +51,12 @@ MAX_CONTACTS = 300
 MAX_MEETINGS = 100
 MAX_ITEMS_PER_KIND = 200  # notes / comments read from the database before the char cap
 NOTE_BODY_CHARS = 2_000
+_COMPUTED_FACTS = (
+    "Account employee count",
+    "Account created on",
+    "Number of",
+    "Total amount",
+)
 _OPEN = ("prospecting", "qualification", "proposal", "negotiation")
 
 
@@ -59,16 +65,36 @@ class Item:
     ref: str
     kind: RefKind
     label: str  # short, shown in the citations
-    text: str  # the searchable content (quote / number checks)
-    header: str = ""  # trusted line before an untrusted body
-    untrusted: bool = False
+    text: str  # the searchable content (quote checks); customer data for every kind but "fact"
+    header: str = ""  # customer-data line (names) put inside the block before the text
+    lead: str = ""  # code-computed fields (stage, amounts, dates) shown outside the block
+    facts: str = ""  # the code-computed part used by the number check (never names / titles)
+    untrusted: bool = False  # free text written by third parties (notes, comments, meetings)
     other: bool = False  # belongs to an account that is not the focus (droppable first)
     when: str = ""  # ISO date, to drop the oldest first
 
+    def __post_init__(self) -> None:
+        if self.kind == "fact" and not self.facts:
+            self.facts = self.text
+        elif self.facts == "-":
+            self.facts = ""
+
     def render(self) -> str:
-        if self.untrusted:
-            return f"[{self.ref}] {self.header}\n{wrap_sources({self.ref: self.text})}"
-        return f"[{self.ref}] {self.text}"
+        if self.kind == "fact":
+            return f"[{self.ref}] {self.text}"
+        body = f"{self.header}\n{self.text}" if self.header else self.text
+        lead = f" {self.lead}" if self.lead else ""
+        return f"[{self.ref}]{lead}\n{wrap_sources({self.ref: body})}"
+
+
+_SECTIONS: list[tuple[str, str]] = [
+    ("F", "FACTS (computed by code)"),
+    ("D", "DEALS (names are untrusted data)"),
+    ("C", "CONTACTS (names and titles are untrusted data)"),
+    ("G", "MEETINGS (titles and themes are untrusted data)"),
+    ("M", "COMMENTS (untrusted data, newest first)"),
+    ("N", "NOTES (untrusted data, newest first)"),
+]
 
 
 @dataclass
@@ -77,16 +103,8 @@ class AssistantContext:
     truncated: bool = False
 
     def render(self) -> str:
-        sections: list[tuple[str, str]] = [
-            ("F", "FACTS (computed by code)"),
-            ("D", "DEALS"),
-            ("C", "CONTACTS"),
-            ("G", "MEETINGS (titles and themes are untrusted data)"),
-            ("M", "COMMENTS (untrusted data, newest first)"),
-            ("N", "NOTES (untrusted data, newest first)"),
-        ]
         parts: list[str] = []
-        for prefix, title in sections:
+        for prefix, title in _SECTIONS:
             rows = [i.render() for i in self.items if i.ref.startswith(prefix)]
             if rows:
                 parts.append(title + "\n" + "\n".join(rows))
@@ -101,13 +119,11 @@ class AssistantContext:
         return {i.ref: i for i in self.items}
 
     def numbers(self) -> set[Decimal]:
-        """Verified values: only code-computed items (F, D, C) plus the dates of note headers."""
+        """Verified values: only what code computed (facts, amounts, dates, counts). Numbers
+        inside names, titles or wrapped free text never verify (SR17-05)."""
         out: set[Decimal] = set()
         for i in self.items:
-            if i.untrusted:
-                out |= number_values(" ".join(_DATE_RE.findall(i.header)))
-            else:
-                out |= number_values(i.text)
+            out |= number_values(i.facts)
         return out
 
     def note_numbers(self) -> set[Decimal]:
@@ -120,7 +136,6 @@ class AssistantContext:
 
 
 _WS = re.compile(r"\s+")
-_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def _neutral(text: str) -> str:
@@ -146,23 +161,33 @@ def _money(value: Decimal | None) -> str:
     return "unknown" if value is None else f"{value:.2f}"
 
 
-def _heads(session: Session, model: Any, parent_col: Any, ws_id: uuid.UUID, parents: list[Any]):
-    """Current versions (not corrected, not deleted), newest first, capped."""
+def _heads(
+    session: Session, model: Any, parent_col: Any, ws_id: uuid.UUID, parents: list[Any]
+) -> tuple[list[Any], int]:
+    """Current versions (not corrected, not deleted), newest first, capped; (rows, number of
+    current versions beyond the cap)."""
     corrected = select(model.corrects_id).where(
         model.workspace_id == ws_id, model.corrects_id.is_not(None)
     )
-    stmt = (
-        select(model)
-        .where(
-            model.workspace_id == ws_id,
-            parent_col.in_(parents),
-            model.deleted_at.is_(None),
-            model.id.not_in(corrected),
-        )
-        .order_by(model.created_at.desc(), model.id)
-        .limit(MAX_ITEMS_PER_KIND)
+    where = (
+        model.workspace_id == ws_id,
+        parent_col.in_(parents),
+        model.deleted_at.is_(None),
+        model.id.not_in(corrected),
     )
-    return list(session.scalars(stmt))
+    rows = list(
+        session.scalars(
+            select(model)
+            .where(*where)
+            .order_by(model.created_at.desc(), model.id)
+            .limit(MAX_ITEMS_PER_KIND)
+        )
+    )
+    over = 0
+    if len(rows) >= MAX_ITEMS_PER_KIND:
+        total = session.scalar(select(func.count()).select_from(model).where(*where)) or 0
+        over = max(0, total - len(rows))
+    return rows, over
 
 
 def _account_facts(a: Account, company: Company | None) -> list[str]:
@@ -247,6 +272,35 @@ def _meeting_themes(session: Session, ws_id: uuid.UUID, doc_ids: list[uuid.UUID]
         if len(out.setdefault(doc_id, [])) < 5:
             out[doc_id].append(_line(label, 80))
     return out
+
+
+def validate_scope(
+    session: Session,
+    ws_id: uuid.UUID,
+    scope_kind: Literal["account", "company", "deal"],
+    scope_id: uuid.UUID,
+) -> tuple[str, str | None]:
+    """(name of the scope, name of its company or None). Raises NotFoundError for an id of
+    another workspace; cheap: run it before the rate limit counts the request (SR17-08)."""
+    if scope_kind == "company":
+        company = session.get(Company, scope_id)
+        if company is None or company.workspace_id != ws_id:
+            raise NotFoundError("company not found")
+        return company.name, company.name
+    deal: Deal | None = None
+    if scope_kind == "deal":
+        deal = session.get(Deal, scope_id)
+        if deal is None or deal.workspace_id != ws_id:
+            raise NotFoundError("deal not found")
+        acc = session.get(Account, deal.account_id)
+    else:
+        acc = session.get(Account, scope_id)
+    if acc is None or acc.workspace_id != ws_id:
+        raise NotFoundError("account not found")
+    co = session.get(Company, acc.company_id) if acc.company_id else None
+    if co is not None and co.workspace_id != ws_id:
+        co = None
+    return (deal.name if deal is not None else acc.name), (co.name if co is not None else None)
 
 
 def build_context(
@@ -363,8 +417,16 @@ def build_context(
         facts.append(f"Number of notes: {n_notes or 0}")
 
     ctx = AssistantContext()
+    read_gone: dict[str, int] = {
+        "deal": max(0, len(deals) - MAX_DEALS),
+        "contact": max(0, len(contacts) - MAX_CONTACTS),
+    }
     for i, text in enumerate(facts, 1):
-        ctx.items.append(Item(f"F{i}", "fact", _line(text, 80), text))
+        # only code-computed lines verify numbers; those that carry names / free text do not
+        computed = text.startswith(_COMPUTED_FACTS)
+        ctx.items.append(
+            Item(f"F{i}", "fact", _line(text, 80), text, facts=text if computed else "-")
+        )
 
     owners = {
         u.id: u.display_name
@@ -378,14 +440,19 @@ def build_context(
     deal_name = {d.id: d.name for d in deals}
     for i, d in enumerate(deals[:MAX_DEALS], 1):
         owner = _line(owners[d.owner_id]) if d.owner_id in owners else "none"
+        lead = (
+            f"stage: {d.stage} | amount_eur: {_money(d.amount_eur)} | "
+            f"created: {_d(d.created_on)} | closed: {_d(d.closed_on)}"
+        )
         ctx.items.append(
             Item(
                 f"D{i}",
                 "deal",
                 f"Deal {_line(d.name, 60)}",
-                f"{_line(d.name)} | stage: {d.stage} | amount_eur: {_money(d.amount_eur)} | "
-                f"created: {_d(d.created_on)} | closed: {_d(d.closed_on)} | owner: {owner} | "
+                f"{_line(d.name)} | owner: {owner} | "
                 f"account: {_line(acc_name.get(d.account_id, ''))}",
+                lead=lead,
+                facts=lead,
                 other=d.account_id != focus_id,
             )
         )
@@ -395,6 +462,10 @@ def build_context(
     cname = {c.id: c.full_name for c in contacts}
     for i, c in enumerate(contacts[:MAX_CONTACTS], 1):
         boss = cname.get(c.reports_to_id) if c.reports_to_id else None
+        lead = (
+            f"function: {c.title_function or 'unknown'} | "
+            f"seniority: {c.title_seniority or 'unknown'}"
+        )
         ctx.items.append(
             Item(
                 f"C{i}",
@@ -402,9 +473,9 @@ def build_context(
                 f"Contact {_line(c.full_name, 60)}",
                 f"{_line(c.full_name)} | account: {_line(acc_name.get(c.account_id, ''))} | "
                 f"title: {_line(c.title) if c.title else 'unknown'} | "
-                f"function: {c.title_function or 'unknown'} | "
-                f"seniority: {c.title_seniority or 'unknown'} | "
                 f"reports to: {_line(boss) if boss else 'none'}",
+                lead=lead,
+                facts=lead,
                 other=c.account_id != focus_id,
             )
         )
@@ -412,14 +483,18 @@ def build_context(
         ctx.truncated = True
 
     if ids:
+        doc_where = (Document.workspace_id == ws_id, Document.account_id.in_(ids))
         docs = list(
             session.scalars(
                 select(Document)
-                .where(Document.workspace_id == ws_id, Document.account_id.in_(ids))
+                .where(*doc_where)
                 .order_by(Document.meeting_date.desc().nulls_last(), Document.id)
                 .limit(MAX_MEETINGS)
             )
         )
+        if len(docs) >= MAX_MEETINGS:
+            n_docs = session.scalar(select(func.count()).select_from(Document).where(*doc_where))
+            read_gone["meeting"] = max(0, (n_docs or 0) - len(docs))
         themes = _meeting_themes(session, ws_id, [m.id for m in docs])
         for i, m in enumerate(docs, 1):
             when = _d(m.meeting_date)
@@ -434,11 +509,13 @@ def build_context(
                     header=f"meeting on {when}, account {_line(acc_name.get(m.account_id, ''))}, "
                     f"deal {deal}:",
                     untrusted=True,
+                    facts=when,
                     other=m.account_id != focus_id,
                     when=m.meeting_date.isoformat() if m.meeting_date else "",
                 )
             )
-        comments = _heads(session, Comment, Comment.account_id, ws_id, ids)
+        comments, over_comments = _heads(session, Comment, Comment.account_id, ws_id, ids)
+        read_gone["comment"] = over_comments
         for i, cm in enumerate(comments, 1):
             ctx.items.append(
                 Item(
@@ -449,13 +526,17 @@ def build_context(
                     header=f"comment on account {_line(acc_name.get(cm.account_id, ''))}, "
                     f"{_d(cm.created_at)}:",
                     untrusted=True,
+                    facts=_d(cm.created_at),
                     other=cm.account_id != focus_id,
                     when=_d(cm.created_at),
                 )
             )
         if contacts:
             cacc = {c.id: c.account_id for c in contacts}
-            notes = _heads(session, Note, Note.contact_id, ws_id, [c.id for c in contacts])
+            notes, over_notes = _heads(
+                session, Note, Note.contact_id, ws_id, [c.id for c in contacts]
+            )
+            read_gone["note"] = over_notes
             for i, n in enumerate(notes, 1):
                 who = _line(cname.get(n.contact_id, ""))
                 ctx.items.append(
@@ -466,75 +547,129 @@ def build_context(
                         _neutral(n.body)[:NOTE_BODY_CHARS],
                         header=f"note on contact {who}, {_d(n.created_at)}:",
                         untrusted=True,
+                        facts=_d(n.created_at),
                         other=cacc.get(n.contact_id) != focus_id,
                         when=_d(n.created_at),
                     )
                 )
-    _apply_cap(ctx, max_chars)
+    _apply_cap(ctx, max_chars, {k: v for k, v in read_gone.items() if v})
     return ctx, title
 
 
 _RESERVE = 200  # room kept for the "left out" fact
+_ORDER = [p for p, _ in _SECTIONS]
+_TITLE = dict(_SECTIONS)
+_NAMES = {
+    "note": "notes",
+    "comment": "comments",
+    "meeting": "meetings",
+    "contact": "contacts",
+    "deal": "deals",
+    "fact": "facts",
+}
 
 
-def _apply_cap(ctx: AssistantContext, max_chars: int) -> None:
-    """Fit `max_chars`. Drop, oldest first: notes / comments / meetings of other accounts, then
-    other accounts' contacts, then their deals; the focus facts, deals and contacts are never
-    dropped (the focus's own oldest notes go only as a last resort). Adds a fact saying what
-    was left out. Sets `truncated`."""
+class _Size:
+    """Exact length of `AssistantContext.render()`, kept as a running total."""
 
-    def size() -> int:
-        return len(ctx.render())
+    def __init__(self, items: list[Item]) -> None:
+        self.n = dict.fromkeys(_ORDER, 0)
+        self.chars = dict.fromkeys(_ORDER, 0)
+        self.len: dict[int, int] = {}
+        for it in items:
+            self.add(it)
 
-    if size() <= max_chars:
-        return
-    ctx.truncated = True
-    limit = max_chars - _RESERVE
-    gone: dict[str, int] = {}
+    def add(self, it: Item) -> None:
+        n = self.len.setdefault(id(it), len(it.render()))
+        self.n[it.ref[0]] += 1
+        self.chars[it.ref[0]] += n
 
-    def drop(it: Item, other: bool) -> None:
-        ctx.items.remove(it)
-        key = it.kind + ("-other" if other else "")
-        gone[key] = gone.get(key, 0) + 1
+    def remove(self, it: Item) -> None:
+        self.n[it.ref[0]] -= 1
+        self.chars[it.ref[0]] -= self.len[id(it)]
 
-    phases: list[tuple[tuple[str, ...], bool]] = [
-        (("N", "M", "G"), True),
-        (("C",), True),
-        (("D",), True),
-        (("N", "M", "G"), False),
-    ]
-    for prefixes, other in phases:
-        while size() > limit:
-            pool = [i for i in ctx.items if i.ref[0] in prefixes and i.other == other]
-            if not pool:
+    @property
+    def total(self) -> int:
+        blocks = [
+            len(_TITLE[p]) + 1 + self.chars[p] + self.n[p] - 1 for p in _ORDER if self.n[p] > 0
+        ]
+        return sum(blocks) + 2 * max(0, len(blocks) - 1)
+
+
+def _apply_cap(
+    ctx: AssistantContext, max_chars: int, read_gone: dict[str, int] | None = None
+) -> None:
+    """Fit `max_chars` in one pass: item sizes are computed once, a running total is kept and
+    items are dropped by priority (oldest first): notes / comments / meetings of other accounts,
+    their contacts, their deals, the company's account-name lines, then the focus's own notes
+    and, as a last resort, its contacts, deals and facts. Adds a fact saying what was left out
+    (including what the read-time caps dropped). Sets `truncated`. The result never exceeds
+    `max_chars`."""
+    gone: dict[str, int] = {k: v for k, v in (read_gone or {}).items() if v}
+    if gone:
+        ctx.truncated = True
+    size = _Size(ctx.items)
+    if size.total > max_chars:
+        ctx.truncated = True
+        limit = max_chars - _RESERVE
+        order = {id(it): k for k, it in enumerate(ctx.items)}
+        removed: set[int] = set()
+
+        def key(it: Item) -> tuple[str, int]:
+            # oldest date first; contacts / deals / facts have none: the last of the list first
+            return (it.when, -order[id(it)])
+
+        facts = [i for i in ctx.items if i.kind == "fact"]
+        listing = [i for i in facts if i.text.startswith("Account of this company")]
+        rest_facts = [i for i in facts if i not in listing][::-1]
+        phases: list[list[Item]] = []
+        for prefixes, other in (
+            (("N", "M", "G"), True),
+            (("C",), True),
+            (("D",), True),
+        ):
+            phases.append(
+                sorted((i for i in ctx.items if i.ref[0] in prefixes and i.other == other), key=key)
+            )
+        phases.append(listing[::-1])
+        phases.append(sorted((i for i in ctx.items if i.ref[0] in "NMG" and not i.other), key=key))
+        phases.append([i for i in ctx.items if i.kind == "contact" and not i.other][::-1])
+        phases.append([i for i in ctx.items if i.kind == "deal" and not i.other][::-1])
+        phases.append(rest_facts[:-1])  # the first fact (where we are) stays longest
+        for pool in phases:
+            for it in pool:
+                if size.total <= limit:
+                    break
+                size.remove(it)
+                removed.add(id(it))
+                if it.kind != "fact":
+                    k = it.kind + ("-other" if it.other else "")
+                    gone[k] = gone.get(k, 0) + 1
+            if size.total <= limit:
                 break
-            drop(_oldest(pool), other)
-        if size() <= limit:
-            break
-    names = {
-        "note": "notes",
-        "comment": "comments",
-        "meeting": "meetings",
-        "contact": "contacts",
-        "deal": "deals",
-    }
-    parts = []
-    for key, n in gone.items():
-        kind, _, o = key.partition("-")
-        parts.append(
-            f"{n} {'older ' if kind in ('note', 'comment', 'meeting') else ''}"
-            f"{names[kind]}{' of other accounts' if o else ''}"
+        ctx.items = [i for i in ctx.items if id(i) not in removed]
+    if gone:
+        parts = []
+        for k, n in gone.items():
+            kind, _, o = k.partition("-")
+            older = "older " if kind in ("note", "comment", "meeting") else ""
+            parts.append(f"{n} {older}{_NAMES[kind]}{' of other accounts' if o else ''}")
+        fs = [int(i.ref[1:]) for i in ctx.items if i.ref[0] == "F"]
+        fact = Item(
+            f"F{1 + max(fs, default=0)}",
+            "fact",
+            "Left out",
+            "Left out to fit the size limit: " + ", ".join(parts),
         )
-    if parts:
-        nxt = 1 + max(int(i.ref[1:]) for i in ctx.items if i.ref[0] == "F")
-        text = "Left out to fit the size limit: " + ", ".join(parts)
-        ctx.items.insert(
-            next(k for k, i in enumerate(ctx.items) if i.ref[0] != "F"),
-            Item(f"F{nxt}", "fact", "Left out", text),
-        )
-
-
-def _oldest(pool: list[Item]) -> Item:
-    # notes / comments / meetings: the oldest date first (highest ref number breaks ties);
-    # contacts / deals have no date: the last of the list first.
-    return min(pool, key=lambda i: (i.when, -int(i.ref[1:])))
+        at = next((k for k, i in enumerate(ctx.items) if i.ref[0] != "F"), len(ctx.items))
+        ctx.items.insert(at, fact)
+        size.add(fact)
+        # last guard: the fact itself pushed it over (tiny caps): drop from the end
+        while size.total > max_chars and ctx.items:
+            victim = next((i for i in reversed(ctx.items) if i is not fact), None)
+            if victim is None:
+                break
+            ctx.items.remove(victim)
+            size.remove(victim)
+        if size.total > max_chars:
+            ctx.items.remove(fact)

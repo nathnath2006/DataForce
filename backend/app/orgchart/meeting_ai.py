@@ -335,11 +335,18 @@ def _verify_one(
     return Verified(it.kind, contact_id, manager_id, evidence)
 
 
+MANAGER_WINDOW_TURNS = 40  # the manager must be named at most this many turns before
+MANAGER_EXCERPT_CHARS = 300
+_LABEL = re.compile(r"[ \t]*(?:\*\*)?[^:\n*]{1,60}?(?:\*\*)?[ \t]*:(?:\*\*)?")
+
+
 def _named_before(
     mrx: re.Pattern[str], turn: Turn, s: int, doc_text: str | None
 ) -> tuple[str, int] | None:
     """(sentence, document offset) where the manager was last named before the statement, an
-    exact slice of the transcript; None when never named before."""
+    exact slice of the transcript (at most MANAGER_EXCERPT_CHARS, centred on the name). The
+    mention is not a speaker label, lies within the 40 turns before the statement and sits in
+    a sentence that passes the hypothetical and past/negation guards (SR17-02); None otherwise."""
     abs_s = turn.char_start + s
     if (
         doc_text is not None
@@ -348,13 +355,27 @@ def _named_before(
         before, base = doc_text[:abs_s], 0
     else:  # no transcript: only what precedes the statement inside the turn that was sent
         before, base = turn.text[:s], turn.char_start
-    found = list(mrx.finditer(fold(before)))  # fold keeps offsets
-    if not found:
-        return None
-    last = found[-1]
-    for a, b in sentences(before):
-        if a <= last.start() < b:
-            return before[a:b], base + a
+    spans = sentences(before)
+    for m in reversed(list(mrx.finditer(fold(before)))):  # fold keeps offsets
+        if before.count("\n", m.start()) > MANAGER_WINDOW_TURNS:
+            return None  # every earlier mention is farther still
+        ls = before.rfind("\n", 0, m.start()) + 1
+        label = _LABEL.match(before, ls)
+        if label is not None and m.start() < label.end():
+            continue  # the name of a speaker, not a mention
+        sent = next(((a, b) for a, b in spans if a <= m.start() < b), None)
+        if sent is None:
+            continue
+        a, b = sent
+        folded = fold(before[a:b])
+        if _HYPOTHETICAL.search(folded) or _PAST_OR_NEG.search(folded) or _NEGATION.search(folded):
+            continue
+        if b - a > MANAGER_EXCERPT_CHARS:
+            lo = max(a, m.start() - (MANAGER_EXCERPT_CHARS - (m.end() - m.start())) // 2)
+            hi = min(b, lo + MANAGER_EXCERPT_CHARS)
+            lo = max(a, hi - MANAGER_EXCERPT_CHARS)
+            a, b = lo, hi
+        return before[a:b], base + a
     return None
 
 

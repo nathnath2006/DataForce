@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import uuid
 from collections.abc import Callable
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session, sessionmaker
@@ -18,12 +18,13 @@ from app.api.schemas_ai import (
     AiSettingsOut,
     AskIn,
     AskOut,
+    AskScopeOut,
     Citation,
     MeetingOrgIn,
     QuoteCheck,
 )
 from app.assistant.ask import run_turn
-from app.assistant.context import build_context
+from app.assistant.context import build_context, validate_scope
 from app.assistant.ratelimit import check_and_count
 from app.config import Settings
 from app.db.models import LlmCredential
@@ -158,11 +159,22 @@ def test_ai(db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factor
     return _out(cred)
 
 
+@router.get("/w/{ws}/assistant/scope", response_model=AskScopeOut)
+def ask_scope(
+    db: Db, ws: CurrentWorkspace, kind: Literal["account", "company", "deal"], id: uuid.UUID
+) -> AskScopeOut:
+    """Name of the scope and of its company, for the notice shown before asking."""
+    name, company = validate_scope(db, ws.id, kind, id)
+    return AskScopeOut(kind=kind, name=name, company_name=company)
+
+
 @router.post("/w/{ws}/assistant/ask", response_model=AskOut)
 def ask(
     body: AskIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory
 ) -> AskOut:
+    validate_scope(db, ws.id, body.scope.kind, body.scope.id)  # 404 before the quota counts
     check_and_count(ws.id, settings.assistant_max_asks_per_hour)
+    cred = llm_settings.require_credential(db, ws.id)
     ctx, _title = build_context(
         db,
         ws.id,
@@ -170,7 +182,6 @@ def ask(
         body.scope.id,
         max_chars=settings.assistant_max_context_chars,
     )
-    cred = llm_settings.require_credential(db, ws.id)
     provider, key = _provider(db, ws.id, cred, settings, factory)
     history = [ChatMessage(role=t.role, content=t.content) for t in body.history]
     result, checked = asyncio.run(

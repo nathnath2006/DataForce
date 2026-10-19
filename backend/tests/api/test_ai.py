@@ -326,3 +326,24 @@ def test_ask_deal_scope(client, ws, fake):
     client.post("/api/workspaces", json={"slug": "b2", "name": "B2"})
     configure(client, "/api/w/b2")
     assert ask(client, "/api/w/b2", {"kind": "deal", "id": deal["id"]}).status_code == 404
+
+
+def test_sr17_08_unknown_scope_404_is_not_counted(client, ws, fake, api_settings):
+    api_settings.assistant_max_asks_per_hour = 1
+    configure(client, ws)
+    co = client.post(f"{ws}/companies", json={"name": "Acme"}).json()
+    for _ in range(3):
+        r = ask(client, ws, {"kind": "company", "id": str(uuid.uuid4())})
+        assert r.status_code == 404
+    assert ask(client, ws, {"kind": "company", "id": co["id"]}).status_code == 200
+
+
+def test_sr17_07_scope_endpoint_names_the_company(client, ws, db_session):
+    acc, _ = seed(client, ws)
+    r = client.get(f"{ws}/assistant/scope", params={"kind": "account", "id": acc["id"]})
+    assert r.status_code == 200 and r.json()["company_name"] is None
+    co = client.post(f"{ws}/companies", json={"name": "Acme Group"}).json()
+    r = client.get(f"{ws}/assistant/scope", params={"kind": "company", "id": co["id"]})
+    assert r.json() == {"kind": "company", "name": "Acme Group", "company_name": "Acme Group"}
+    r = client.get(f"{ws}/assistant/scope", params={"kind": "deal", "id": str(uuid.uuid4())})
+    assert r.status_code == 404

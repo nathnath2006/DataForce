@@ -93,7 +93,7 @@ describe("found by AI", () => {
   });
   it("says what is sent", () => {
     expect(meetingOrgNotice("gemini", "gemini-2.5-flash")).toBe(
-      "Sends the sentences that name one of the account's contacts, speak about the project in the first person, or contain an org or decision phrase, with the account's contact names, to gemini gemini-2.5-flash. Full transcripts are never sent. Off by default.");
+      "Sends the speaker turns (up to 600 characters each) that name one of the account's contacts, speak about the project in the first person, or contain an org or decision phrase, with the names of the contacts concerned, to gemini gemini-2.5-flash. Full transcripts are never sent. Off by default.");
     expect(suggestNotice("anthropic", "claude-haiku-5-5")).toContain("anthropic claude-haiku-5-5");
   });
 });

@@ -57,6 +57,12 @@ class AskScope(_In):
     id: UUID
 
 
+class AskScopeOut(BaseModel):
+    kind: Literal["account", "company", "deal"]
+    name: str
+    company_name: str | None = None
+
+
 class AskTurn(_In):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=4_000)

@@ -76,16 +76,18 @@ A finding is kept only if all of these hold:
    contact (first person). When the contact is not named in the stored excerpt (first-person
    route), the excerpt must contain an org cue and, if the speaker is the contact, no alias of
    another contact of the account. For reports_to, the manager
-   must be named by an alias in the statement's own excerpt, or EARLIER in the same transcript
-   (any turn, any speaker). **Relaxed by the PO on 2026-10-19:** the earlier rule (manager in
-   the excerpt or the one sentence before it) dropped true links where the manager was named a
-   few turns before ("tout remonte à elle", "I've reported there since I joined"). When the
-   manager is not in the excerpt, the evidence carries a second exact quote:
-   `manager_excerpt`, `manager_char_start`, `manager_char_end`, the sentence where the manager was
-   last named before the statement (an exact slice of `document.text`), so a person can check
-   the link. When the manager is in the excerpt, there is no second quote. The model must still
-   name the manager, and it is never inferred by code. Deleting the transcript drops the second
-   quote with the first; erasing the manager's contact redacts it like `excerpt`.
+   must be named by an alias in the statement's own excerpt, or EARLIER in the same transcript.
+   **Relaxed by the PO on 2026-10-19, bounded by SR17-02/03.** When the manager is not in the
+   excerpt, the earlier mention must (a) not be inside a speaker label (the leading "Name:" or
+   "**Name:**" of a turn), (b) sit in a sentence that passes the same hypothetical and
+   past/negation guards as the statement (rule 4), and (c) lie within the 40 turns before the
+   statement (or in the same turn). The nearest mention that passes is used. The evidence then
+   carries a second exact quote: `manager_excerpt`, `manager_char_start`, `manager_char_end`,
+   that sentence (an exact slice of `document.text`), capped at 300 characters: for a longer
+   sentence, an exact window of at most 300 characters around the name. When the manager is in
+   the excerpt, there is no second quote. The model must still name the manager, and it is never
+   inferred by code. Deleting the transcript drops the second quote with the first; erasing the
+   manager's contact redacts it like `excerpt`.
 4. The whole excerpt has no hypothetical word (the patterns' `_HYPOTHETICAL`), and, for
    reports_to, champion and decision_maker, none of the patterns' past/negation words
    (`_PAST_OR_NEG`, `_NEGATION`). **Residual:** for blocker the negation guard is skipped, because

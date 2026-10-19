@@ -76,7 +76,7 @@ export function aiBadge(p: Pick<ProposalOut, "evidence">): string | null {
 }
 /** What the AI pass sends (Settings checkbox text). */
 export function meetingOrgNotice(provider: string | null, model: string | null): string {
-  return `Sends the sentences that name one of the account's contacts, speak about the project in the first person, or contain an org or decision phrase, with the account's contact names, to ${provider ?? "the provider"} ${model ?? "model"}. Full transcripts are never sent. Off by default.`;
+  return `Sends the speaker turns (up to 600 characters each) that name one of the account's contacts, speak about the project in the first person, or contain an org or decision phrase, with the names of the contacts concerned, to ${provider ?? "the provider"} ${model ?? "model"}. Full transcripts are never sent. Off by default.`;
 }
 /** Under "Suggest links" when the switch is on. */
 export function suggestNotice(provider: string | null, model: string | null): string {

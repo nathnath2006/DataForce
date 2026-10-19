@@ -108,7 +108,8 @@ def test_account_covers_sister_accounts(world):
     text = ctx.render()
     assert "You are on the account Acme" in ctx.items[0].text
     assert "Sis Contact" in text and "Deal Acme Sub" in text and "Deal Acme Lab" in text
-    assert "title: CFO | function: finance | seniority: c_level | reports to: Bea Boss" in text
+    assert "function: finance | seniority: c_level" in text
+    assert "title: CFO | reports to: Bea Boss" in text
     assert "Kickoff" in text and "[G1]" in text and "deal Deal Acme Sub" in text
     # focus first
     assert text.index("Jo Martin") < text.index("Sis Contact")
