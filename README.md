@@ -64,6 +64,16 @@ M3: anyone who can run programs on this computer can use it, nobody else can.
   - *Workbooks*: add a chart, click or drag fields onto it, and the server computes the exact
     aggregate. There are 12 chart types; clicking a bar or slice filters the other charts, and
     several canvases fit in one workbook. *Explain* shows the verified differences first.
+- **Models** (M4): *Save model* on a model block's result. The Models tab shows each model's
+  verdict and metrics, and *Score now* applies it to a CRM table or a flow block. A `score` block
+  does the same inside a flow, plus deal velocity, engagement and touchpoint-ratio blocks.
+- **AI on deals** (M4, opt-in): *Summarize with AI* and *Suggest tasks with AI* show what will be
+  sent before sending. Summary sentences cite their notes; suggested tasks quote their sentence
+  and wait for you to accept them.
+- **Mailbox** (M4): connect Gmail or Outlook read-only in *Settings > Mailbox* (register your own
+  OAuth client first: [`docs/MAILBOX-SETUP.md`](docs/MAILBOX-SETUP.md)). *Sync now* keeps only
+  emails involving your contacts or account domains and suggests the deal each belongs to. Link
+  one and it joins the deal's timeline.
 - **AI model** (M2a): in *Settings > AI model*, pick Gemini or Anthropic and paste your API key.
   It is stored encrypted and never shown again. The *Ask* panel on an account or company answers
   from that record's data, cites it, and flags any number it could not find in the data.

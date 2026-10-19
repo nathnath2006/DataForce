@@ -492,3 +492,78 @@ Specification". Analysis has four tabs: Flows, Workbooks, Models (phase 2) and I
   across attributes is a methods question for phase 3.
 
 **Security review** (`docs/security/SR18-m4-phase1.md`): 0 high, 2 medium, 6 low, all fixed.
+
+## N. M4 phase 2: saved models, opt-in GenAI, mailbox (2026-10-19) [PO + build]
+
+**Saved models and scoring.**
+- *Save model* is offered on a successful model or cluster block whose flow is saved. The server
+  re-runs the saved flow up to that block and stores its own parameters, metrics and verdict;
+  the client sends only the flow, the block and a name.
+- Parameters are plain JSON (never pickle): coefficients, the standardisation, categories,
+  support vectors, centroids.
+  - At most 8 MB of parameters and 200 models per workspace.
+  - An RBF model with too many support vectors cannot be saved.
+- `flows/scoring.py` rebuilds the design matrix (a missing numeric value becomes the mean; an
+  unseen category gets all-zero columns) and applies the model.
+  - Tests reproduce each block's own predictions to 1e-9 for linear, logistic, SVM, SVR and
+    k-means.
+  - Parameters that do not fit give a clear error.
+- *Score now* (Models tab) and the `score` block apply a saved model to a CRM table or a flow
+  block, within the analysis slot and budget.
+- Scores carry the model's status: a not-verified model's scores say so.
+- **Residual (SR19-M1):** an RBF SVM keeps up to 2,000 training rows as standardised numbers. Save
+  model and the Models tab say so; a linear kernel keeps none.
+
+**New blocks.**
+- **Deal velocity** (from stage events): days per stage against the workspace median for that
+  stage. The index is benchmark total ÷ actual total; *fast track* ≥ 1.25, *stagnant* ≤ 0.75.
+  The open stage counts up to today, while the benchmark uses completed stays only.
+- **Engagement** (from activities, per account): weighted counts over 90 days (meeting 3, call 2,
+  email 1, other 1), halved after 30 days without a touchpoint. The components are shown, so the
+  score is explainable.
+- **Rep touchpoint ratio:** meetings × 3 ÷ outbound calls and emails, per author. Zero outreach
+  gives empty, not infinity.
+
+**Opt-in GenAI (PO decision 2).**
+- *Summarize with AI* and *Suggest tasks with AI* on a deal or account. A consent dialog, built
+  without calling the model, shows what is sent first: item count, characters, provider and
+  model, calls left today.
+- Source items are wrapped as untrusted, numbered data, at most 20,000 characters, newest first.
+- A summary sentence is kept only if it cites a real item of this deal or account and every
+  number in it is a whole number of a cited item. Summaries are not stored.
+- An action item becomes a *suggested* task only if its quote appears verbatim in the named item:
+  - quotes are 12 to 300 characters;
+  - titles have no markup or links;
+  - at most 10 per call, deduplicated.
+
+  A person accepts or dismisses each one. The guard against an injected instruction is that
+  acceptance.
+- At most 200 calls a day. Calls are logged as `deal_summary` and `action_items`.
+
+**Mailbox (PO decision 1; Gmail and Outlook only).**
+- The PO registers their own OAuth clients (`docs/MAILBOX-SETUP.md`). Connections are read-only:
+  - Gmail uses `gmail.readonly`;
+  - Outlook uses `Mail.Read`, `User.Read` and `offline_access`, with PKCE.
+- Sync reads metadata of the last 30 days, at most 500 emails. In memory, it keeps only
+  candidates: emails where a participant is a CRM contact or the address is on an account's
+  (non-webmail) domain. Everything else is never stored.
+- Each candidate is scored against open deals, deterministically and locally:
+
+  | Signal | Points |
+  |---|---|
+  | contact email | +45 |
+  | account domain | +25 |
+  | subject words shared with deal and account names (Jaccard) | up to +25 |
+  | recency | up to +5 |
+
+  At 40 points or more an email is *suggested* for that deal, with its reasons. Any candidate can
+  be linked by hand.
+- Linking fetches the body, converts it to text (linear-time parser), caps it at 10,000
+  characters and creates an `email` activity. The activity appears in the deal timeline.
+- Disconnecting deletes the tokens and unlinked emails. Erasing a contact deletes the stored
+  emails naming it.
+
+**Security review** (`docs/security/SR19-m4-phase2.md`): 0 high, 3 medium (summary number check,
+RBF training rows, HTML parsing time), 11 low. All are fixed, except those accepted with reasons:
+the RBF rows, the model-cap race, the Gmail host-matched redirect and the Outlook login CSRF
+residual on loopback.
