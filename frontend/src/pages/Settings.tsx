@@ -4,6 +4,7 @@ import { api } from "../api";
 import { aiApi } from "../assistant/api";
 import { ConnectionsPanel } from "../flows/ConnectionsPanel";
 import { McpPanel } from "../agent/McpPanel";
+import { MailboxSection } from "../mailbox";
 import type { AiProvider } from "../types";
 import { useWs } from "../context";
 import { formatDateTime, isSafeAuthorizeUrl, tamtamReason } from "../lib";
@@ -92,6 +93,7 @@ export function SettingsPage() {
           )}
         </>
       )}
+      <MailboxSection />
       <AiSection />
       <ConnectionsPanel />
       <McpPanel />

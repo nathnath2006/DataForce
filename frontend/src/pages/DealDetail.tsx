@@ -15,6 +15,7 @@ import { StageControl } from "../activity/StageControl";
 import { TaskList } from "../activity/TaskList";
 import { Timeline } from "../activity/Timeline";
 import { DealAiPanel } from "../genai";
+import { DealEmailsPanel } from "../mailbox";
 
 export function DealDetailPage() {
   const { id = "" } = useParams();
@@ -90,6 +91,10 @@ export function DealDetailPage() {
       <div className="card stack">
         <h2>Tasks</h2>
         <TaskList dealId={d.id} refreshKey={tick} onChanged={() => setTick((n) => n + 1)} />
+      </div>
+      <div className="card stack">
+        <h2>Emails</h2>
+        <DealEmailsPanel ws={ws.slug} dealId={d.id} onLinked={() => setTick((n) => n + 1)} />
       </div>
       <div className="card stack">
         <h2>AI assistance</h2>

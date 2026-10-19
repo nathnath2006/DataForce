@@ -1,0 +1,16 @@
+/* Mailbox settings and the deal's emails panel. Tokens only. */
+.mb-cards { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.mb-card { min-width: 0; }
+.mb-card h3 { margin: 0; }
+.mb-privacy { font-size: .9rem; color: var(--ink-soft); }
+.mb-privacy ul { margin: .3rem 0 0; padding-left: 1.2rem; }
+.mb-emails { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .6rem; }
+.mb-mail { border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--surface); padding: .55rem .8rem; min-width: 0; overflow-wrap: anywhere; }
+.mb-mail-head { display: flex; flex-wrap: wrap; gap: .3rem .6rem; align-items: baseline; justify-content: space-between; }
+.mb-subject { font-weight: 600; }
+.mb-meta { font-size: .8rem; color: var(--muted); }
+.mb-snippet { margin: .3rem 0 0; font-size: .9rem; color: var(--ink-soft); }
+.mb-reasons { margin: .3rem 0 0; padding-left: 1.1rem; font-size: .85rem; color: var(--ink-soft); }
+.mb-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.mb-find { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; }
+.mb-find label { flex: 1 1 200px; min-width: 0; }

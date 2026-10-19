@@ -331,6 +331,18 @@ class Settings(BaseSettings):
         check_database_tls(url, setting="TEST_DATABASE_URL")
         return value
 
+    # --- mailbox (M4 phase 2): Gmail / Outlook, read-only ------------------------------------
+    # OAuth clients the PO registers (docs/MAILBOX-SETUP.md). Entered in Settings (sealed in the
+    # database) they take precedence; these are the headless fallback.
+    mailbox_google_client_id: str | None = None
+    mailbox_google_client_secret: SecretStr | None = None
+    mailbox_microsoft_client_id: str | None = None
+    mailbox_microsoft_client_secret: SecretStr | None = None
+    mailbox_microsoft_tenant: str = Field(default="common", pattern=r"^[A-Za-z0-9.-]{1,64}$")
+    mailbox_lookback_days: int = Field(default=30, ge=1, le=365)
+    mailbox_max_messages: int = Field(default=500, ge=1, le=5000)
+    mailbox_suggest_threshold: int = Field(default=40, ge=1, le=100)
+
     @field_validator("tamtam_mcp_url", "registry_url", mode="after")
     @classmethod
     def _check_endpoint(cls, value: str, info: ValidationInfo) -> str:

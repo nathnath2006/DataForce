@@ -269,8 +269,9 @@ def redact_contact(session: Session, ws_id: uuid.UUID, contact: Contact) -> int:
     its tasks' evidence (the participant links go with the contact, by cascade). Returns the
     number of rows changed. Runs in the caller's transaction."""
     from app.db.models import Task
-    from app.services import documents
+    from app.services import documents, mailbox
 
+    mailbox.purge_for_contact(session, ws_id, contact)  # stored email metadata naming them
     rx = documents.name_pattern(contact.full_name)
     channels = _channel_patterns(session, ws_id, contact)
     if rx is None and not channels:

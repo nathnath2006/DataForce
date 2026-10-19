@@ -824,6 +824,75 @@ class SavedModel(Base):
     created_at: Mapped[datetime] = _created()
 
 
+# --- M4 phase 2: mailbox (Gmail, Outlook) -------------------------------------------------------
+class MailboxConnection(Base):
+    """A workspace's read-only link to one mailbox. The OAuth client secret, the tokens and the
+    account address are sealed (Fernet): the address is needed in clear only in process, to tell
+    sent from received mail and to show it to its owner, so it is sealed rather than hashed."""
+
+    __tablename__ = "mailbox_connection"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "provider", name="uq_mailbox_connection_ws_provider"),
+        CheckConstraint("provider IN ('gmail','outlook')", name="ck_mailbox_connection_provider"),
+        CheckConstraint(
+            "status IN ('configured','connected','needs_reconnect')",
+            name="ck_mailbox_connection_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="configured")
+    client_id: Mapped[str | None] = mapped_column(Text)
+    client_secret_enc: Mapped[str | None] = mapped_column(Text)
+    account_email_enc: Mapped[str | None] = mapped_column(Text)
+    access_token_enc: Mapped[str | None] = mapped_column(Text)
+    refresh_token_enc: Mapped[str | None] = mapped_column(Text)
+    token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)  # a fixed message, never a token
+    created_at: Mapped[datetime] = _created()
+
+
+class MailboxMessage(Base):
+    """An email metadata record kept only because a participant is a known contact or the
+    domain of an account. No body: it is fetched when a person links the email to a deal."""
+
+    __tablename__ = "mailbox_message"
+    __table_args__ = (
+        UniqueConstraint("connection_id", "provider_message_id", name="uq_mailbox_message_ref"),
+        Index("ix_mailbox_message_ws_deal", "workspace_id", "suggested_deal_id"),
+        CheckConstraint(
+            "state IN ('suggested','linked','ignored')", name="ck_mailbox_message_state"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = _workspace_fk()
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("mailbox_connection.id", ondelete="CASCADE"), nullable=False
+    )
+    provider_message_id: Mapped[str] = mapped_column(String(300), nullable=False)
+    thread_id: Mapped[str | None] = mapped_column(String(300))
+    from_addr: Mapped[str] = mapped_column(String(320), nullable=False)
+    to_addrs: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    cc_addrs: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    subject: Mapped[str] = mapped_column(String(300), nullable=False)
+    snippet: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    suggested_deal_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("deal.id", ondelete="SET NULL")
+    )
+    score: Mapped[int | None] = mapped_column(Integer)
+    reasons: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="suggested")
+    linked_activity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("activity.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = _created()
+
+
 # Performance indexes (migration 0008_indexes): `workspace_id` on the big tables, and every foreign
 # key with ON DELETE CASCADE / SET NULL, so a parent delete does not scan the child table. The
 # nullable ones are partial (`IS NOT NULL`): most rows hold NULL.
@@ -869,3 +938,13 @@ for _idx, _col in (
     ("ix_org_proposal_run", OrgProposal.run_id),
 ):
     Index(_idx, _col, postgresql_where=_not_null(_col.key))
+Index(
+    "ix_mailbox_message_activity",
+    MailboxMessage.linked_activity_id,
+    postgresql_where=_not_null("linked_activity_id"),
+)
+Index(
+    "ix_mailbox_message_deal",
+    MailboxMessage.suggested_deal_id,
+    postgresql_where=_not_null("suggested_deal_id"),
+)
