@@ -1,78 +1,144 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api";
 import { useWs } from "../context";
 import { formatDateTime } from "../lib";
 import type { ChannelKind, ContactOut } from "../types";
-import { Confirm, Empty, ErrorNote, Loading, Tag, useAction, useLoad } from "../ui";
+import { Confirm, Empty, ErrorNote, Loading, Modal, Tag, useAction, useLoad } from "../ui";
+import { useAuth, useCanDelete } from "../auth";
 import { ContactForm } from "./Contacts";
 import { NoteThread } from "./Notes";
 import { TitleClassRow } from "../titles/TitleClass";
-import { DetailHeader, Summary3 } from "../shell/DetailHeader";
+import { RecordPage, SummaryLayout, type RecordAction } from "../record/RecordPage";
+import { ICONS, ico } from "../record/bits";
+import { pickRoadmapDeal } from "../shell/logic";
+import { Timeline } from "../activity/Timeline";
+import { ActivityPanel } from "../activity/ActivityPanel";
+import { OrgChartPanel } from "../orgchart/OrgChartPanel";
+import { classLabel } from "../orgchart/model";
 
 export function ContactDetailPage() {
   const { id = "" } = useParams();
-  const { ws } = useWs();
+  const { ws, users } = useWs();
   const nav = useNavigate();
+  const mayDelete = useCanDelete();
+  const { isAdmin } = useAuth();
   const base = `/w/${ws.slug}`;
   const c = useLoad(() => api.getContact(ws.slug, id), [ws.slug, id]);
+  const acct = c.data?.account_id;
   const sameAcct = useLoad(
-    () => (c.data ? api.listContacts(ws.slug, { account_id: c.data.account_id, limit: 1000 }) : Promise.resolve(null)),
-    [ws.slug, c.data?.account_id]);
+    () => (acct ? api.listContacts(ws.slug, { account_id: acct, limit: 1000 }) : Promise.resolve(null)), [ws.slug, acct]);
+  const deals = useLoad(
+    () => (acct ? api.listDeals(ws.slug, { account_id: acct, limit: 1000 }) : Promise.resolve(null)), [ws.slug, acct]);
+  const chart = useLoad(() => (acct ? api.getOrgChart(ws.slug, acct) : Promise.resolve(null)), [ws.slug, acct]);
+  const [tab, setTab] = useState("summary");
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [erasing, setErasing] = useState(false);
+  const [logging, setLogging] = useState(false);
+  const [tick, setTick] = useState(0);
   const rep = useAction();
   const k = c.data;
+  const people = sameAcct.data?.items ?? [];
+  const only = useMemo(() => {
+    const ids = new Set<string>();
+    if (!k) return ids;
+    const by = new Map(people.map((p) => [p.id, p]));
+    ids.add(k.id);
+    for (let cur = k.reports_to_id, i = 0; cur && !ids.has(cur) && i < 50; i++) { ids.add(cur); cur = by.get(cur)?.reports_to_id ?? null; }
+    for (const p of people) if (p.reports_to_id === k.id) ids.add(p.id);
+    return ids;
+  }, [k, people]);
   if (c.loading && !k) return <Loading />;
   if (!k) return <ErrorNote error={c.error} />;
-  const people = sameAcct.data?.items ?? [];
   const reports = people.filter((p) => p.reports_to_id === k.id);
+  const dealItems = deals.data?.items ?? [];
+  const roadmap = pickRoadmapDeal(dealItems);
+  const ownerId = roadmap?.owner_id ?? dealItems.find((d) => d.owner_id)?.owner_id ?? null;
+  const ownerName = roadmap?.owner_name ?? users.find((u) => u.id === ownerId)?.display_name ?? "—";
+  const actions: RecordAction[] = [
+    { key: "edit", label: "Edit", icon: ico(ICONS.edit), onClick: () => setEditing(true) },
+    ...(roadmap ? [{ key: "log", label: "Log activity", icon: ico(ICONS.plus), onClick: () => setLogging(true) }] : []),
+    ...(mayDelete(ownerId) ? [{ key: "delete", label: "Delete", kind: "danger" as const, icon: ico(ICONS.trash), onClick: () => setDeleting(true) }] : []),
+    ...(isAdmin ? [{ key: "erase", label: "Erase (GDPR)", kind: "danger" as const, icon: ico(ICONS.erase), onClick: () => setErasing(true) }] : []),
+  ];
+  const facts = (
+    <div className="card"><h2>Facts</h2><dl className="facts">
+      <dt>Title</dt><dd>{k.title ?? "—"}</dd>
+      <TitleClassRow contactId={k.id} fn={k.title_function} sen={k.title_seniority} source={k.title_source} flag={k.title_flag} onChanged={c.reload} />
+      <dt>Account</dt><dd><Link to={`${base}/accounts/${k.account_id}`}>{k.account_name}</Link></dd>
+      <dt>Reports to</dt>
+      <dd>
+        <select aria-label="Reports to" value={k.reports_to_id ?? ""} disabled={rep.busy}
+          onChange={(e) => void rep.run(async () => { await api.setReportsTo(ws.slug, k.id, e.target.value || null); c.reload(); sameAcct.reload(); chart.reload(); })}>
+          <option value="">(nobody)</option>
+          {people.filter((p) => p.id !== k.id).map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+        </select>
+        <ErrorNote error={rep.error} />
+      </dd>
+      <dt>Direct reports</dt>
+      <dd>{reports.length === 0 ? "—" : reports.map((r, i) => (
+        <span key={r.id}>{i > 0 && ", "}<Link to={`${base}/contacts/${r.id}`}>{r.full_name}</Link></span>
+      ))}</dd>
+      <dt>Source</dt><dd><Tag kind="mute">{k.source}</Tag></dd>
+    </dl></div>
+  );
   return (
-    <section className="stack">
-      <DetailHeader
+    <>
+      <RecordPage
         crumb={<><Link to={`${base}/contacts`}>Contacts</Link> / {k.full_name}</>}
         title={k.full_name}
-        tags={<>
-          {k.title && <Tag>{k.title}</Tag>}
-          <Tag kind="mute">{k.source}</Tag>
-        </>}
-        actions={<>
-          <button onClick={() => setEditing(true)}>Edit</button>
-          <button className="danger" onClick={() => setErasing(true)}>Erase contact</button>
-        </>}
+        tags={<>{k.title && <Tag>{k.title}</Tag>}<Tag kind="mute">{k.source}</Tag></>}
+        actions={actions}
+        fields={[
+          { label: "Title", value: k.title ?? "—" },
+          { label: "Function · seniority", value: classLabel(k.title_function, k.title_seniority) },
+          { label: "Account", value: <Link to={`${base}/accounts/${k.account_id}`}>{k.account_name}</Link> },
+          { label: "Reports to", value: k.reports_to_id ? <Link to={`${base}/contacts/${k.reports_to_id}`}>{k.reports_to_name}</Link> : "—" },
+        ]}
+        owner={{ label: "Owner (via account)", value: ownerName }}
+        tab={tab} onTab={setTab}
+        tabs={[
+          { key: "summary", label: "Summary", content: (
+            <SummaryLayout main={<>{facts}
+              <div className="card"><h2>Notes</h2><p className="muted">{k.n_notes} note(s). <button className="link" onClick={() => setTab("notes")}>Open notes</button></p></div></>}
+              side={<>
+                <div className="card stack"><h2>Account timeline</h2><p className="muted small">Shows the activity of {k.account_name}; per-contact filtering is not available.</p>
+                  <Timeline scope="accounts" id={k.account_id} refreshKey={tick} /></div>
+                <EnrichPanel contact={k} onChanged={c.reload} />
+              </>} />
+          ) },
+          { key: "org", label: "Org chart position", content: (
+            <div className="card stack">
+              <h2>Position in {k.account_name}</h2>
+              <p className="muted small">Manager chain above, direct reports below. Click a person to open them.</p>
+              <ErrorNote error={chart.error} />
+              {chart.data && <OrgChartPanel accountId={k.account_id} nodes={chart.data.nodes} base={base} current={k.id} only={only}
+                onChanged={() => { chart.reload(); c.reload(); sameAcct.reload(); }} />}
+            </div>
+          ) },
+          { key: "notes", label: "Notes", content: <div className="card"><h2>Notes</h2><NoteThread kind="note" parentId={k.id} /></div> },
+        ]}
       />
-      <Summary3
-        facts={<div className="card"><h2>Facts</h2><dl className="facts">
-        <dt>Title</dt><dd>{k.title ?? "—"}</dd>
-        <TitleClassRow contactId={k.id} fn={k.title_function} sen={k.title_seniority} source={k.title_source} flag={k.title_flag} onChanged={c.reload} />
-        <dt>Account</dt><dd><Link to={`${base}/accounts/${k.account_id}`}>{k.account_name}</Link></dd>
-        <dt>Reports to</dt>
-        <dd>
-          <select aria-label="Reports to" value={k.reports_to_id ?? ""} disabled={rep.busy}
-            onChange={(e) => void rep.run(async () => { await api.setReportsTo(ws.slug, k.id, e.target.value || null); c.reload(); sameAcct.reload(); })}>
-            <option value="">(nobody)</option>
-            {people.filter((p) => p.id !== k.id).map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-          </select>
-          <ErrorNote error={rep.error} />
-        </dd>
-        <dt>Direct reports</dt>
-        <dd>{reports.length === 0 ? "—" : reports.map((r, i) => (
-          <span key={r.id}>{i > 0 && ", "}<Link to={`${base}/contacts/${r.id}`}>{r.full_name}</Link></span>
-        ))}</dd>
-        <dt>Source</dt><dd><Tag kind="mute">{k.source}</Tag></dd>
-      </dl></div>}
-        middle={<div className="card"><h2>Notes</h2><NoteThread kind="note" parentId={k.id} /></div>}
-        insights={<EnrichPanel contact={k} onChanged={c.reload} />}
-      />
-
       {editing && <ContactForm contact={k} onClose={() => setEditing(false)} onSaved={() => c.reload()} />}
+      {logging && roadmap && (
+        <Modal title={`Log activity on ${roadmap.name}`} onClose={() => setLogging(false)}>
+          <ActivityPanel deal={roadmap} contacts={people} onLogged={() => { setTick((n) => n + 1); setLogging(false); }} />
+        </Modal>
+      )}
+      {deleting && (
+        <Confirm title="Delete contact" confirmLabel="Delete" danger onClose={() => setDeleting(false)}
+          onConfirm={async () => { await api.deleteContact(ws.slug, k.id); nav(`${base}/accounts/${k.account_id}`); }}>
+          <p>The contact and its {k.n_notes} note(s) are deleted. This cannot be undone.</p>
+        </Confirm>
+      )}
       {erasing && (
         <Confirm title="Erase contact" confirmLabel="Erase permanently" danger onClose={() => setErasing(false)}
           onConfirm={async () => { await api.deleteContact(ws.slug, k.id); nav(`${base}/accounts/${k.account_id}`); }}>
           <p>This cannot be undone. The contact, its {k.n_notes} note(s) and its stored emails and mobiles are erased.</p>
         </Confirm>
       )}
-    </section>
+    </>
   );
 }
 

@@ -1,16 +1,15 @@
 // Owned by agent U1 (docs/M2B-CONTRACT.md section 7.1): org chart with link origins + proposals.
 import { useMemo, useState } from "react";
-import { Link } from "react-router";
 import { useWs } from "../context";
 import type { OrgChartNode } from "../types";
-import type { OrgTreeNode } from "../lib";
 import { AiBadge, Confirm, Empty, ErrorNote, Tag, useAction, useLoad } from "../ui";
 import { aiApi } from "../assistant/api";
 import { orgApi } from "./api";
 import {
-  aiBadge, buildOverlay, classLabel, formatEvidence, kindLabel, originBadge, signalKind, signalLabel, suggestNotice,
-  type ChartNode, type Overlay, type ProposalOut,
+  aiBadge, buildOverlay, formatEvidence, kindLabel, suggestNotice,
+  type ChartNode, type ProposalOut,
 } from "./model";
+import { OrgChartVisual } from "./OrgChartVisual";
 import "./orgchart.css";
 
 function Evidence({ p }: { p: ProposalOut }) {
@@ -24,45 +23,6 @@ function Evidence({ p }: { p: ProposalOut }) {
       {v.meeting && <div className="muted">Meeting: {v.meeting}</div>}
       {v.ai && <div className="muted">{v.ai}</div>}
     </div>
-  );
-}
-
-function Branch(props: {
-  t: OrgTreeNode; base: string; ov: Overlay; names: Map<string, ChartNode>; proposals: Map<string, ProposalOut>;
-}) {
-  const { t, base, ov, names, proposals } = props;
-  const n = names.get(t.node.id) ?? (t.node as ChartNode);
-  const [open, setOpen] = useState(false);
-  const badge = originBadge(n.link_origin);
-  const ev = n.link_proposal_id ? proposals.get(n.link_proposal_id) : undefined;
-  const sugg = ov.suggestedByManager.get(n.id) ?? [];
-  return (
-    <li>
-      <span className="oc-fact">
-        <Link to={`${base}/contacts/${n.id}`}>{n.full_name}</Link>
-        {n.title && <span className="muted"> · {n.title}</span>}
-        {n.title_function && <span className="muted small"> ({classLabel(n.title_function, n.title_seniority)})</span>}
-        {t.orphan && <> <Tag kind="warn">manager not in chart</Tag></>}
-        {badge && <> <button type="button" className="link" aria-expanded={open} onClick={() => setOpen(!open)}><Tag kind="ok">{badge}</Tag></button></>}
-        {(n.signals ?? []).map((s) => <span key={s}> <Tag kind={signalKind(s)}>{signalLabel(s)}</Tag></span>)}
-      </span>
-      {open && (
-        <div className="oc-pop">
-          {ev ? <Evidence p={ev} /> : <p className="muted small">Validated from a {n.link_origin} proposal.</p>}
-        </div>
-      )}
-      {(t.children.length > 0 || sugg.length > 0) && (
-        <ul>
-          {t.children.map((c) => <Branch key={c.node.id} t={c} base={base} ov={ov} names={names} proposals={proposals} />)}
-          {sugg.map((s) => (
-            <li key={s.proposalId} className="oc-suggest">
-              <Tag kind="mute">suggested</Tag> {names.get(s.contactId)?.full_name ?? s.contactId}
-              <span className="small"> (not confirmed)</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </li>
   );
 }
 
@@ -120,7 +80,11 @@ function ProposalItem({ p, onDone }: { p: ProposalOut; onDone: () => void }) {
   );
 }
 
-export function OrgChartPanel(props: { accountId: string; nodes: OrgChartNode[]; base: string; onChanged: () => void }) {
+export function OrgChartPanel(props: {
+  accountId: string; nodes: OrgChartNode[]; base: string; onChanged: () => void;
+  /** Highlight this contact (contact page). */ current?: string;
+  /** Show only these people (manager chain and reports); proposals are still listed. */ only?: Set<string>;
+}) {
   const { ws } = useWs();
   const props_ = useLoad(() => orgApi.proposals(ws.slug, props.accountId), [ws.slug, props.accountId]);
   const act = useAction();
@@ -129,16 +93,16 @@ export function OrgChartPanel(props: { accountId: string; nodes: OrgChartNode[];
   const [msg, setMsg] = useState("");
   const nodes = props.nodes as ChartNode[];
   const open = useMemo(() => (props_.data ?? []).filter((p) => p.status === "proposed" || p.status === "ambiguous"), [props_.data]);
-  const ov = useMemo(() => buildOverlay(nodes, open), [nodes, open]);
+  const shown = useMemo(() => (props.only ? nodes.filter((n) => props.only!.has(n.id)) : nodes), [nodes, props.only]);
+  const ov = useMemo(() => buildOverlay(shown, open), [shown, open]);
   const names = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
-  const byId = useMemo(() => new Map((props_.data ?? []).map((p) => [p.id, p])), [props_.data]);
   const done = () => { props_.reload(); props.onChanged(); };
   return (
     <div className="stack">
       {ov.tree.length === 0 ? <Empty>No contacts yet.</Empty> : (
-        <ul className="tree">{ov.tree.map((t) => <Branch key={t.node.id} t={t} base={props.base} ov={ov} names={names} proposals={byId} />)}</ul>
+        <OrgChartVisual ov={ov} names={names} base={props.base} current={props.current} />
       )}
-      <p className="muted small">Solid lines are links people confirmed. Dashed "suggested" lines are proposals and are not facts until you accept them.</p>
+      <p className="muted small">Solid boxes are links people confirmed. Dashed "suggested" boxes are proposals and are not facts until you accept them.</p>
       <div className="row between wrap">
         <h3>Suggested links ({open.length})</h3>
         <button disabled={act.busy} onClick={() => void act.run(async () => {
