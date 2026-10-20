@@ -12,11 +12,23 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.enrichment.errors import EnrichmentConfigError, EnrichmentError, PaidLookupRefused
-from app.services.errors import AlreadyExistsError, InvalidInputError, NotFoundError
+from app.services.errors import (
+    AlreadyExistsError,
+    ForbiddenError,
+    InvalidInputError,
+    NotFoundError,
+)
 
 log = logging.getLogger(__name__)
 
-_HTTP_CODES = {404: "not_found", 403: "forbidden", 409: "conflict", 422: "invalid_input"}
+_HTTP_CODES = {
+    401: "unauthorized",
+    429: "too_many_requests",
+    404: "not_found",
+    403: "forbidden",
+    409: "conflict",
+    422: "invalid_input",
+}
 
 
 def error_response(status: int, code: str, message: str) -> JSONResponse:
@@ -36,6 +48,10 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(NotFoundError)
     async def _not_found(_: Request, exc: NotFoundError) -> JSONResponse:
         return error_response(404, "not_found", str(exc))
+
+    @app.exception_handler(ForbiddenError)
+    async def _forbidden(_: Request, exc: ForbiddenError) -> JSONResponse:
+        return error_response(403, "forbidden", str(exc))
 
     @app.exception_handler(InvalidInputError)
     async def _invalid(_: Request, exc: InvalidInputError) -> JSONResponse:

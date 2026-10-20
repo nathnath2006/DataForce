@@ -391,12 +391,14 @@ def test_outlook_refresh_rotates_the_refresh_token(client, setup, mock, db_sessi
     url = client.post(f"{ws}/mailbox/outlook/connect").json()["authorize_url"]
     q = parse_qs(urlsplit(url).query)
     assert q["redirect_uri"] == ["http://localhost:8800/api/mailbox/callback"]
+    session_cookie = client.cookies.get("df_session")
     client.cookies.clear()  # the callback is on `localhost`: the 127.0.0.1 cookie is not sent
     r = client.get(
         "/api/mailbox/callback",
         params={"state": q["state"][0], "code": "C"},
         follow_redirects=False,
     )
+    client.cookies.set("df_session", session_cookie)
     assert r.headers["location"] == "/w/mb/settings?mailbox=connected"
     conn = db_session.scalars(select(MailboxConnection)).one()
     conn.token_expires_at = NOW - timedelta(minutes=5)

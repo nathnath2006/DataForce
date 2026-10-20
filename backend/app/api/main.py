@@ -12,6 +12,7 @@ from app.api.routes import (
     admin,
     agent,
     ai,
+    auth,
     companies,
     connectors,
     crm,
@@ -29,6 +30,7 @@ from app.api.routes import (
     stats,
     themes,
     titles,
+    users,
     viz,
     workbooks,
     workspaces,
@@ -65,6 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     routers += (viz, workbooks)  # M4 workbooks
     routers += (activities, pipeline)  # M4 activities, tasks, stage control, timeline
     routers += (saved_models, genai, mailbox)  # M4 phase 2
+    routers += (auth, users)  # M5 sign-in and members
     for module in routers:
         app.include_router(module.router, prefix="/api")
     app.add_middleware(GZipMiddleware, minimum_size=1000)  # inside security: headers still added

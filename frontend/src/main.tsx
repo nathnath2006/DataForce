@@ -2,6 +2,7 @@ import { Component, StrictMode, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { App } from "./App";
+import { AuthProvider } from "./auth";
 import { initTheme } from "./theme";
 import "./styles.css";
 
@@ -30,7 +31,9 @@ if (root) {
     <StrictMode>
       <ErrorBoundary>
         <BrowserRouter>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </BrowserRouter>
       </ErrorBoundary>
     </StrictMode>,

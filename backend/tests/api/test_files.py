@@ -64,7 +64,7 @@ def test_content_type_guards(client, ws):
     assert r.status_code == 403
 
 
-def test_size_cap(app, session_factory):
+def test_size_cap(app, client, session_factory):
     small = Settings(
         _env_file=None,
         environment="test",
@@ -77,6 +77,7 @@ def test_size_cap(app, session_factory):
     with TestClient(
         application, base_url=UI_ORIGIN, headers={"Origin": UI_ORIGIN, "X-DataForce": "1"}
     ) as c:
+        c.cookies.update(client.cookies)  # signed in
         c.post("/api/workspaces", json={"slug": "u3", "name": "U3"})
         big = b"a\n" + b"1\n" * 200_000
         assert c.post("/api/w/u3/files", files={"file": ("a.csv", big)}).status_code == 413

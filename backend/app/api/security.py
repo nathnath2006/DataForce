@@ -181,4 +181,7 @@ class SecurityMiddleware:
 
 
 def install_security(app: FastAPI, settings: Settings) -> None:
+    from app.auth.middleware import SessionMiddleware
+
+    app.add_middleware(SessionMiddleware)  # inside the guard: its 401 gets the security headers
     app.add_middleware(SecurityMiddleware, settings=settings)

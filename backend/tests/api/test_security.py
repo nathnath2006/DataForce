@@ -116,12 +116,13 @@ def test_post_without_body_needs_no_content_type(client: TestClient):
     assert client.post("/api/w/nobody/stats/scan").status_code == 200
 
 
-def test_unhandled_exception_is_json_500_with_headers_and_no_message(app, caplog):
+def test_unhandled_exception_is_json_500_with_headers_and_no_message(app, client, caplog):
     @app.get("/api/boom")
     def boom():
         raise ValueError("secret contact Jane Doe")
 
     with TestClient(app, base_url=UI, raise_server_exceptions=True) as c:
+        c.cookies.update(client.cookies)  # signed in
         with caplog.at_level("ERROR"):
             r = c.get("/api/boom")
     assert r.status_code == 500

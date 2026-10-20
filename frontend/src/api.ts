@@ -27,6 +27,9 @@ export async function request<R>(method: string, path: string, body?: unknown): 
   } catch {
     data = null;
   }
+  if (res.status === 401 && !path.startsWith("/auth/") && !/^\/(login|setup)$/.test(window.location.pathname)) {
+    window.location.assign("/login"); // the session ended: sign in again
+  }
   if (!res.ok) throw parseApiError(res.status, data);
   return data as R;
 }
@@ -85,21 +88,19 @@ export const api = {
   // notes (contacts) and comments (accounts)
   listNotes: (ws: string, contactId: string) =>
     request<T.NoteOut[]>("GET", `${w(ws)}/contacts/${e(contactId)}/notes`),
-  addNote: (ws: string, contactId: string, b: { body: string; author_id?: string | null }) =>
+  addNote: (ws: string, contactId: string, b: { body: string }) =>
     request<T.NoteOut>("POST", `${w(ws)}/contacts/${e(contactId)}/notes`, b),
-  correctNote: (ws: string, id: string, b: { body: string; author_id?: string | null }) =>
+  correctNote: (ws: string, id: string, b: { body: string }) =>
     request<T.NoteOut>("POST", `${w(ws)}/notes/${e(id)}/correct`, b),
-  deleteNote: (ws: string, id: string, byId?: string | null) =>
-    request<T.NoteOut>("DELETE", `${w(ws)}/notes/${e(id)}${q({ by_id: byId })}`),
+  deleteNote: (ws: string, id: string) => request<T.NoteOut>("DELETE", `${w(ws)}/notes/${e(id)}`),
   noteHistory: (ws: string, id: string) => request<T.NoteOut[]>("GET", `${w(ws)}/notes/${e(id)}/history`),
   listComments: (ws: string, accountId: string) =>
     request<T.NoteOut[]>("GET", `${w(ws)}/accounts/${e(accountId)}/comments`),
-  addComment: (ws: string, accountId: string, b: { body: string; author_id?: string | null }) =>
+  addComment: (ws: string, accountId: string, b: { body: string }) =>
     request<T.NoteOut>("POST", `${w(ws)}/accounts/${e(accountId)}/comments`, b),
-  correctComment: (ws: string, id: string, b: { body: string; author_id?: string | null }) =>
+  correctComment: (ws: string, id: string, b: { body: string }) =>
     request<T.NoteOut>("POST", `${w(ws)}/comments/${e(id)}/correct`, b),
-  deleteComment: (ws: string, id: string, byId?: string | null) =>
-    request<T.NoteOut>("DELETE", `${w(ws)}/comments/${e(id)}${q({ by_id: byId })}`),
+  deleteComment: (ws: string, id: string) => request<T.NoteOut>("DELETE", `${w(ws)}/comments/${e(id)}`),
   commentHistory: (ws: string, id: string) => request<T.NoteOut[]>("GET", `${w(ws)}/comments/${e(id)}/history`),
 
   // stats

@@ -4,6 +4,8 @@ import { formatBytes, formatDuration, purposeLabel } from "../admin/format";
 import { HealthBar } from "../quality/HealthBar";
 import { useWs } from "../context";
 import { formatDateTime } from "../lib";
+import { People } from "../admin/People";
+import { useAuth } from "../auth";
 import { Empty, ErrorNote, Loading, Tag, useLoad } from "../ui";
 
 const KINDS = ["demo_generate", "stats_scan", "flow_run", "title_normalize", "org_rules", "theme_analysis", "agent_call"];
@@ -11,6 +13,7 @@ const STATUSES = ["running", "succeeded", "partial", "failed"];
 
 export function AdminPage() {
   const { ws } = useWs();
+  const { isAdmin } = useAuth();
   const [days, setDays] = useState(30);
   const [kind, setKind] = useState("");
   const [status, setStatus] = useState("");
@@ -26,6 +29,7 @@ export function AdminPage() {
   return (
     <section className="stack">
       <h1>Admin</h1>
+      {isAdmin && <People slug={ws.slug} />}
       <div className="card stack">
         <h2>Database</h2>
         <ErrorNote error={ov.error} />

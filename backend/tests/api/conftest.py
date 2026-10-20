@@ -16,7 +16,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.deps import get_app_settings, get_db
 from app.api.main import create_app
+from app.auth import ratelimit
 from app.config import Settings
+from tests.api.auth_helpers import login_as, make_member_in, sign_in_superadmin  # noqa: F401
 
 # A fixed test-only Fernet key (urlsafe base64 of 32 bytes). Never used outside tests.
 TEST_SECRET_KEY = "ZGF0YWZvcmNlLXRlc3Qta2V5LW5vdC1mb3ItcHJvZCE="
@@ -51,8 +53,25 @@ def app(api_settings: Settings, session_factory: sessionmaker[Session]) -> FastA
 
 
 @pytest.fixture
-def client(app: FastAPI) -> Iterator[TestClient]:
+def anon_client(app: FastAPI) -> Iterator[TestClient]:
+    """A browser that is not signed in."""
+    ratelimit.reset()
     with TestClient(
         app, base_url=UI_ORIGIN, headers={"Origin": UI_ORIGIN, "X-DataForce": "1"}
     ) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def client(anon_client: TestClient, session_factory: sessionmaker[Session]) -> TestClient:
+    """Signed in as a superadmin created for the test (sees every workspace). Other developers:
+    to act as a rep use `make_member` + `login_as` (tests/api/auth_helpers.py)."""
+    sign_in_superadmin(anon_client, session_factory)
+    return anon_client
+
+
+@pytest.fixture
+def make_member(session_factory: sessionmaker[Session]):
+    """`make_member(ws_slug, role="rep", see_all=False, delete_own=False, app_user_id=None)`
+    -> Member(email, password); then `login_as(client, m.email, m.password)`."""
+    return lambda *a, **kw: make_member_in(session_factory, *a, **kw)
