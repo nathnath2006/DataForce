@@ -2,19 +2,31 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, HTTPException, Request, Response
 from sqlalchemy import select, text
 
 from app.api.deps import AppSettings, Db, SessionUser
-from app.api.schemas_auth import AuthStatus, AuthUserOut, LoginIn, MembershipOut, MeOut, SetupIn
-from app.auth import passwords, ratelimit, sessions
+from app.api.schemas_auth import (
+    AuthStatus,
+    AuthUserOut,
+    DemoLogin,
+    ForgotIn,
+    LoginIn,
+    MembershipOut,
+    MeOut,
+    ResetIn,
+    SetupIn,
+)
+from app.auth import passwords, ratelimit, reset, sessions
 from app.auth.access import empty_password_allowed, is_loopback
 from app.config import Settings
 from app.db.models import AppUser, Membership, UserAccount, Workspace
 from app.services import user_accounts
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 SETUP_LOCK_KEY = 7_204_001  # pg_advisory_xact_lock key for the first-run setup
@@ -39,11 +51,16 @@ def _user_out(u: UserAccount) -> AuthUserOut:
 
 @router.get("/status", response_model=AuthStatus)
 def status(
-    request: Request, db: Db, df_session: Annotated[str | None, Cookie()] = None
+    request: Request,
+    db: Db,
+    settings: AppSettings,
+    df_session: Annotated[str | None, Cookie()] = None,
 ) -> AuthStatus:
+    demo = user_accounts.demo_logins(db) if is_loopback(settings) else []
     return AuthStatus(
         setup_needed=not user_accounts.admin_exists(db),
         signed_in=getattr(request.state, "user_id", None) is not None,
+        demo_logins=[DemoLogin(email=e, display_name=n) for e, n in demo],
     )
 
 
@@ -88,6 +105,55 @@ def login(
         ratelimit.record_failure(email, client)
         raise HTTPException(status_code=401, detail=_BAD_LOGIN)
     ratelimit.clear_email(email)
+    token = sessions.create_session(db, user, request.headers.get("user-agent"))
+    db.commit()
+    set_cookie(response, token, settings)
+    return _me(db, user)
+
+
+@router.post("/forgot", status_code=202)
+def forgot(body: ForgotIn, request: Request, db: Db, settings: AppSettings) -> dict[str, bool]:
+    """Always the same answer. The reset link goes to the server console only (no email)."""
+    email = "forgot:" + body.email.strip().lower()
+    client = "forgot:" + (request.client.host if request.client else "unknown")
+    try:
+        ratelimit.check(email, client)
+    except ratelimit.TooManyAttempts as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from None
+    ratelimit.record_failure(email, client)
+    user = user_accounts.get_by_email(db, body.email)
+    if user is not None and not user.disabled:
+        token = reset.make_token(settings, user)
+        if token is not None:
+            log.warning(
+                "Password reset link for %s (valid 15 minutes): http://%s:%s/reset?token=%s",
+                user.email,
+                settings.ui_host,
+                settings.ui_port,
+                token,
+            )
+    return {"accepted": True}
+
+
+@router.post("/reset", response_model=MeOut)
+def reset_password(
+    body: ResetIn, request: Request, response: Response, db: Db, settings: AppSettings
+) -> MeOut:
+    client = "reset:" + (request.client.host if request.client else "unknown")
+    try:
+        ratelimit.check(client, client)
+    except ratelimit.TooManyAttempts as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from None
+    bad = HTTPException(status_code=400, detail="This link is invalid or expired.")
+    parsed = reset.parse_token(body.token)
+    user = db.get(UserAccount, parsed[0]) if parsed else None
+    if parsed is None or user is None or not reset.verify(settings, user, parsed[1], parsed[2]):
+        ratelimit.record_failure(client, client)
+        raise bad
+    user.password_hash = passwords.hash_for_new_password(
+        body.password, empty_allowed=empty_password_allowed(db, settings, user)
+    )
+    sessions.end_all_sessions(db, user.id)
     token = sessions.create_session(db, user, request.headers.get("user-agent"))
     db.commit()
     set_cookie(response, token, settings)

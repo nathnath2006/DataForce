@@ -118,3 +118,24 @@ def list_members(db: Session, ws_id: uuid.UUID) -> list[tuple[Membership, UserAc
         .order_by(UserAccount.display_name, UserAccount.email)
     )
     return [(m, u, n) for m, u, n in rows.all()]
+
+
+def demo_logins(db: Session, limit: int = 12) -> list[tuple[str, str]]:
+    """(email, name) of enabled non-admin accounts with an empty password whose memberships are
+    all in demo workspaces. The caller checks that the app runs on loopback."""
+    rows = db.execute(
+        select(UserAccount.email, UserAccount.display_name)
+        .where(
+            UserAccount.is_admin.is_(False),
+            UserAccount.disabled.is_(False),
+            UserAccount.password_hash.is_(None),
+            select(Membership.id).where(Membership.user_account_id == UserAccount.id).exists(),
+            ~select(Membership.id)
+            .join(Workspace, Workspace.id == Membership.workspace_id)
+            .where(Membership.user_account_id == UserAccount.id, Workspace.is_demo.is_(False))
+            .exists(),
+        )
+        .order_by(UserAccount.email)
+        .limit(limit)
+    ).all()
+    return [(e, n) for e, n in rows]

@@ -13,9 +13,24 @@ class _In(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
+class DemoLogin(BaseModel):
+    email: str
+    display_name: str
+
+
 class AuthStatus(BaseModel):
     setup_needed: bool
     signed_in: bool
+    demo_logins: list[DemoLogin] = []
+
+
+class ForgotIn(_In):
+    email: str = Field(min_length=1, max_length=320)
+
+
+class ResetIn(_In):
+    token: str = Field(min_length=1, max_length=500)
+    password: str = Field(max_length=200)
 
 
 class SetupIn(_In):

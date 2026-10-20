@@ -1877,6 +1877,14 @@
    },
    "AuthStatus": {
     "properties": {
+     "demo_logins": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/DemoLogin"
+      },
+      "title": "Demo Logins",
+      "type": "array"
+     },
      "setup_needed": {
       "title": "Setup Needed",
       "type": "boolean"
@@ -4362,6 +4370,24 @@
     "title": "DedupConfig",
     "type": "object"
    },
+   "DemoLogin": {
+    "properties": {
+     "display_name": {
+      "title": "Display Name",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "display_name"
+    ],
+    "title": "DemoLogin",
+    "type": "object"
+   },
    "Dimension": {
     "description": "Deal attributes the engine segments on. All categorical.",
     "enum": [
@@ -5965,6 +5991,22 @@
      "probabilities"
     ],
     "title": "ForecastView",
+    "type": "object"
+   },
+   "ForgotIn": {
+    "additionalProperties": false,
+    "properties": {
+     "email": {
+      "maxLength": 320,
+      "minLength": 1,
+      "title": "Email",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email"
+    ],
+    "title": "ForgotIn",
     "type": "object"
    },
    "FromRegistry": {
@@ -9825,6 +9867,28 @@
     "title": "ReportsToUpdate",
     "type": "object"
    },
+   "ResetIn": {
+    "additionalProperties": false,
+    "properties": {
+     "password": {
+      "maxLength": 200,
+      "title": "Password",
+      "type": "string"
+     },
+     "token": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Token",
+      "type": "string"
+     }
+    },
+    "required": [
+     "token",
+     "password"
+    ],
+    "title": "ResetIn",
+    "type": "object"
+   },
    "ReviewItem": {
     "properties": {
      "account_id": {
@@ -13005,6 +13069,52 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/auth/forgot": {
+   "post": {
+    "description": "Always the same answer. The reset link goes to the server console only (no email).",
+    "operationId": "forgot_api_auth_forgot_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ForgotIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "boolean"
+         },
+         "title": "Response Forgot Api Auth Forgot Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Forgot",
+    "tags": [
+     "auth"
+    ]
+   }
+  },
   "/api/auth/login": {
    "post": {
     "operationId": "login_api_auth_login_post",
@@ -13104,6 +13214,47 @@
      }
     },
     "summary": "Me",
+    "tags": [
+     "auth"
+    ]
+   }
+  },
+  "/api/auth/reset": {
+   "post": {
+    "operationId": "reset_password_api_auth_reset_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ResetIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Reset Password",
     "tags": [
      "auth"
     ]

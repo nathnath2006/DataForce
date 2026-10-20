@@ -7,3 +7,5 @@ export { LoginPage } from "./LoginPage";
 export { SetupPage } from "./SetupPage";
 export { UserMenu } from "./UserMenu";
 export { AdminOnly, useCanDelete, useSeesAll } from "./AdminOnly";
+export { ForgotPage } from "./ForgotPage";
+export { ResetPage } from "./ResetPage";

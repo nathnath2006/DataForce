@@ -29,7 +29,7 @@ export async function request<R>(method: string, path: string, body?: unknown, s
   } catch {
     data = null;
   }
-  if (res.status === 401 && !path.startsWith("/auth/") && !/^\/(login|setup)$/.test(window.location.pathname)) {
+  if (res.status === 401 && !path.startsWith("/auth/") && !/^\/(login|setup|forgot|reset)$/.test(window.location.pathname)) {
     window.location.assign("/login"); // the session ended: sign in again
   }
   if (!res.ok) throw parseApiError(res.status, data);

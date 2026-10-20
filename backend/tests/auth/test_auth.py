@@ -39,11 +39,19 @@ def test_policy():
 
 
 def test_status_and_setup_only_once(anon_client):
-    assert anon_client.get("/api/auth/status").json() == {"setup_needed": True, "signed_in": False}
+    assert anon_client.get("/api/auth/status").json() == {
+        "setup_needed": True,
+        "signed_in": False,
+        "demo_logins": [],
+    }
     body = {"email": "Boss@Example.com", "display_name": "Boss", "password": PW}
     r = anon_client.post("/api/auth/setup", json=body)
     assert r.status_code == 201 and r.json()["user"]["email"] == "boss@example.com"
-    assert anon_client.get("/api/auth/status").json() == {"setup_needed": False, "signed_in": True}
+    assert anon_client.get("/api/auth/status").json() == {
+        "setup_needed": False,
+        "signed_in": True,
+        "demo_logins": [],
+    }
     assert anon_client.post("/api/auth/setup", json=body).status_code == 403
     assert anon_client.post("/api/auth/setup", json={**body, "password": ""}).status_code in (
         403,

@@ -1,37 +1,58 @@
-import { useState } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useNavigate } from "react-router";
 import { ErrorNote, useAction } from "../ui";
-import { authApi } from "./api";
+import { authApi, type DemoLogin } from "./api";
+import { AuthShell, PasswordField } from "./AuthShell";
 import { useAuth } from "./context";
-import { Wordmark } from "./Wordmark";
-import "./auth.css";
 
-/** /login: email and password. */
+/** /login: email and password, plus one-click demo accounts on this computer. */
 export function LoginPage() {
   const { user, setupNeeded, loading, setMe } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [demos, setDemos] = useState<DemoLogin[]>([]);
   const a = useAction();
+  useEffect(() => { authApi.status().then((s) => setDemos(s.demo_logins ?? [])).catch(() => {}); }, []);
   if (!loading && setupNeeded) return <Navigate to="/setup" replace />;
   if (user) return <Navigate to="/" replace />;
+
+  const signIn = (em: string, pw: string) =>
+    a.run(async () => { setMe(await authApi.login(em, pw)); nav("/", { replace: true }); });
+  const isDemo = demos.some((d) => d.email === email.trim().toLowerCase());
+  const failed = a.error?.status === 401;
+
   return (
-    <main className="auth-page">
-      <form className="auth-card" noValidate onSubmit={(ev) => {
-        ev.preventDefault();
-        void a.run(async () => { setMe(await authApi.login(email, password)); nav("/", { replace: true }); });
-      }}>
-        <Wordmark />
-        <div className="auth-head">
-          <h1>Sign in</h1>
-          <p className="muted">Welcome back. Use your work email.</p>
+    <AuthShell
+      title="Sign in" subtitle="Welcome back."
+      onSubmit={() => { if (email.trim() && !a.busy) void signIn(email, password); }}
+      footer="DataForce runs on this computer."
+    >
+      <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" placeholder="you@company.com" autoFocus /></label>
+      <div className="auth-field">
+        <PasswordField label="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+        <Link className="auth-link" to="/forgot">Forgot password?</Link>
+      </div>
+      {failed ? (
+        <div className="note err" role="alert">
+          Wrong email or password.
+          {isDemo && password !== "" && <> Demo accounts have no password: leave it empty.</>}
         </div>
-        <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" placeholder="you@company.com" autoFocus /></label>
-        <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></label>
-        <ErrorNote error={a.error} />
-        {/* A demo workspace's rep may have an empty password: only the email is required here. */}
-        <button className="primary" disabled={a.busy || email.trim() === ""}>{a.busy ? "Signing in…" : "Sign in"}</button>
-      </form>
-    </main>
+      ) : <ErrorNote error={a.error} />}
+      <button className="primary" disabled={a.busy || email.trim() === ""}>{a.busy ? "Signing in…" : "Sign in"}</button>
+      {demos.length > 0 && (
+        <section className="demo-box" aria-label="Demo accounts">
+          <h2>Try a demo account</h2>
+          <div className="demo-chips">
+            {demos.map((d) => (
+              <button type="button" key={d.email} className="demo-chip" disabled={a.busy}
+                onClick={() => { setEmail(d.email); setPassword(""); void signIn(d.email, ""); }}>
+                <strong>{d.display_name}</strong><span>{d.email}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+    </AuthShell>
   );
 }

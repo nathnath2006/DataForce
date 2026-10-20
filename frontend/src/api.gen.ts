@@ -303,6 +303,7 @@ export interface AskTurn {
 }
 
 export interface AuthStatus {
+  demo_logins?: DemoLogin[];
   setup_needed: boolean;
   signed_in: boolean;
 }
@@ -672,6 +673,11 @@ export interface DedupConfig {
   type?: "dedup";
 }
 
+export interface DemoLogin {
+  display_name: string;
+  email: string;
+}
+
 export type Dimension = "lead_source" | "segment" | "industry" | "region" | "owner" | "amount_band";
 
 export interface DocumentDetail {
@@ -936,6 +942,10 @@ export interface ForecastView {
   probabilities: {
     [key: string]: number;
   };
+}
+
+export interface ForgotIn {
+  email: string;
 }
 
 export interface FromRegistry {
@@ -1595,6 +1605,11 @@ export type RejectIn = Record<string, never>;
 
 export interface ReportsToUpdate {
   manager_id: string | null;
+}
+
+export interface ResetIn {
+  password: string;
+  token: string;
 }
 
 export interface ReviewItem {

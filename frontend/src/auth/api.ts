@@ -6,7 +6,8 @@ export interface AuthMembership {
   delete_own: boolean; app_user_id: string | null; app_user_name: string | null;
 }
 export interface Me { user: AuthUser; memberships: AuthMembership[] }
-export interface AuthStatus { setup_needed: boolean; signed_in: boolean }
+export interface DemoLogin { email: string; display_name: string }
+export interface AuthStatus { setup_needed: boolean; signed_in: boolean; demo_logins: DemoLogin[] }
 export interface Member {
   user_id: string; email: string; display_name: string; is_admin: boolean; disabled: boolean;
   has_password: boolean; role: "admin" | "rep"; see_all: boolean; delete_own: boolean;
@@ -26,6 +27,8 @@ export const authApi = {
   me: () => request<Me>("GET", "/auth/me"),
   login: (email: string, password: string) => request<Me>("POST", "/auth/login", { email, password }),
   setup: (b: { email: string; display_name: string; password: string }) => request<Me>("POST", "/auth/setup", b),
+  forgot: (email: string) => request<{ accepted: boolean }>("POST", "/auth/forgot", { email }),
+  reset: (token: string, password: string) => request<Me>("POST", "/auth/reset", { token, password }),
   logout: () => request<void>("POST", "/auth/logout"),
   members: (ws: string) => request<Member[]>("GET", `${w(ws)}/members`),
   addMember: (ws: string, b: MemberCreate) => request<Member>("POST", `${w(ws)}/members`, b),

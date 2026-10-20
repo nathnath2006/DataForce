@@ -2,7 +2,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { Navigate, NavLink, Outlet, Route, Routes, useNavigate, useParams } from "react-router";
 import { api } from "./api";
 import { WsContext } from "./context";
-import { LoginPage, RequireAuth, SetupPage, AdminOnly } from "./auth";
+import { ForgotPage, LoginPage, RequireAuth, ResetPage, SetupPage, AdminOnly } from "./auth";
 import { ErrorNote, Field, Loading, Modal, useAction } from "./ui";
 import { useQuery } from "./data/useQuery";
 import { SideNav, loadNavCollapsed, saveNavCollapsed } from "./shell/Nav";
@@ -45,6 +45,8 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
+      <Route path="/forgot" element={<ForgotPage />} />
+      <Route path="/reset" element={<ResetPage />} />
       <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
       <Route path="/w/:ws" element={<RequireAuth><Shell /></RequireAuth>}>
         <Route index element={<HomePage />} />
