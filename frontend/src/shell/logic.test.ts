@@ -52,3 +52,14 @@ describe("drawer persistence", () => {
     expect(() => saveDrawerOpen(true)).not.toThrow();
   });
 });
+
+import { navActive } from "./Nav";
+describe("navActive", () => {
+  it("keeps Flows apart from the other analysis pages", () => {
+    expect(navActive("flows", "analysis")).toBe(true);
+    expect(navActive("flows", "analysis/abc")).toBe(true);
+    expect(navActive("flows", "analysis/workbooks/1")).toBe(false);
+    expect(navActive("workbooks", "analysis/workbooks/1")).toBe(true);
+    expect(navActive("deals", "deals/9")).toBe(true);
+  });
+});

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useWs } from "../context";
 import type { CompanyOut, RegistryCompanyOut } from "../types";
 import { Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, useAction, useDebounced, useLoad } from "../ui";
@@ -18,7 +18,8 @@ export function CompaniesPage() {
   const { ws } = useWs();
   const nav = useNavigate();
   const base = `/w/${ws.slug}`;
-  const [text, setText] = useState("");
+  const [params] = useSearchParams();
+  const [text, setText] = useState(params.get("q") ?? "");
   const dq = useDebounced(text.trim(), 250);
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);

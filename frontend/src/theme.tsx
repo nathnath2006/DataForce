@@ -62,7 +62,11 @@ export function ThemeToggle() {
       aria-label={`Theme: ${LABEL[t]}. Switch to ${LABEL[n]}.`} title={`Theme: ${LABEL[t]}`}
       onClick={() => { setT(n); saveTheme(n); applyTheme(n); }}
     >
-      Theme: {LABEL[t]}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {t === "dark" ? <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" /> : t === "light"
+          ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5" /></>
+          : <><circle cx="12" cy="12" r="8" /><path d="M12 4v16" /></>}
+      </svg>
     </button>
   );
 }

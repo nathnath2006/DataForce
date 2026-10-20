@@ -2,19 +2,19 @@
    Legacy names (--bg, --panel, --accent ...) stay as aliases so existing pages follow the new identity. */
 :root {
   /* brand (from the PO blueprint) */
-  --primary: #1d4ed8; --primary-ink: #ffffff;
+  --primary: #0a6cff; --primary-ink: #ffffff; --primary-soft: #e8f1ff; --primary-hover: #0057d9;
   --highlight: #facc15; --highlight-ink: #1f2937;
-  --ink: #1f2937; --ink-soft: #4b5563;
-  --canvas: #f3f4f6; --surface: #ffffff; --glass: rgba(255, 255, 255, .8);
-  --hairline: #e5e7eb;
+  --ink: #111418; --ink-soft: #5a626d; --ink-faint: #8a919b;
+  --canvas: #f2f3f5; --surface: #ffffff; --glass: rgba(255, 255, 255, .8);
+  --hairline: #e9ebee; --hover: #f2f3f5; --field: #f5f6f8;
   /* semantic (derived) */
   --ok: #15803d; --ok-bg: #dcfce7; --warn: #854d0e; --warn-bg: #fef9c3;
-  --bad: #b91c1c; --bad-bg: #fee2e2; --mute-bg: #e5e7eb; --backdrop: rgba(17, 24, 39, .45);
+  --bad: #b91c1c; --bad-bg: #fee2e2; --mute-bg: #eef0f2; --backdrop: rgba(17, 24, 39, .45);
   /* shape + depth */
-  --r-lg: 16px; --r-md: 10px; --r-sm: 4px; --r-pill: 999px;
-  --shadow-1: 0 1px 2px rgba(17, 24, 39, .06), 0 4px 16px rgba(17, 24, 39, .05);
-  --shadow-2: 0 8px 32px rgba(17, 24, 39, .18);
-  --topbar-h: 56px;
+  --r-lg: 12px; --r-md: 8px; --r-sm: 4px; --ctl-h: 32px; --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(17, 24, 39, .04), 0 2px 8px rgba(17, 24, 39, .04);
+  --shadow-2: 0 8px 32px rgba(17, 24, 39, .16);
+  --topbar-h: 48px; --nav-w: 232px; --nav-w-collapsed: 52px;
   /* type */
   --font: Helvetica, "Helvetica Neue", Arial, sans-serif;
   --mono: Helvetica, "Helvetica Neue", Arial, sans-serif;
@@ -26,24 +26,24 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --primary: #60a5fa; --primary-ink: #0b1220;
-    --ink: #f3f4f6; --ink-soft: #aeb6c2;
-    --canvas: #111827; --surface: #1f2937; --glass: rgba(31, 41, 55, .72);
-    --hairline: #374151;
+    --primary: #4d9bff; --primary-ink: #06101f; --primary-soft: #14233b; --primary-hover: #74b0ff;
+    --ink: #f1f3f5; --ink-soft: #a3abb7; --ink-faint: #78808c;
+    --canvas: #121316; --surface: #1c1d21; --glass: rgba(28, 29, 33, .85);
+    --hairline: #2c2e34; --hover: #26282d; --field: #232529;
     --ok: #4ade80; --ok-bg: #14301f; --warn: #facc15; --warn-bg: #3a2e10;
-    --bad: #f87171; --bad-bg: #3b1b19; --mute-bg: #374151; --backdrop: rgba(0, 0, 0, .6);
+    --bad: #f87171; --bad-bg: #3b1b19; --mute-bg: #2a2c31; --backdrop: rgba(0, 0, 0, .6);
     --shadow-1: none; --shadow-2: 0 8px 32px rgba(0, 0, 0, .5);
     --chart-1: #6c9cf5; --chart-2: #f0a860; --chart-3: #6fd39a; --chart-4: #d58ad5; --chart-5: #e6c860; --chart-6: #a0abba;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --primary: #60a5fa; --primary-ink: #0b1220;
-  --ink: #f3f4f6; --ink-soft: #aeb6c2;
-  --canvas: #111827; --surface: #1f2937; --glass: rgba(31, 41, 55, .72);
-  --hairline: #374151;
+  --primary: #4d9bff; --primary-ink: #06101f; --primary-soft: #14233b; --primary-hover: #74b0ff;
+  --ink: #f1f3f5; --ink-soft: #a3abb7; --ink-faint: #78808c;
+  --canvas: #121316; --surface: #1c1d21; --glass: rgba(28, 29, 33, .85);
+  --hairline: #2c2e34; --hover: #26282d; --field: #232529;
   --ok: #4ade80; --ok-bg: #14301f; --warn: #facc15; --warn-bg: #3a2e10;
-  --bad: #f87171; --bad-bg: #3b1b19; --mute-bg: #374151; --backdrop: rgba(0, 0, 0, .6);
+  --bad: #f87171; --bad-bg: #3b1b19; --mute-bg: #2a2c31; --backdrop: rgba(0, 0, 0, .6);
   --shadow-1: none; --shadow-2: 0 8px 32px rgba(0, 0, 0, .5);
   --chart-1: #6c9cf5; --chart-2: #f0a860; --chart-3: #6fd39a; --chart-4: #d58ad5; --chart-5: #e6c860; --chart-6: #a0abba;
   color-scheme: dark;

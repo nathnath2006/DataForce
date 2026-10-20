@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Navigate, NavLink, Outlet, Route, Routes, useNavigate, useParams } from "react-router";
 import { api } from "./api";
 import { WsContext } from "./context";
-import { ErrorNote, Field, Loading, Modal, safeStorage, useAction, useLoad } from "./ui";
+import { LoginPage, RequireAuth, SetupPage, AdminOnly } from "./auth";
+import { ErrorNote, Field, Loading, Modal, useAction, useLoad } from "./ui";
 import { AccountsPage } from "./pages/Accounts";
 import { AccountDetailPage } from "./pages/AccountDetail";
 import { ContactsPage } from "./pages/Contacts";
@@ -18,7 +19,8 @@ import { MeetingsPage } from "./meetings/MeetingsPage";
 import { FlowsPage } from "./flows/FlowsPage";
 import { ModelsPage } from "./analysis/ModelsPage";
 import { WorkbooksPage } from "./workbooks/WorkbooksPage";
-import { ThemeToggle } from "./theme";
+import { SideNav, loadNavCollapsed, saveNavCollapsed } from "./shell/Nav";
+import { TopBar } from "./shell/TopBar";
 import { AssistantDrawer, useDrawerOpen } from "./shell/AssistantDrawer";
 import { ScopeProvider } from "./shell/scope";
 
@@ -35,8 +37,10 @@ const WorkbookEditorPage = lazy(() =>
 export function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/w/:ws" element={<Shell />}>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/setup" element={<SetupPage />} />
+      <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+      <Route path="/w/:ws" element={<RequireAuth><Shell /></RequireAuth>}>
         <Route index element={<Navigate to="companies" replace />} />
         <Route path="companies" element={<CompaniesPage />} />
         <Route path="companies/:id" element={<CompanyDetailPage />} />
@@ -53,8 +57,8 @@ export function App() {
         <Route path="analysis/workbooks" element={<WorkbooksPage />} />
         <Route path="analysis/workbooks/:id" element={<Suspense fallback={<Loading />}><WorkbookEditorPage /></Suspense>} />
         <Route path="analysis/:flowId" element={<Suspense fallback={<Loading />}><FlowEditorPage /></Suspense>} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="admin" element={<AdminPage />} />
+        <Route path="settings" element={<AdminOnly><SettingsPage /></AdminOnly>} />
+        <Route path="admin" element={<AdminOnly><AdminPage /></AdminOnly>} />
         <Route path="*" element={<p className="muted">Page not found.</p>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -86,38 +90,25 @@ function Home() {
   );
 }
 
-const actingKey = (ws: string) => `dataforce.actingAs.${ws}`;
-
 function Shell() {
   const { ws: slug = "" } = useParams();
   const nav = useNavigate();
   const wss = useLoad(() => api.listWorkspaces(), [slug]);
   const users = useLoad(() => api.listUsers(slug), [slug]);
-  const [acting, setActing] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [addUser, setAddUser] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(loadNavCollapsed);
   const [drawerOpen, setDrawerOpen] = useDrawerOpen();
-
-  useEffect(() => { setActing(safeStorage("get", actingKey(slug))); }, [slug]);
 
   const ws = wss.data?.find((w) => w.slug === slug);
   const userList = users.data ?? [];
-  const actingValid = acting && userList.some((u) => u.id === acting) ? acting : null;
-
-  const pick = (id: string) => {
-    if (id === "__new") { setAddUser(true); return; }
-    const v = id === "" ? null : id;
-    setActing(v);
-    safeStorage(v ? "set" : "remove", actingKey(slug), v ?? undefined);
-  };
 
   const { reload: reloadUsers } = users;
   const { reload: reloadWorkspaces } = wss;
   const wsValue = useMemo(
-    () => (ws ? { ws, users: userList, actingAs: actingValid, refreshUsers: reloadUsers, refreshWorkspaces: reloadWorkspaces } : null),
+    () => (ws ? { ws, users: userList, refreshUsers: reloadUsers, refreshWorkspaces: reloadWorkspaces } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ws, users.data, actingValid, reloadUsers, reloadWorkspaces],
+    [ws, users.data, reloadUsers, reloadWorkspaces],
   );
 
   if (wss.loading && !wss.data) return <main className="center"><Loading /></main>;
@@ -128,41 +119,17 @@ function Shell() {
     <WsContext.Provider value={wsValue!}>
       <ScopeProvider>
       <div className="shell">
-        <header className="top">
-          <button className="ghost menu" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
-          <span className="brand"><span className="logo" aria-hidden="true" />DataForce</span>
-          <select
-            className="ws-switch" aria-label="Workspace" value={slug}
-            onChange={(e) => (e.target.value === "__new" ? setCreating(true) : nav(`/w/${e.target.value}/accounts`))}
-          >
-            {(wss.data ?? []).map((w) => (
-              <option key={w.slug} value={w.slug}>
-                {w.name}{w.is_demo && !/synthetic/i.test(w.name) ? " (synthetic)" : ""}
-              </option>
-            ))}
-            <option value="__new">+ New workspace…</option>
-          </select>
-          <span className="spacer" />
-          <ThemeToggle />
-          <label className="acting">
-            <span>Acting as</span>
-            <select aria-label="Acting as" value={actingValid ?? ""} onChange={(e) => pick(e.target.value)}>
-              <option value="">(nobody)</option>
-              {userList.map((u) => <option key={u.id} value={u.id}>{u.display_name}</option>)}
-              <option value="__new">+ Add user…</option>
-            </select>
-          </label>
-        </header>
+        <TopBar
+          slug={slug} workspaces={wss.data ?? []} onNewWorkspace={() => setCreating(true)}
+          onMenu={() => setNavOpen((o) => !o)}
+          onToggleNav={() => { setNavCollapsed((c) => { saveNavCollapsed(!c); return !c; }); }}
+        />
         {ws.is_demo && (
           <div className="banner" role="note">Synthetic demo data — generated, no real company or person.</div>
         )}
         <div className={`body has-rail ${drawerOpen ? "drawer-open" : ""}`}>
-          <nav className={`side ${navOpen ? "open" : ""}`} onClick={() => setNavOpen(false)}>
-            {["companies", "accounts", "contacts", "deals", "meetings", "analysis", "settings", "admin"].map((p) => (
-              <NavLink key={p} to={`/w/${slug}/${p}`}>{p.charAt(0).toUpperCase() + p.slice(1)}</NavLink>
-            ))}
-            <p className="muted small">Acting as is a label only: there is no login before M3.</p>
-          </nav>
+          <SideNav slug={slug} collapsed={navCollapsed} open={navOpen} onNavigate={() => setNavOpen(false)} />
+          {navOpen && <div className="nav-scrim" onClick={() => setNavOpen(false)} />}
           <main className="content"><Outlet /></main>
         </div>
         <AssistantDrawer open={drawerOpen} setOpen={setDrawerOpen} />
@@ -172,12 +139,6 @@ function Shell() {
         <NewWorkspace
           onClose={() => setCreating(false)}
           onCreated={(s) => { wss.reload(); nav(`/w/${s}/accounts`); }}
-        />
-      )}
-      {addUser && (
-        <NewUser
-          slug={slug} onClose={() => setAddUser(false)}
-          onCreated={(id) => { users.reload(); setActing(id); safeStorage("set", actingKey(slug), id); }}
         />
       )}
     </WsContext.Provider>
@@ -213,30 +174,6 @@ function NewWorkspace(props: { onClose: () => void; onCreated: (slug: string) =>
         <div className="row end">
           <button type="button" onClick={props.onClose}>Cancel</button>
           <button className="primary" disabled={!valid || a.busy}>Create</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function NewUser(props: { slug: string; onClose: () => void; onCreated: (id: string) => void }) {
-  const [name, setName] = useState("");
-  const a = useAction();
-  return (
-    <Modal title="Add a user" onClose={props.onClose}>
-      <form className="stack" onSubmit={(ev) => {
-        ev.preventDefault();
-        void a.run(async () => {
-          const u = await api.createUser(props.slug, { display_name: name.trim() });
-          props.onCreated(u.id);
-          props.onClose();
-        });
-      }}>
-        <Field label="Display name"><input value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} autoFocus /></Field>
-        <ErrorNote error={a.error} />
-        <div className="row end">
-          <button type="button" onClick={props.onClose}>Cancel</button>
-          <button className="primary" disabled={name.trim() === "" || a.busy}>Add</button>
         </div>
       </form>
     </Modal>

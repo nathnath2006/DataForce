@@ -1,0 +1,10 @@
+.dt-wrap { border: 1px solid var(--hairline); border-radius: var(--r-lg); background: var(--surface); }
+.dt th { position: sticky; top: 0; z-index: 1; background: var(--surface); box-shadow: 0 1px 0 var(--hairline); }
+.dt tbody tr:hover { background: var(--hover); }
+.dt tbody tr:last-child td { border-bottom: none; }
+.dt.dense th, .dt.dense td { padding: .2rem .6rem; }
+.dt th.num, .dt td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dt-sort { border: none; background: none; min-height: 0; padding: 0; font: inherit; color: inherit; gap: .25rem; }
+.dt-sort:hover:not(:disabled) { background: none; color: var(--ink); }
+.dt-state { text-align: center; padding: 1.5rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
