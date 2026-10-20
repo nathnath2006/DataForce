@@ -1,13 +1,14 @@
 import { request, w } from "../api";
+import type { SignupIn } from "../api.gen";
 
-export interface AuthUser { id: string; email: string; display_name: string; is_admin: boolean }
+export interface AuthUser { id: string; email: string; display_name: string; is_admin: boolean; workspace_credits?: number }
 export interface AuthMembership {
   workspace_slug: string; workspace_name: string; role: "admin" | "rep"; see_all: boolean;
   delete_own: boolean; app_user_id: string | null; app_user_name: string | null;
 }
 export interface Me { user: AuthUser; memberships: AuthMembership[] }
 export interface DemoLogin { email: string; display_name: string }
-export interface AuthStatus { setup_needed: boolean; signed_in: boolean; demo_logins: DemoLogin[] }
+export type AuthStatus = import("../api.gen").AuthStatus;
 export interface Member {
   user_id: string; email: string; display_name: string; is_admin: boolean; disabled: boolean;
   has_password: boolean; role: "admin" | "rep"; see_all: boolean; delete_own: boolean;
@@ -29,6 +30,8 @@ export const authApi = {
   setup: (b: { email: string; display_name: string; password: string }) => request<Me>("POST", "/auth/setup", b),
   forgot: (email: string) => request<{ accepted: boolean }>("POST", "/auth/forgot", { email }),
   reset: (token: string, password: string) => request<Me>("POST", "/auth/reset", { token, password }),
+  signup: (b: SignupIn) => request<Me>("POST", "/auth/signup", b),
+  join: (token: string) => request<Me>("POST", "/auth/join", { token }),
   logout: () => request<void>("POST", "/auth/logout"),
   members: (ws: string) => request<Member[]>("GET", `${w(ws)}/members`),
   addMember: (ws: string, b: MemberCreate) => request<Member>("POST", `${w(ws)}/members`, b),

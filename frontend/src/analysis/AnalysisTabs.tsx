@@ -6,7 +6,7 @@ const TABS = [
   { to: "analysis", label: "Flows", end: true },
   { to: "analysis/workbooks", label: "Workbooks", end: false },
   { to: "analysis/models", label: "Models", end: true },
-  { to: "analysis/scan", label: "Insights", end: true },
+  { to: "analysis/scan", label: "Pipeline scan", end: true },
 ];
 
 /** The four Analysis tabs, shown at the top of every Analysis page. */

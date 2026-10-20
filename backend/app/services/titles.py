@@ -16,6 +16,7 @@ from app.auth.viewer import Viewer
 from app.config import Settings
 from app.db.models import Account, Contact, TitleCache
 from app.domain.enums import JobFunction, RunKind, RunStatus, Seniority, TitleSource
+from app.services import limits as limits_service
 from app.services import llm_settings
 from app.services._budget import Budget
 from app.services._common import require_contact
@@ -74,7 +75,11 @@ def _llm_flag(confidence: str) -> str:
 
 
 def _open_provider(
-    session: Session, ws_id: uuid.UUID, settings: Settings, factory: Callable[..., Any]
+    session: Session,
+    ws_id: uuid.UUID,
+    settings: Settings,
+    factory: Callable[..., Any],
+    user_id: uuid.UUID | None = None,
 ) -> Any | None:
     cred = llm_settings.get_credential(session, ws_id)
     if cred is None:
@@ -83,6 +88,7 @@ def _open_provider(
     recorder = DbUsageRecorder(
         sessionmaker(bind=session.get_bind(), join_transaction_mode="create_savepoint"),
         workspace_id=ws_id,
+        user_id=user_id,
     )
     return factory(cred.provider, api_key=key, model=cred.model, settings=settings, usage=recorder)
 
@@ -112,6 +118,7 @@ def normalize_workspace(
         from app.llm.registry import get_chat_llm
 
         factory = get_chat_llm
+    settings = limits_service.effective_settings(session, settings, ws_id)
     run = start_run(session, RunKind.TITLE_NORMALIZE, ws_id, {"use_ai": use_ai})
     contacts = list(
         session.scalars(
@@ -140,7 +147,8 @@ def normalize_workspace(
     failed: set[str] = {t for t in to_ask if _recently_failed(ws_id, t)}
     to_ask = [t for t in to_ask if t not in failed]
 
-    provider = _open_provider(session, ws_id, settings, factory) if use_ai else None
+    user_id = viewer.user_id if viewer else None
+    provider = _open_provider(session, ws_id, settings, factory, user_id) if use_ai else None
     ai_configured = llm_settings.get_credential(session, ws_id) is not None
     llm_calls = 0
     capped: set[str] = set()

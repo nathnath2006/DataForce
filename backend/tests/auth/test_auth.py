@@ -43,6 +43,7 @@ def test_status_and_setup_only_once(anon_client):
         "setup_needed": True,
         "signed_in": False,
         "demo_logins": [],
+        "signup_enabled": True,
     }
     body = {"email": "Boss@Example.com", "display_name": "Boss", "password": PW}
     r = anon_client.post("/api/auth/setup", json=body)
@@ -51,6 +52,7 @@ def test_status_and_setup_only_once(anon_client):
         "setup_needed": False,
         "signed_in": True,
         "demo_logins": [],
+        "signup_enabled": True,
     }
     assert anon_client.post("/api/auth/setup", json=body).status_code == 403
     assert anon_client.post("/api/auth/setup", json={**body, "password": ""}).status_code in (

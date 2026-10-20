@@ -25,6 +25,7 @@ from app.flows.ports import FlowLimits
 from app.flows.schemas import ClusterConfig, ModelConfig, NodeResult
 from app.flows.scoring import ModelSnapshot, ScoreResult, ScoringError, score_frame
 from app.services import flows
+from app.services import limits as limits_service
 from app.services._common import get_scoped
 from app.services.errors import InvalidInputError, NotFoundError
 from app.stats.engine import gate_config_from_settings
@@ -65,6 +66,7 @@ def _node_result(
         raise InvalidInputError("the block does not exist in this flow")
     if not isinstance(node.config, ModelConfig | ClusterConfig):
         raise InvalidInputError("only a model or cluster block can be saved")
+    settings = limits_service.effective_settings(db, settings, ws_id)
     slot = flows._semaphore(settings.flow_max_concurrent_runs)  # noqa: SLF001
     if not slot.acquire(timeout=viz_source.SLOT_WAIT_S):
         raise InvalidInputError("another analysis is still running, try again in a moment")

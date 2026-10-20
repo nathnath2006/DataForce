@@ -224,6 +224,13 @@ export interface AgingConfig {
   where_mode?: "all" | "any";
 }
 
+export interface AiModelsOut {
+  default: string;
+  models: string[];
+  provider: string;
+  source: "provider" | "fallback";
+}
+
 export interface AiPassOut {
   calls: number;
   capped: number;
@@ -306,6 +313,7 @@ export interface AuthStatus {
   demo_logins?: DemoLogin[];
   setup_needed: boolean;
   signed_in: boolean;
+  signup_enabled?: boolean;
 }
 
 export interface AuthUserOut {
@@ -313,6 +321,7 @@ export interface AuthUserOut {
   email: string;
   id: string;
   is_admin: boolean;
+  workspace_credits?: number;
 }
 
 export interface BlockPorts {
@@ -607,6 +616,35 @@ export interface ContactUpdate {
   title?: string | null;
 }
 
+export interface CreationCodeCreate {
+  expires_in_days?: number;
+  label: string;
+  max_uses?: number;
+}
+
+export interface CreationCodeCreated {
+  code: string;
+  created_at: string;
+  expires_at: string;
+  id: string;
+  label: string;
+  max_uses: number;
+  revoked_at: string | null;
+  status: "active" | "expired" | "revoked" | "used_up";
+  uses: number;
+}
+
+export interface CreationCodeOut {
+  created_at: string;
+  expires_at: string;
+  id: string;
+  label: string;
+  max_uses: number;
+  revoked_at: string | null;
+  status: "active" | "expired" | "revoked" | "used_up";
+  uses: number;
+}
+
 export interface CrmRef {
   kind?: "crm";
   table: "deals" | "accounts" | "contacts" | "companies" | "meetings" | "meeting_themes" | "deal_theme_flags" | "activities" | "stage_events" | "tasks";
@@ -732,6 +770,23 @@ export interface Edge {
   source_port?: string;
   target: string;
   target_port?: string;
+}
+
+export interface EditableLimit {
+  default: number | number;
+  description: string;
+  global_value?: number | number | null;
+  group: string;
+  key: string;
+  kind: "int" | "float";
+  max: number;
+  min: number;
+  source: "workspace" | "global" | "default";
+  unit: string;
+  updated_at?: string | null;
+  updated_by?: string | null;
+  value: number | number;
+  workspace_editable?: boolean;
 }
 
 export interface EffectFinding {
@@ -1055,9 +1110,48 @@ export interface JoinConfig {
   type?: "join";
 }
 
+export interface JoinIn {
+  token: string;
+}
+
 export interface JoinKey {
   left: string;
   right: string;
+}
+
+export interface JoinTokenCreate {
+  email_to?: string | null;
+  expires_in_days?: number;
+  label: string;
+  max_uses?: number;
+  role?: "rep" | "admin";
+}
+
+export interface JoinTokenCreated {
+  created_at: string;
+  email_queued: boolean;
+  expires_at: string;
+  id: string;
+  label: string;
+  link: string;
+  max_uses: number;
+  revoked_at: string | null;
+  role: "rep" | "admin";
+  status: "active" | "expired" | "revoked" | "used_up";
+  token: string;
+  uses: number;
+}
+
+export interface JoinTokenOut {
+  created_at: string;
+  expires_at: string;
+  id: string;
+  label: string;
+  max_uses: number;
+  revoked_at: string | null;
+  role: "rep" | "admin";
+  status: "active" | "expired" | "revoked" | "used_up";
+  uses: number;
 }
 
 export interface LayoutItem {
@@ -1069,6 +1163,10 @@ export interface LayoutItem {
 }
 
 export type LeadSource = "inbound" | "outbound" | "referral" | "partner" | "event" | "other";
+
+export interface LimitUpdate {
+  value?: number | number | null;
+}
 
 export interface LoginIn {
   email: string;
@@ -1237,6 +1335,22 @@ export interface ModelOut {
   name: string;
   node_id: string | null;
   status: "verified" | "not_verified" | "exploratory";
+}
+
+export interface ModelPriceIn {
+  input_per_mtok_eur: number;
+  model: string;
+  output_per_mtok_eur: number;
+  provider: "gemini" | "anthropic";
+}
+
+export interface ModelPriceOut {
+  id: string;
+  input_per_mtok_eur: number;
+  model: string;
+  output_per_mtok_eur: number;
+  provider: string;
+  updated_at: string;
 }
 
 export interface ModelRename {
@@ -1722,6 +1836,14 @@ export interface SetupIn {
   password: string;
 }
 
+export interface SignupIn {
+  code: string;
+  display_name: string;
+  email: string;
+  mode: "create" | "join";
+  password: string;
+}
+
 export interface Slots {
   category?: string | null;
   color?: string | null;
@@ -1924,7 +2046,7 @@ export interface TaskOut {
 export interface TaskUpdate {
   due_on?: string | null;
   owner_id?: string | null;
-  status?: "open" | "done" | "dismissed" | null;
+  status?: "suggested" | "open" | "in_progress" | "done" | "dismissed" | null;
   title?: string | null;
 }
 
@@ -2014,6 +2136,121 @@ export interface TouchpointView {
   n_below_min?: number;
   n_groups: number;
   n_no_outreach: number;
+}
+
+export interface UsageDay {
+  avg_cost_per_call_eur: number | null;
+  calls: number;
+  cost_eur: number | null;
+  day: string;
+  failures: number;
+  input_tokens: number;
+  output_tokens: number;
+  p50_latency_ms: number | null;
+  unpriced_calls: number;
+}
+
+export interface UsageDayUser {
+  avg_cost_per_call_eur: number | null;
+  calls: number;
+  cost_eur: number | null;
+  day: string;
+  failures: number;
+  input_tokens: number;
+  name: string;
+  output_tokens: number;
+  p50_latency_ms: number | null;
+  unpriced_calls: number;
+  user_id: string | null;
+}
+
+export interface UsageMetrics {
+  avg_cost_per_call_eur: number | null;
+  calls: number;
+  cost_eur: number | null;
+  failures: number;
+  input_tokens: number;
+  output_tokens: number;
+  p50_latency_ms: number | null;
+  unpriced_calls: number;
+}
+
+export interface UsageModel {
+  avg_cost_per_call_eur: number | null;
+  calls: number;
+  cost_eur: number | null;
+  failures: number;
+  input_per_mtok_eur: number | null;
+  input_tokens: number;
+  model: string;
+  output_per_mtok_eur: number | null;
+  output_tokens: number;
+  p50_latency_ms: number | null;
+  price_set: boolean;
+  provider: string;
+  unpriced_calls: number;
+}
+
+export interface UsagePurpose {
+  avg_cost_per_call_eur: number | null;
+  calls: number;
+  cost_eur: number | null;
+  failures: number;
+  input_tokens: number;
+  output_tokens: number;
+  p50_latency_ms: number | null;
+  purpose: string;
+  unpriced_calls: number;
+}
+
+export interface UsageReport {
+  by_day: UsageDay[];
+  by_day_user: UsageDayUser[];
+  by_model: UsageModel[];
+  by_purpose: UsagePurpose[];
+  by_user: UsageUser[];
+  days: number;
+  since: string;
+  totals: UsageMetrics;
+}
+
+export interface UsageReportAll {
+  by_day: UsageDay[];
+  by_day_user: UsageDayUser[];
+  by_model: UsageModel[];
+  by_purpose: UsagePurpose[];
+  by_user: UsageUser[];
+  by_workspace: UsageWorkspace[];
+  days: number;
+  since: string;
+  totals: UsageMetrics;
+}
+
+export interface UsageUser {
+  avg_cost_per_call_eur: number | null;
+  calls: number;
+  cost_eur: number | null;
+  failures: number;
+  input_tokens: number;
+  name: string;
+  output_tokens: number;
+  p50_latency_ms: number | null;
+  unpriced_calls: number;
+  user_id: string | null;
+}
+
+export interface UsageWorkspace {
+  avg_cost_per_call_eur: number | null;
+  calls: number;
+  cost_eur: number | null;
+  failures: number;
+  input_tokens: number;
+  name: string | null;
+  output_tokens: number;
+  p50_latency_ms: number | null;
+  slug: string | null;
+  unpriced_calls: number;
+  workspace_id: string | null;
 }
 
 export interface UserCreate {

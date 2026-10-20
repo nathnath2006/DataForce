@@ -1455,6 +1455,41 @@
     "title": "AgingConfig",
     "type": "object"
    },
+   "AiModelsOut": {
+    "properties": {
+     "default": {
+      "title": "Default",
+      "type": "string"
+     },
+     "models": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Models",
+      "type": "array"
+     },
+     "provider": {
+      "title": "Provider",
+      "type": "string"
+     },
+     "source": {
+      "enum": [
+       "provider",
+       "fallback"
+      ],
+      "title": "Source",
+      "type": "string"
+     }
+    },
+    "required": [
+     "provider",
+     "source",
+     "default",
+     "models"
+    ],
+    "title": "AiModelsOut",
+    "type": "object"
+   },
    "AiPassOut": {
     "properties": {
      "calls": {
@@ -1892,6 +1927,11 @@
      "signed_in": {
       "title": "Signed In",
       "type": "boolean"
+     },
+     "signup_enabled": {
+      "default": true,
+      "title": "Signup Enabled",
+      "type": "boolean"
      }
     },
     "required": [
@@ -1919,6 +1959,11 @@
      "is_admin": {
       "title": "Is Admin",
       "type": "boolean"
+     },
+     "workspace_credits": {
+      "default": 0,
+      "title": "Workspace Credits",
+      "type": "integer"
      }
     },
     "required": [
@@ -3890,6 +3935,171 @@
     "title": "ContactUpdate",
     "type": "object"
    },
+   "CreationCodeCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "expires_in_days": {
+      "default": 14,
+      "maximum": 365.0,
+      "minimum": 1.0,
+      "title": "Expires In Days",
+      "type": "integer"
+     },
+     "label": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+     },
+     "max_uses": {
+      "default": 1,
+      "maximum": 100.0,
+      "minimum": 1.0,
+      "title": "Max Uses",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "label"
+    ],
+    "title": "CreationCodeCreate",
+    "type": "object"
+   },
+   "CreationCodeCreated": {
+    "properties": {
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "max_uses": {
+      "title": "Max Uses",
+      "type": "integer"
+     },
+     "revoked_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revoked At"
+     },
+     "status": {
+      "enum": [
+       "active",
+       "expired",
+       "revoked",
+       "used_up"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "uses": {
+      "title": "Uses",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "created_at",
+     "expires_at",
+     "max_uses",
+     "uses",
+     "revoked_at",
+     "status",
+     "code"
+    ],
+    "title": "CreationCodeCreated",
+    "type": "object"
+   },
+   "CreationCodeOut": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "max_uses": {
+      "title": "Max Uses",
+      "type": "integer"
+     },
+     "revoked_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revoked At"
+     },
+     "status": {
+      "enum": [
+       "active",
+       "expired",
+       "revoked",
+       "used_up"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "uses": {
+      "title": "Uses",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "created_at",
+     "expires_at",
+     "max_uses",
+     "uses",
+     "revoked_at",
+     "status"
+    ],
+    "title": "CreationCodeOut",
+    "type": "object"
+   },
    "CrmRef": {
     "additionalProperties": false,
     "properties": {
@@ -4734,6 +4944,129 @@
      "target"
     ],
     "title": "Edge",
+    "type": "object"
+   },
+   "EditableLimit": {
+    "properties": {
+     "default": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "number"
+       }
+      ],
+      "title": "Default"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "global_value": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Global Value"
+     },
+     "group": {
+      "title": "Group",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "kind": {
+      "enum": [
+       "int",
+       "float"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "max": {
+      "title": "Max",
+      "type": "number"
+     },
+     "min": {
+      "title": "Min",
+      "type": "number"
+     },
+     "source": {
+      "enum": [
+       "workspace",
+       "global",
+       "default"
+      ],
+      "title": "Source",
+      "type": "string"
+     },
+     "unit": {
+      "title": "Unit",
+      "type": "string"
+     },
+     "updated_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Updated At"
+     },
+     "updated_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Updated By"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "number"
+       }
+      ],
+      "title": "Value"
+     },
+     "workspace_editable": {
+      "default": true,
+      "title": "Workspace Editable",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "key",
+     "value",
+     "default",
+     "source",
+     "min",
+     "max",
+     "unit",
+     "description",
+     "group",
+     "kind"
+    ],
+    "title": "EditableLimit",
     "type": "object"
    },
    "EffectFinding": {
@@ -6569,6 +6902,22 @@
     "title": "JoinConfig",
     "type": "object"
    },
+   "JoinIn": {
+    "additionalProperties": false,
+    "properties": {
+     "token": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Token",
+      "type": "string"
+     }
+    },
+    "required": [
+     "token"
+    ],
+    "title": "JoinIn",
+    "type": "object"
+   },
    "JoinKey": {
     "additionalProperties": false,
     "properties": {
@@ -6590,6 +6939,221 @@
      "right"
     ],
     "title": "JoinKey",
+    "type": "object"
+   },
+   "JoinTokenCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "email_to": {
+      "anyOf": [
+       {
+        "maxLength": 320,
+        "pattern": "^[^@\\s,;<>]+@[^@\\s,;<>]+$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email To"
+     },
+     "expires_in_days": {
+      "default": 7,
+      "maximum": 365.0,
+      "minimum": 1.0,
+      "title": "Expires In Days",
+      "type": "integer"
+     },
+     "label": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+     },
+     "max_uses": {
+      "default": 1,
+      "maximum": 50.0,
+      "minimum": 1.0,
+      "title": "Max Uses",
+      "type": "integer"
+     },
+     "role": {
+      "default": "rep",
+      "enum": [
+       "rep",
+       "admin"
+      ],
+      "title": "Role",
+      "type": "string"
+     }
+    },
+    "required": [
+     "label"
+    ],
+    "title": "JoinTokenCreate",
+    "type": "object"
+   },
+   "JoinTokenCreated": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "email_queued": {
+      "title": "Email Queued",
+      "type": "boolean"
+     },
+     "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "link": {
+      "title": "Link",
+      "type": "string"
+     },
+     "max_uses": {
+      "title": "Max Uses",
+      "type": "integer"
+     },
+     "revoked_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revoked At"
+     },
+     "role": {
+      "enum": [
+       "rep",
+       "admin"
+      ],
+      "title": "Role",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "active",
+       "expired",
+       "revoked",
+       "used_up"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "token": {
+      "title": "Token",
+      "type": "string"
+     },
+     "uses": {
+      "title": "Uses",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "role",
+     "label",
+     "created_at",
+     "expires_at",
+     "max_uses",
+     "uses",
+     "revoked_at",
+     "status",
+     "token",
+     "link",
+     "email_queued"
+    ],
+    "title": "JoinTokenCreated",
+    "type": "object"
+   },
+   "JoinTokenOut": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "max_uses": {
+      "title": "Max Uses",
+      "type": "integer"
+     },
+     "revoked_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revoked At"
+     },
+     "role": {
+      "enum": [
+       "rep",
+       "admin"
+      ],
+      "title": "Role",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "active",
+       "expired",
+       "revoked",
+       "used_up"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "uses": {
+      "title": "Uses",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "role",
+     "label",
+     "created_at",
+     "expires_at",
+     "max_uses",
+     "uses",
+     "revoked_at",
+     "status"
+    ],
+    "title": "JoinTokenOut",
     "type": "object"
    },
    "LayoutItem": {
@@ -6646,6 +7210,27 @@
     ],
     "title": "LeadSource",
     "type": "string"
+   },
+   "LimitUpdate": {
+    "additionalProperties": false,
+    "properties": {
+     "value": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "title": "LimitUpdate",
+    "type": "object"
    },
    "LoginIn": {
     "additionalProperties": false,
@@ -7704,6 +8289,86 @@
      "created_at"
     ],
     "title": "ModelOut",
+    "type": "object"
+   },
+   "ModelPriceIn": {
+    "additionalProperties": false,
+    "properties": {
+     "input_per_mtok_eur": {
+      "maximum": 100000.0,
+      "minimum": 0.0,
+      "title": "Input Per Mtok Eur",
+      "type": "number"
+     },
+     "model": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:\\-]+$",
+      "title": "Model",
+      "type": "string"
+     },
+     "output_per_mtok_eur": {
+      "maximum": 100000.0,
+      "minimum": 0.0,
+      "title": "Output Per Mtok Eur",
+      "type": "number"
+     },
+     "provider": {
+      "enum": [
+       "gemini",
+       "anthropic"
+      ],
+      "title": "Provider",
+      "type": "string"
+     }
+    },
+    "required": [
+     "provider",
+     "model",
+     "input_per_mtok_eur",
+     "output_per_mtok_eur"
+    ],
+    "title": "ModelPriceIn",
+    "type": "object"
+   },
+   "ModelPriceOut": {
+    "properties": {
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "input_per_mtok_eur": {
+      "title": "Input Per Mtok Eur",
+      "type": "number"
+     },
+     "model": {
+      "title": "Model",
+      "type": "string"
+     },
+     "output_per_mtok_eur": {
+      "title": "Output Per Mtok Eur",
+      "type": "number"
+     },
+     "provider": {
+      "title": "Provider",
+      "type": "string"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "provider",
+     "model",
+     "input_per_mtok_eur",
+     "output_per_mtok_eur",
+     "updated_at"
+    ],
+    "title": "ModelPriceOut",
     "type": "object"
    },
    "ModelRename": {
@@ -10462,6 +11127,52 @@
     "title": "SetupIn",
     "type": "object"
    },
+   "SignupIn": {
+    "additionalProperties": false,
+    "properties": {
+     "code": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+     },
+     "display_name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+     },
+     "email": {
+      "maxLength": 320,
+      "minLength": 3,
+      "pattern": "^[^@\\s]+@[^@\\s]+$",
+      "title": "Email",
+      "type": "string"
+     },
+     "mode": {
+      "enum": [
+       "create",
+       "join"
+      ],
+      "title": "Mode",
+      "type": "string"
+     },
+     "password": {
+      "maxLength": 200,
+      "title": "Password",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "display_name",
+     "password",
+     "mode",
+     "code"
+    ],
+    "title": "SignupIn",
+    "type": "object"
+   },
    "Slots": {
     "additionalProperties": false,
     "properties": {
@@ -11708,7 +12419,9 @@
       "anyOf": [
        {
         "enum": [
+         "suggested",
          "open",
+         "in_progress",
          "done",
          "dismissed"
         ],
@@ -12194,6 +12907,752 @@
      "n_no_outreach"
     ],
     "title": "TouchpointView",
+    "type": "object"
+   },
+   "UsageDay": {
+    "properties": {
+     "avg_cost_per_call_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Cost Per Call Eur"
+     },
+     "calls": {
+      "title": "Calls",
+      "type": "integer"
+     },
+     "cost_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Eur"
+     },
+     "day": {
+      "format": "date",
+      "title": "Day",
+      "type": "string"
+     },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "input_tokens": {
+      "title": "Input Tokens",
+      "type": "integer"
+     },
+     "output_tokens": {
+      "title": "Output Tokens",
+      "type": "integer"
+     },
+     "p50_latency_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P50 Latency Ms"
+     },
+     "unpriced_calls": {
+      "title": "Unpriced Calls",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "calls",
+     "failures",
+     "input_tokens",
+     "output_tokens",
+     "p50_latency_ms",
+     "cost_eur",
+     "avg_cost_per_call_eur",
+     "unpriced_calls",
+     "day"
+    ],
+    "title": "UsageDay",
+    "type": "object"
+   },
+   "UsageDayUser": {
+    "properties": {
+     "avg_cost_per_call_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Cost Per Call Eur"
+     },
+     "calls": {
+      "title": "Calls",
+      "type": "integer"
+     },
+     "cost_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Eur"
+     },
+     "day": {
+      "format": "date",
+      "title": "Day",
+      "type": "string"
+     },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "input_tokens": {
+      "title": "Input Tokens",
+      "type": "integer"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "output_tokens": {
+      "title": "Output Tokens",
+      "type": "integer"
+     },
+     "p50_latency_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P50 Latency Ms"
+     },
+     "unpriced_calls": {
+      "title": "Unpriced Calls",
+      "type": "integer"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     }
+    },
+    "required": [
+     "calls",
+     "failures",
+     "input_tokens",
+     "output_tokens",
+     "p50_latency_ms",
+     "cost_eur",
+     "avg_cost_per_call_eur",
+     "unpriced_calls",
+     "day",
+     "user_id",
+     "name"
+    ],
+    "title": "UsageDayUser",
+    "type": "object"
+   },
+   "UsageMetrics": {
+    "properties": {
+     "avg_cost_per_call_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Cost Per Call Eur"
+     },
+     "calls": {
+      "title": "Calls",
+      "type": "integer"
+     },
+     "cost_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Eur"
+     },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "input_tokens": {
+      "title": "Input Tokens",
+      "type": "integer"
+     },
+     "output_tokens": {
+      "title": "Output Tokens",
+      "type": "integer"
+     },
+     "p50_latency_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P50 Latency Ms"
+     },
+     "unpriced_calls": {
+      "title": "Unpriced Calls",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "calls",
+     "failures",
+     "input_tokens",
+     "output_tokens",
+     "p50_latency_ms",
+     "cost_eur",
+     "avg_cost_per_call_eur",
+     "unpriced_calls"
+    ],
+    "title": "UsageMetrics",
+    "type": "object"
+   },
+   "UsageModel": {
+    "properties": {
+     "avg_cost_per_call_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Cost Per Call Eur"
+     },
+     "calls": {
+      "title": "Calls",
+      "type": "integer"
+     },
+     "cost_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Eur"
+     },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "input_per_mtok_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Input Per Mtok Eur"
+     },
+     "input_tokens": {
+      "title": "Input Tokens",
+      "type": "integer"
+     },
+     "model": {
+      "title": "Model",
+      "type": "string"
+     },
+     "output_per_mtok_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Output Per Mtok Eur"
+     },
+     "output_tokens": {
+      "title": "Output Tokens",
+      "type": "integer"
+     },
+     "p50_latency_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P50 Latency Ms"
+     },
+     "price_set": {
+      "title": "Price Set",
+      "type": "boolean"
+     },
+     "provider": {
+      "title": "Provider",
+      "type": "string"
+     },
+     "unpriced_calls": {
+      "title": "Unpriced Calls",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "calls",
+     "failures",
+     "input_tokens",
+     "output_tokens",
+     "p50_latency_ms",
+     "cost_eur",
+     "avg_cost_per_call_eur",
+     "unpriced_calls",
+     "provider",
+     "model",
+     "price_set",
+     "input_per_mtok_eur",
+     "output_per_mtok_eur"
+    ],
+    "title": "UsageModel",
+    "type": "object"
+   },
+   "UsagePurpose": {
+    "properties": {
+     "avg_cost_per_call_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Cost Per Call Eur"
+     },
+     "calls": {
+      "title": "Calls",
+      "type": "integer"
+     },
+     "cost_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Eur"
+     },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "input_tokens": {
+      "title": "Input Tokens",
+      "type": "integer"
+     },
+     "output_tokens": {
+      "title": "Output Tokens",
+      "type": "integer"
+     },
+     "p50_latency_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P50 Latency Ms"
+     },
+     "purpose": {
+      "title": "Purpose",
+      "type": "string"
+     },
+     "unpriced_calls": {
+      "title": "Unpriced Calls",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "calls",
+     "failures",
+     "input_tokens",
+     "output_tokens",
+     "p50_latency_ms",
+     "cost_eur",
+     "avg_cost_per_call_eur",
+     "unpriced_calls",
+     "purpose"
+    ],
+    "title": "UsagePurpose",
+    "type": "object"
+   },
+   "UsageReport": {
+    "properties": {
+     "by_day": {
+      "items": {
+       "$ref": "#/components/schemas/UsageDay"
+      },
+      "title": "By Day",
+      "type": "array"
+     },
+     "by_day_user": {
+      "items": {
+       "$ref": "#/components/schemas/UsageDayUser"
+      },
+      "title": "By Day User",
+      "type": "array"
+     },
+     "by_model": {
+      "items": {
+       "$ref": "#/components/schemas/UsageModel"
+      },
+      "title": "By Model",
+      "type": "array"
+     },
+     "by_purpose": {
+      "items": {
+       "$ref": "#/components/schemas/UsagePurpose"
+      },
+      "title": "By Purpose",
+      "type": "array"
+     },
+     "by_user": {
+      "items": {
+       "$ref": "#/components/schemas/UsageUser"
+      },
+      "title": "By User",
+      "type": "array"
+     },
+     "days": {
+      "title": "Days",
+      "type": "integer"
+     },
+     "since": {
+      "format": "date-time",
+      "title": "Since",
+      "type": "string"
+     },
+     "totals": {
+      "$ref": "#/components/schemas/UsageMetrics"
+     }
+    },
+    "required": [
+     "days",
+     "since",
+     "totals",
+     "by_user",
+     "by_model",
+     "by_day",
+     "by_day_user",
+     "by_purpose"
+    ],
+    "title": "UsageReport",
+    "type": "object"
+   },
+   "UsageReportAll": {
+    "properties": {
+     "by_day": {
+      "items": {
+       "$ref": "#/components/schemas/UsageDay"
+      },
+      "title": "By Day",
+      "type": "array"
+     },
+     "by_day_user": {
+      "items": {
+       "$ref": "#/components/schemas/UsageDayUser"
+      },
+      "title": "By Day User",
+      "type": "array"
+     },
+     "by_model": {
+      "items": {
+       "$ref": "#/components/schemas/UsageModel"
+      },
+      "title": "By Model",
+      "type": "array"
+     },
+     "by_purpose": {
+      "items": {
+       "$ref": "#/components/schemas/UsagePurpose"
+      },
+      "title": "By Purpose",
+      "type": "array"
+     },
+     "by_user": {
+      "items": {
+       "$ref": "#/components/schemas/UsageUser"
+      },
+      "title": "By User",
+      "type": "array"
+     },
+     "by_workspace": {
+      "items": {
+       "$ref": "#/components/schemas/UsageWorkspace"
+      },
+      "title": "By Workspace",
+      "type": "array"
+     },
+     "days": {
+      "title": "Days",
+      "type": "integer"
+     },
+     "since": {
+      "format": "date-time",
+      "title": "Since",
+      "type": "string"
+     },
+     "totals": {
+      "$ref": "#/components/schemas/UsageMetrics"
+     }
+    },
+    "required": [
+     "days",
+     "since",
+     "totals",
+     "by_user",
+     "by_model",
+     "by_day",
+     "by_day_user",
+     "by_purpose",
+     "by_workspace"
+    ],
+    "title": "UsageReportAll",
+    "type": "object"
+   },
+   "UsageUser": {
+    "properties": {
+     "avg_cost_per_call_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Cost Per Call Eur"
+     },
+     "calls": {
+      "title": "Calls",
+      "type": "integer"
+     },
+     "cost_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Eur"
+     },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "input_tokens": {
+      "title": "Input Tokens",
+      "type": "integer"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "output_tokens": {
+      "title": "Output Tokens",
+      "type": "integer"
+     },
+     "p50_latency_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P50 Latency Ms"
+     },
+     "unpriced_calls": {
+      "title": "Unpriced Calls",
+      "type": "integer"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     }
+    },
+    "required": [
+     "calls",
+     "failures",
+     "input_tokens",
+     "output_tokens",
+     "p50_latency_ms",
+     "cost_eur",
+     "avg_cost_per_call_eur",
+     "unpriced_calls",
+     "user_id",
+     "name"
+    ],
+    "title": "UsageUser",
+    "type": "object"
+   },
+   "UsageWorkspace": {
+    "properties": {
+     "avg_cost_per_call_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Cost Per Call Eur"
+     },
+     "calls": {
+      "title": "Calls",
+      "type": "integer"
+     },
+     "cost_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Eur"
+     },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "input_tokens": {
+      "title": "Input Tokens",
+      "type": "integer"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "output_tokens": {
+      "title": "Output Tokens",
+      "type": "integer"
+     },
+     "p50_latency_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P50 Latency Ms"
+     },
+     "slug": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Slug"
+     },
+     "unpriced_calls": {
+      "title": "Unpriced Calls",
+      "type": "integer"
+     },
+     "workspace_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Workspace Id"
+     }
+    },
+    "required": [
+     "calls",
+     "failures",
+     "input_tokens",
+     "output_tokens",
+     "p50_latency_ms",
+     "cost_eur",
+     "avg_cost_per_call_eur",
+     "unpriced_calls",
+     "workspace_id",
+     "slug",
+     "name"
+    ],
+    "title": "UsageWorkspace",
     "type": "object"
    },
    "UserCreate": {
@@ -13145,9 +14604,337 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/admin/creation-codes": {
+   "get": {
+    "operationId": "list_creation_codes_api_admin_creation_codes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CreationCodeOut"
+         },
+         "title": "Response List Creation Codes Api Admin Creation Codes Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Creation Codes",
+    "tags": [
+     "access"
+    ]
+   },
+   "post": {
+    "operationId": "create_creation_code_api_admin_creation_codes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreationCodeCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreationCodeCreated"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Creation Code",
+    "tags": [
+     "access"
+    ]
+   }
+  },
+  "/api/admin/creation-codes/{code_id}/revoke": {
+   "post": {
+    "operationId": "revoke_creation_code_api_admin_creation_codes__code_id__revoke_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code_id",
+      "required": true,
+      "schema": {
+       "title": "Code Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreationCodeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Revoke Creation Code",
+    "tags": [
+     "access"
+    ]
+   }
+  },
+  "/api/admin/limits": {
+   "get": {
+    "operationId": "global_limits_api_admin_limits_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/EditableLimit"
+         },
+         "title": "Response Global Limits Api Admin Limits Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Global Limits",
+    "tags": [
+     "admin"
+    ]
+   }
+  },
+  "/api/admin/limits/{key}": {
+   "put": {
+    "operationId": "put_global_limit_api_admin_limits__key__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "key",
+      "required": true,
+      "schema": {
+       "title": "Key",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LimitUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EditableLimit"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Put Global Limit",
+    "tags": [
+     "admin"
+    ]
+   }
+  },
+  "/api/admin/model-prices": {
+   "get": {
+    "operationId": "model_prices_api_admin_model_prices_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ModelPriceOut"
+         },
+         "title": "Response Model Prices Api Admin Model Prices Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Model Prices",
+    "tags": [
+     "admin"
+    ]
+   },
+   "put": {
+    "operationId": "put_model_price_api_admin_model_prices_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ModelPriceIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ModelPriceOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Put Model Price",
+    "tags": [
+     "admin"
+    ]
+   }
+  },
+  "/api/admin/model-prices/{price_id}": {
+   "delete": {
+    "operationId": "delete_model_price_api_admin_model_prices__price_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "price_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Price Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Model Price",
+    "tags": [
+     "admin"
+    ]
+   }
+  },
+  "/api/admin/usage": {
+   "get": {
+    "operationId": "global_usage_api_admin_usage_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "days",
+      "required": false,
+      "schema": {
+       "default": 30,
+       "maximum": 365,
+       "minimum": 1,
+       "title": "Days",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UsageReportAll"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Global Usage",
+    "tags": [
+     "admin"
+    ]
+   }
+  },
   "/api/auth/forgot": {
    "post": {
-    "description": "Always the same answer. The reset link goes to the server console only (no email).",
+    "description": "Always the same answer. The reset link is emailed; without SMTP it goes to the server log.",
     "operationId": "forgot_api_auth_forgot_post",
     "requestBody": {
      "content": {
@@ -13186,6 +14973,48 @@
      }
     },
     "summary": "Forgot",
+    "tags": [
+     "auth"
+    ]
+   }
+  },
+  "/api/auth/join": {
+   "post": {
+    "description": "A signed-in person joins a workspace with a join token.",
+    "operationId": "join_api_auth_join_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/JoinIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Join",
     "tags": [
      "auth"
     ]
@@ -13372,6 +15201,48 @@
      }
     },
     "summary": "Setup",
+    "tags": [
+     "auth"
+    ]
+   }
+  },
+  "/api/auth/signup": {
+   "post": {
+    "description": "Public sign-up with a creation code (mode create) or a join token (mode join). Every\nfailure about the code or the email gives the same answer.",
+    "operationId": "signup_api_auth_signup_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SignupIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Signup",
     "tags": [
      "auth"
     ]
@@ -14902,6 +16773,116 @@
     ]
    }
   },
+  "/api/w/{ws}/admin/limits": {
+   "get": {
+    "operationId": "workspace_limits_api_w__ws__admin_limits_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ws",
+      "required": true,
+      "schema": {
+       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+       "title": "Ws",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/EditableLimit"
+         },
+         "title": "Response Workspace Limits Api W  Ws  Admin Limits Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Workspace Limits",
+    "tags": [
+     "admin"
+    ]
+   }
+  },
+  "/api/w/{ws}/admin/limits/{key}": {
+   "put": {
+    "description": "A workspace value may only be lower than (or equal to) the global one.",
+    "operationId": "put_workspace_limit_api_w__ws__admin_limits__key__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "key",
+      "required": true,
+      "schema": {
+       "title": "Key",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "ws",
+      "required": true,
+      "schema": {
+       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+       "title": "Ws",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LimitUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EditableLimit"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Put Workspace Limit",
+    "tags": [
+     "admin"
+    ]
+   }
+  },
   "/api/w/{ws}/admin/overview": {
    "get": {
     "operationId": "overview_api_w__ws__admin_overview_get",
@@ -15027,6 +17008,61 @@
      }
     },
     "summary": "Runs",
+    "tags": [
+     "admin"
+    ]
+   }
+  },
+  "/api/w/{ws}/admin/usage": {
+   "get": {
+    "operationId": "workspace_usage_api_w__ws__admin_usage_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ws",
+      "required": true,
+      "schema": {
+       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+       "title": "Ws",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "days",
+      "required": false,
+      "schema": {
+       "default": 30,
+       "maximum": 365,
+       "minimum": 1,
+       "title": "Days",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UsageReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Workspace Usage",
     "tags": [
      "admin"
     ]
@@ -15252,6 +17288,70 @@
      }
     },
     "summary": "Put Meeting Org",
+    "tags": [
+     "ai"
+    ]
+   }
+  },
+  "/api/w/{ws}/ai/models": {
+   "get": {
+    "description": "The models this workspace's own key can use (cached one hour); a built-in list when\nthere is no key for that provider or the provider does not answer.",
+    "operationId": "get_models_api_w__ws__ai_models_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ws",
+      "required": true,
+      "schema": {
+       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+       "title": "Ws",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "provider",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "gemini",
+          "anthropic"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Provider"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AiModelsOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Models",
     "tags": [
      "ai"
     ]
@@ -18929,6 +21029,156 @@
     ]
    }
   },
+  "/api/w/{ws}/join-tokens": {
+   "get": {
+    "operationId": "list_join_tokens_api_w__ws__join_tokens_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ws",
+      "required": true,
+      "schema": {
+       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+       "title": "Ws",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/JoinTokenOut"
+         },
+         "title": "Response List Join Tokens Api W  Ws  Join Tokens Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Join Tokens",
+    "tags": [
+     "access"
+    ]
+   },
+   "post": {
+    "operationId": "create_join_token_api_w__ws__join_tokens_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ws",
+      "required": true,
+      "schema": {
+       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+       "title": "Ws",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/JoinTokenCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/JoinTokenCreated"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Join Token",
+    "tags": [
+     "access"
+    ]
+   }
+  },
+  "/api/w/{ws}/join-tokens/{token_id}/revoke": {
+   "post": {
+    "operationId": "revoke_join_token_api_w__ws__join_tokens__token_id__revoke_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "token_id",
+      "required": true,
+      "schema": {
+       "title": "Token Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "ws",
+      "required": true,
+      "schema": {
+       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+       "title": "Ws",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/JoinTokenOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Revoke Join Token",
+    "tags": [
+     "access"
+    ]
+   }
+  },
   "/api/w/{ws}/lookup": {
    "get": {
     "operationId": "lookup_api_w__ws__lookup_get",
@@ -20914,7 +23164,7 @@
       "schema": {
        "anyOf": [
         {
-         "pattern": "^(suggested|open|done|dismissed)$",
+         "pattern": "^(suggested|open|in_progress|done|dismissed)$",
          "type": "string"
         },
         {
@@ -22293,6 +24543,7 @@
     ]
    },
    "post": {
+    "description": "A superadmin, or an account with workspace credits (one is taken). The creator is admin.",
     "operationId": "create_workspace_api_workspaces_post",
     "requestBody": {
      "content": {

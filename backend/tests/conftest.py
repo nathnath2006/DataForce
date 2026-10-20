@@ -180,3 +180,13 @@ def ws_id(db_session: Session):
     from app.services import workspaces
 
     return workspaces.create_workspace(db_session, "test-ws", "Test workspace").id
+
+
+@pytest.fixture(autouse=True)
+def _reset_limit_cache() -> Iterator[None]:
+    """Admin-editable limits are cached in process: start and end each test with no cache."""
+    from app.services import limits
+
+    limits.invalidate()
+    yield
+    limits.invalidate()

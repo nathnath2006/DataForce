@@ -6,9 +6,13 @@ message. `sanitize_error` masks it anyway in anything that comes back from a pro
 
 from __future__ import annotations
 
+import logging
 import re
+import threading
+import time
 import unicodedata
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -22,7 +26,13 @@ from app.services.errors import InvalidInputError
 
 PROVIDERS = ("gemini", "anthropic")
 SUGGESTED_MODELS: dict[str, list[str]] = {
-    "gemini": ["gemini-2.5-flash", "gemini-2.5-pro"],
+    "gemini": [
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-pro-preview",
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+    ],
     "anthropic": ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"],
 }
 NOT_CONFIGURED = "Set an AI model in Settings"
@@ -122,3 +132,114 @@ def record_test(session: Session, cred: LlmCredential, ok: bool, error: str | No
     cred.last_test_ok = ok
     cred.last_error = None if ok else (error or "the test call failed")[:ERROR_MAX_CHARS]
     session.flush()
+
+
+# --- The models a workspace's own key can use ---------------------------------------------------
+log = logging.getLogger(__name__)
+
+MODEL_CACHE_TTL_S = 3600.0
+FAIL_CACHE_TTL_S = 60.0
+MAX_GEMINI_PAGES = 5
+_fail_cache: dict[tuple[uuid.UUID, str], float] = {}
+DEFAULT_MODELS = {"gemini": "gemini-3.5-flash", "anthropic": "claude-haiku-5-5"}
+# Gemini lists embedding, speech, image and live models too: only text generation is useful here.
+_NOT_TEXT = ("embedding", "tts", "image", "live", "audio", "robotics", "computer-use", "aqa")
+_models_lock = threading.Lock()
+_models_cache: dict[tuple[uuid.UUID, str, str], tuple[float, list[str]]] = {}
+
+ModelFetcher = Callable[[str, str, Settings], list[str]]
+
+
+def _first_pages(pager):  # noqa: ANN001, ANN202
+    """Items of at most MAX_GEMINI_PAGES pages of a google-genai pager."""
+    for _ in range(MAX_GEMINI_PAGES):
+        yield from list(pager.page)
+        try:
+            pager.next_page()
+        except IndexError:
+            return
+
+
+def fetch_provider_models(provider: str, key: str, settings: Settings) -> list[str]:
+    """Ask the provider which models this key can use (blocking; call from a sync route)."""
+    timeout = settings.llm_timeout_s
+    if provider == "gemini":
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(
+            api_key=key,
+            vertexai=False,
+            http_options=types.HttpOptions(
+                base_url="https://generativelanguage.googleapis.com/",
+                timeout=int(timeout * 1000),
+            ),
+        )
+        names = []
+        pager = client.models.list()
+        for m in _first_pages(pager):
+            actions = m.supported_actions or []
+            name = (m.name or "").removeprefix("models/")
+            if "generateContent" in actions and name.startswith("gemini-"):
+                if not any(bad in name for bad in _NOT_TEXT):
+                    names.append(name)
+        return names
+    if provider == "anthropic":
+        import anthropic
+
+        client = anthropic.Anthropic(
+            api_key=key, base_url="https://api.anthropic.com", timeout=timeout, max_retries=1
+        )
+        return [m.id for m in client.models.list(limit=100) if m.id.startswith("claude-")]
+    raise InvalidInputError("provider must be gemini or anthropic")
+
+
+def _fallback(provider: str) -> list[str]:
+    return list(SUGGESTED_MODELS[provider])
+
+
+def list_models(
+    session: Session,
+    ws_id: uuid.UUID,
+    provider: str | None,
+    settings: Settings,
+    fetcher: ModelFetcher | None = None,
+) -> tuple[str, str, list[str]]:
+    """(provider, source, models) with source "provider" or "fallback". The provider call is
+    made only with this workspace's own key for its own provider, and cached for an hour. Any
+    failure, or no key, gives the static list; the key is never logged."""
+    cred = get_credential(session, ws_id)
+    name = provider or (cred.provider if cred else "gemini")
+    if name not in PROVIDERS:
+        raise InvalidInputError("provider must be gemini or anthropic")
+    if cred is None or cred.provider != name:
+        return name, "fallback", _fallback(name)
+    cache_key = (ws_id, name, cred.api_key_enc[-16:])
+    now = time.monotonic()
+    with _models_lock:
+        hit = _models_cache.get(cache_key)
+    if hit is not None and now - hit[0] < MODEL_CACHE_TTL_S:
+        return name, "provider", list(hit[1])
+    with _models_lock:
+        failed_at = _fail_cache.get((ws_id, name))
+    if failed_at is not None and now - failed_at < FAIL_CACHE_TTL_S:
+        return name, "fallback", _fallback(name)
+    key = open_key(cred, settings)
+    try:
+        found = sorted(set((fetcher or fetch_provider_models)(name, key, settings)))
+    except Exception as exc:  # any SDK, network or key problem: fall back, say why in the log
+        log.warning("model list failed for %s: %s", name, sanitize_error(str(exc), key))
+        with _models_lock:
+            _fail_cache[(ws_id, name)] = now
+        return name, "fallback", _fallback(name)
+    if not found:
+        return name, "fallback", _fallback(name)
+    with _models_lock:
+        _models_cache[cache_key] = (now, found)
+    return name, "provider", list(found)
+
+
+def clear_model_cache() -> None:
+    with _models_lock:
+        _models_cache.clear()
+        _fail_cache.clear()

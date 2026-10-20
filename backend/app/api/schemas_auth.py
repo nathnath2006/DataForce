@@ -22,6 +22,7 @@ class AuthStatus(BaseModel):
     setup_needed: bool
     signed_in: bool
     demo_logins: list[DemoLogin] = []
+    signup_enabled: bool = True
 
 
 class ForgotIn(_In):
@@ -39,6 +40,18 @@ class SetupIn(_In):
     password: str = Field(max_length=200)
 
 
+class SignupIn(_In):
+    email: str = Field(min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+$")
+    display_name: str = Field(min_length=1, max_length=200)
+    password: str = Field(max_length=200)
+    mode: Literal["create", "join"]
+    code: str = Field(min_length=1, max_length=200)  # a creation code, or a join token
+
+
+class JoinIn(_In):
+    token: str = Field(min_length=1, max_length=200)
+
+
 class LoginIn(_In):
     email: str = Field(min_length=1, max_length=320)
     password: str = Field(max_length=200)
@@ -49,6 +62,7 @@ class AuthUserOut(BaseModel):
     email: str
     display_name: str
     is_admin: bool
+    workspace_credits: int = 0  # workspaces this person may still create
 
 
 class MembershipOut(BaseModel):

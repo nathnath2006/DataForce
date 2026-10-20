@@ -1,10 +1,13 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { adminApi } from "../admin/api";
-import { formatBytes, formatDuration, purposeLabel } from "../admin/format";
+import { formatBytes, formatDuration } from "../admin/format";
 import { HealthBar } from "../quality/HealthBar";
 import { useWs } from "../context";
 import { formatDateTime } from "../lib";
 import { People } from "../admin/People";
+import { Limits } from "../admin/Limits";
+import { Usage } from "../admin/Usage";
+import { AccessCodes } from "../admin/AccessCodes";
 import { useAuth } from "../auth";
 import { Empty, ErrorNote, Loading, Tag, useLoad } from "../ui";
 
@@ -13,12 +16,11 @@ const STATUSES = ["running", "succeeded", "partial", "failed"];
 
 export function AdminPage() {
   const { ws } = useWs();
-  const { isAdmin } = useAuth();
-  const [days, setDays] = useState(30);
+  const { isAdmin, user } = useAuth();
+  const [globalLimits, setGlobalLimits] = useState(false);
   const [kind, setKind] = useState("");
   const [status, setStatus] = useState("");
   const ov = useLoad(() => adminApi.overview(ws.slug), [ws.slug]);
-  const usage = useLoad(() => adminApi.usage(ws.slug, days), [ws.slug, days]);
   const runs = useLoad(() => adminApi.runs(ws.slug, kind, status), [ws.slug, kind, status]);
   const db = ov.data?.database;
   const sc = ov.data?.schema_status;
@@ -61,37 +63,8 @@ export function AdminPage() {
         )}
       </div>
 
-      <div className="card stack">
-        <div className="row between">
-          <h2>AI usage</h2>
-          <select aria-label="Period" value={days} onChange={(ev) => setDays(Number(ev.target.value))}>
-            {[7, 30, 90].map((d) => <option key={d} value={d}>Last {d} days</option>)}
-          </select>
-        </div>
-        <ErrorNote error={usage.error} />
-        {usage.loading && !usage.data ? <Loading /> : usage.data && (
-          <>
-            <p className="muted small">From the llm_call table (persisted calls), not the in-memory budgets.</p>
-            {usage.data.rows.length === 0 ? <Empty>No AI calls in this period.</Empty> : (
-              <div className="tablewrap"><table>
-                <thead><tr><th>Provider</th><th>Model</th><th>Purpose</th><th className="num">Calls</th><th className="num">Failures</th><th className="num">Tokens in</th><th className="num">Tokens out</th></tr></thead>
-                <tbody>{usage.data.rows.map((r) => (
-                  <tr key={`${r.provider}/${r.model}/${r.purpose}`}><td>{r.provider}</td><td>{r.model}</td><td>{purposeLabel(r.purpose)}</td>
-                    <td className="num">{r.calls}</td><td className="num">{r.failures}</td>
-                    <td className="num">{r.input_tokens.toLocaleString()}</td><td className="num">{r.output_tokens.toLocaleString()}</td></tr>
-                ))}</tbody>
-              </table></div>
-            )}
-            <h3>Today</h3>
-            <div className="tablewrap"><table>
-              <thead><tr><th>Purpose</th><th className="num">Calls today</th><th className="num">Daily cap</th></tr></thead>
-              <tbody>{usage.data.today.map((t) => (
-                <tr key={t.purpose}><td>{purposeLabel(t.purpose)}</td><td className="num">{t.calls}</td><td className="num">{t.daily_cap ?? "—"}</td></tr>
-              ))}</tbody>
-            </table></div>
-          </>
-        )}
-      </div>
+      <Usage ws={ws.slug} superadmin={!!user?.is_admin} />
+      <AccessCodes ws={ws.slug} superadmin={!!user?.is_admin} />
 
       <div className="card stack">
         <div className="row between">
@@ -119,16 +92,15 @@ export function AdminPage() {
         ))}
       </div>
 
-      <div className="card stack">
-        <h2>Limits</h2>
-        <p className="muted small">Read-only. These are set in backend/.env.</p>
-        {ov.data && (
-          <dl className="facts">
-            {ov.data.limits.map((l) => (
-              <Fragment key={l.name}><dt>{l.name}</dt><dd><strong>{l.value.toLocaleString()}</strong> <span className="muted small">{l.description}</span></dd></Fragment>
-            ))}
-          </dl>
+      <div className="stack">
+        {user?.is_admin && (
+          <label>Limits for
+            <select value={globalLimits ? "global" : "ws"} onChange={(e) => setGlobalLimits(e.target.value === "global")}>
+              <option value="ws">This workspace</option><option value="global">All workspaces (global)</option>
+            </select>
+          </label>
         )}
+        <Limits ws={user?.is_admin && globalLimits ? null : ws.slug} />
       </div>
     </section>
   );

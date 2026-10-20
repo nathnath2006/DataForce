@@ -23,7 +23,9 @@ router = APIRouter(tags=["themes"])
 Factory = Annotated[ChatFactory, Depends(get_chat_factory)]
 
 
-def _make_namer(db: Session, ws_id, settings, factory: ChatFactory) -> svc.Namer | None:
+def _make_namer(
+    db: Session, ws_id, settings, factory: ChatFactory, user_id=None
+) -> svc.Namer | None:
     cred = llm_settings.get_credential(db, ws_id)
     if cred is None:
         return None
@@ -31,6 +33,7 @@ def _make_namer(db: Session, ws_id, settings, factory: ChatFactory) -> svc.Namer
     recorder = DbUsageRecorder(
         sessionmaker(bind=db.get_bind(), join_transaction_mode="create_savepoint"),
         workspace_id=ws_id,
+        user_id=user_id,
     )
     try:
         provider = factory(
@@ -102,7 +105,7 @@ def run_themes(
     viewer: CurrentViewer,
 ) -> ThemeRunOut:
     k = body.k or settings.themes_default_k
-    namer = _make_namer(db, ws.id, settings, factory) if body.use_ai else None
+    namer = _make_namer(db, ws.id, settings, factory, viewer.user_id) if body.use_ai else None
     res = svc.run_themes(db, ws.id, k=k, speakers=body.speakers, namer=namer, viewer=viewer)
     db.commit()
     dropped = [{"top_terms": d.top_terms, "n_chunks": d.n_chunks} for d in res.dropped]

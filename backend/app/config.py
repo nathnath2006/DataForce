@@ -222,7 +222,7 @@ class Settings(BaseSettings):
     llm_provider: Literal["gemini", "anthropic", "fake"] = "gemini"
     embedding_provider: Literal["gemini", "fake"] = "gemini"
     gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.5-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
     # Must equal app.db.models.EMBEDDING_DIM (the pgvector column size). Changing it = migration.
     embedding_dim: int = 768
@@ -279,6 +279,20 @@ class Settings(BaseSettings):
     # Hosted mode (docs/HOSTED-MODE-CONTRACT.md): the one switch. Empty = local mode. Set to the
     # public https origin (e.g. https://dataforce-abc123-ew.a.run.app) = hosted mode.
     public_origin: str = ""
+    # Email (M6): Gmail over SMTP with an App Password, STARTTLS required. Without a username and
+    # password nothing is sent and the reset link goes to the server log (local dev).
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str = ""
+    smtp_password: SecretStr | None = None
+    mail_from: str = ""  # empty = SMTP_USERNAME
+    mail_from_name: str = "DataForce"
+    # Invitation emails: per workspace and per sender per day, and active join tokens per workspace.
+    invite_emails_per_workspace_per_day: int = Field(default=20, ge=0, le=1000)
+    invite_emails_per_user_per_day: int = Field(default=10, ge=0, le=1000)
+    join_tokens_max_active: int = Field(default=50, ge=1, le=1000)
+    # Kill switch: false closes public sign-up; /api/auth/join (signed in) is unaffected.
+    signup_enabled: bool = True
     # Extra Host header values accepted in hosted mode (e.g. a custom domain).
     allowed_hosts: list[str] = []
     # Hosted only: take the client address from X-Forwarded-For as appended by the platform's
@@ -443,6 +457,11 @@ class Settings(BaseSettings):
 def is_hosted(settings: Settings) -> bool:
     """Hosted mode is on exactly when PUBLIC_ORIGIN is set, never inferred from anything else."""
     return bool(settings.public_origin)
+
+
+def ui_origin(settings: Settings) -> str:
+    """Where links in emails and logs point: the public origin when hosted, else the local UI."""
+    return settings.public_origin or f"http://{settings.ui_host}:{settings.ui_port}"
 
 
 def effective_origins(settings: Settings) -> list[str]:

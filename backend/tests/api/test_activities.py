@@ -148,7 +148,7 @@ def test_tasks(client, setup):
     assert done["status"] == "done" and done["done_at"]
     order = [t["title"] for t in client.get(f"{ws}/deals/{s['deal']['id']}/tasks").json()]
     assert order == ["Later", "Sooner"]  # open first
-    assert client.patch(f"{ws}/tasks/{t1['id']}", json={"status": "suggested"}).status_code == 422
+    assert client.patch(f"{ws}/tasks/{t1['id']}", json={"status": "bogus"}).status_code == 422
     assert client.post(f"{ws}/tasks/{t1['id']}/accept").status_code == 422  # not suggested
     assert len(client.get(f"{ws}/accounts/{s['acc']['id']}/tasks").json()) == 2
     assert client.get(f"{ws}/tasks", params={"status": "done"}).json()["total"] == 1

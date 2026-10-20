@@ -24,7 +24,15 @@ from app.services.errors import ForbiddenError, InvalidInputError
 from app.services.textclean import scrub_text
 
 TITLE_MAX = 300
-SETTABLE = ("open", "done", "dismissed")
+_STATUS_RANK = case(
+    (Task.status == "in_progress", 0),
+    (Task.status == "open", 1),
+    (Task.status == "suggested", 2),
+    (Task.status == "done", 3),
+    else_=4,
+)
+SETTABLE = ("suggested", "open", "in_progress", "done", "dismissed")
+NOT_DONE = ("open", "in_progress")  # a task someone still has to do
 _UPDATABLE = {"title", "due_on", "status", "owner_user_id"}
 
 
@@ -110,10 +118,8 @@ def update_task(
         status = changes["status"]
         if status not in SETTABLE:
             raise InvalidInputError(
-                "status must be open, done or dismissed (suggestions are accepted, not set)"
+                "status must be suggested, open, in_progress, done or dismissed"
             )
-        if row.status == "suggested" and status == "open":
-            raise InvalidInputError("accept a suggested task instead")
         row.done_at = datetime.now(UTC) if status == "done" else None
         row.status = status
     session.flush()
@@ -168,12 +174,7 @@ def list_tasks(
         stmt = stmt.where(Task.owner_user_id == owner_user_id)
     if status:
         stmt = stmt.where(Task.status == status)
-    rank = case(
-        (Task.status == "open", 0),
-        (Task.status == "suggested", 1),
-        (Task.status == "done", 2),
-        else_=3,
-    )
+    rank = _STATUS_RANK
     stmt = stmt.order_by(rank, Task.due_on.asc().nulls_last(), Task.created_at.desc(), Task.id)
     return list(session.scalars(stmt.limit(limit).offset(offset)))
 
@@ -183,9 +184,6 @@ def week_end(today: date) -> date:
     return today + timedelta(days=6 - today.weekday())
 
 
-_STATUS_RANK = case(
-    (Task.status == "open", 0), (Task.status == "suggested", 1), (Task.status == "done", 2), else_=3
-)
 TASK_SORT = {
     "due_on": Task.due_on,
     "title": Task.title,
@@ -227,7 +225,7 @@ def list_tasks_page(
     if owner_user_id is not None:
         cond.append(Task.owner_user_id == owner_user_id)
     if due == "overdue":
-        cond += [Task.due_on < today, Task.status.in_(("open", "suggested"))]
+        cond += [Task.due_on < today, Task.status.in_(("open", "in_progress", "suggested"))]
     elif due == "this_week":
         cond += [Task.due_on >= today, Task.due_on <= week_end(today)]
     elif due == "later":

@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, Outlet, Route, Routes, useNavigate, useParams } from "react-router";
 import { api } from "./api";
 import { WsContext } from "./context";
-import { ForgotPage, LoginPage, RequireAuth, ResetPage, SetupPage, AdminOnly, useAuth } from "./auth";
+import { ForgotPage, LoginPage, RequireAuth, ResetPage, SetupPage, SignupPage, AdminOnly, useAuth } from "./auth";
 import { ErrorNote, Loading } from "./ui";
 import type { WorkspaceOut } from "./types";
 import { CalmCard, NewWorkspaceDialog, WelcomePage } from "./onboarding";
@@ -15,7 +15,6 @@ import { ScopeProvider } from "./shell/scope";
 // Every page is its own chunk, loaded on first visit (the shell and login stay in the main chunk).
 const HomePage = lazy(() => import("./pages/Home").then((m) => ({ default: m.HomePage })));
 const TasksPage = lazy(() => import("./pages/Tasks").then((m) => ({ default: m.TasksPage })));
-const ActivitiesPage = lazy(() => import("./pages/Activities").then((m) => ({ default: m.ActivitiesPage })));
 const AccountsPage = lazy(() => import("./pages/Accounts").then((m) => ({ default: m.AccountsPage })));
 const AccountDetailPage = lazy(() => import("./pages/AccountDetail").then((m) => ({ default: m.AccountDetailPage })));
 const ContactsPage = lazy(() => import("./pages/Contacts").then((m) => ({ default: m.ContactsPage })));
@@ -50,6 +49,7 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot" element={<ForgotPage />} />
       <Route path="/reset" element={<ResetPage />} />
       <Route path="/welcome" element={<RequireAuth><WelcomePage /></RequireAuth>} />
@@ -58,7 +58,6 @@ export function App() {
         <Route index element={<HomePage />} />
         <Route path="home" element={<HomePage />} />
         <Route path="tasks" element={<TasksPage />} />
-        <Route path="activities" element={<ActivitiesPage />} />
         <Route path="summary" element={<SummaryPage />} />
         <Route path="companies" element={<CompaniesPage />} />
         <Route path="companies/:id" element={<CompanyDetailPage />} />
@@ -89,11 +88,11 @@ export function App() {
 
 function Home() {
   const { data, error } = useQuery("/workspaces", () => api.listWorkspaces());
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const first = data?.[0];
   if (first) return <Navigate to={`/w/${first.slug}/home`} replace />;
   if (data && data.length === 0) {
-    if (isAdmin) return <Navigate to="/welcome" replace />;
+    if (isAdmin || (user?.workspace_credits ?? 0) > 0) return <Navigate to="/welcome" replace />;
     return <CalmCard title="You are not in a workspace yet" text="Ask your administrator to add you." />;
   }
   return (

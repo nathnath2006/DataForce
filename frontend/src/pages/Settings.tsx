@@ -151,6 +151,7 @@ function AiSection() {
   const s = useLoad(() => aiApi.get(ws.slug), [ws.slug]);
   const act = useAction();
   const [provider, setProvider] = useState<AiProvider | "">("");
+  const listed = useLoad(() => aiApi.models(ws.slug, provider || undefined).catch(() => null), [ws.slug, provider]);
   const [model, setModel] = useState("");
   const [custom, setCustom] = useState(false);
   const [key, setKey] = useState("");
@@ -160,8 +161,11 @@ function AiSection() {
   if (s.loading && !d) return <Loading />;
   if (!d) return <ErrorNote error={s.error} />;
   const prov: AiProvider = provider || d.provider || "gemini";
-  const suggestions = d.suggested_models[prov] ?? [];
-  const mdl = model || (d.provider === prov ? d.model ?? "" : suggestions[0] ?? "");
+  // The provider's own list (for the key this workspace stores) when it covers this provider; else the built-in suggestions.
+  const fromProvider = listed.data && listed.data.provider === prov ? listed.data.models : [];
+  const suggestions = fromProvider.length ? fromProvider : d.suggested_models[prov] ?? [];
+  const preferred = prov === "gemini" && suggestions.includes("gemini-3.5-flash") ? "gemini-3.5-flash" : suggestions[0] ?? "";
+  const mdl = model || (d.provider === prov ? d.model ?? "" : preferred);
   const showCustom = custom || (mdl !== "" && !suggestions.includes(mdl));
   const keyStored = d.configured && d.provider === prov;
   const needKey = !keyStored || replace;

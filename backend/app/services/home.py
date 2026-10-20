@@ -50,7 +50,7 @@ def _kpis(db: Session, ws_id: uuid.UUID, viewer: Viewer, today: date) -> HomeKpi
         ).where(*deal_cond)
     ).one()
     t_cond = _tasks_cond(ws_id, viewer)
-    is_task_open = Task.status == "open"
+    is_task_open = Task.status.in_(("open", "in_progress"))
     due_week, overdue = db.execute(
         select(
             func.coalesce(
@@ -114,7 +114,11 @@ def _tasks(db: Session, ws_id: uuid.UUID, viewer: Viewer, today: date) -> list[H
         select(Task, Deal.name, Account.name)
         .outerjoin(Deal, Deal.id == Task.deal_id)
         .outerjoin(Account, Account.id == Task.account_id)
-        .where(*_tasks_cond(ws_id, viewer), Task.status == "open", Task.due_on <= week_end(today))
+        .where(
+            *_tasks_cond(ws_id, viewer),
+            Task.status.in_(("open", "in_progress")),
+            Task.due_on <= week_end(today),
+        )
         .order_by(Task.due_on.asc(), Task.created_at, Task.id)
         .limit(LIST_SIZE)
     ).all()
@@ -178,9 +182,12 @@ def _activity(db: Session, ws_id: uuid.UUID, viewer: Viewer) -> list[HomeActivit
         .order_by(func.coalesce(Task.done_at, Task.created_at).desc())
         .limit(LIST_SIZE)
     ):
-        verb = {"done": "done", "dismissed": "dismissed", "suggested": "suggested"}.get(
-            t.status, "open"
-        )
+        verb = {
+            "done": "done",
+            "dismissed": "dismissed",
+            "suggested": "suggested",
+            "in_progress": "in progress",
+        }.get(t.status, "open")
         items.append(
             HomeActivity(
                 id=f"task:{t.id}", kind="task", at=t.done_at or t.created_at,

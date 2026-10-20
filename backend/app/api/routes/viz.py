@@ -17,6 +17,7 @@ from app.api.schemas_viz import (
 from app.flows.blocks._common import dtype_of
 from app.flows.ports import FlowLimits
 from app.flows.schemas import ColumnInfo
+from app.services import limits as limits_service
 from app.stats.engine import gate_config_from_settings
 from app.viz import engine, explain
 from app.viz import source as src
@@ -81,7 +82,8 @@ def explain_route(
 ) -> ExplainResponse:
     loaded = src.load(db, ws.id, body.source, settings, sessions, viewer)
     df = engine.apply_filters(loaded.df, body.filters)
-    limits = FlowLimits(max_rows=settings.flow_max_rows, timeout_s=src.TIME_BUDGET_S)
+    eff = limits_service.effective_settings(db, settings, ws.id)
+    limits = FlowLimits(max_rows=eff.flow_max_rows, timeout_s=src.TIME_BUDGET_S)
     findings, method, notes = explain.explain(df, body, gate_config_from_settings(settings), limits)
     verified, not_verified = explain.split_sorted(findings)
     if loaded.truncated:

@@ -16,7 +16,7 @@ export function SetupPage() {
   if (!loading && !setupNeeded) return <Navigate to="/login" replace />;
   return (
     <AuthShell
-      title="Welcome" subtitle="This creates the administrator, who manages the workspaces and the other people."
+      title="Set up DataForce" subtitle="This creates the administrator, who manages the workspaces and the other people."
       onSubmit={() => { if (!a.busy) void a.run(async () => { setMe(await authApi.setup({ email, display_name: name, password })); nav("/", { replace: true }); }); }}
       footer={<>Already set up? <Link className="auth-link" to="/login">Sign in</Link></>}
     >

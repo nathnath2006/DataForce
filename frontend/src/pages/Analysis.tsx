@@ -39,9 +39,11 @@ export function AnalysisPage() {
     <section className="stack">
       <AnalysisTabs />
       <div className="page-head">
-        <h1>Insights</h1>
+        <h1>Pipeline scan</h1>
         <button className="primary" disabled={act.busy} onClick={() => void run()}>{act.busy ? "Running…" : "Run analysis"}</button>
       </div>
+
+      <p className="muted">Compares groups of deals (owner, source, segment…) on win rate, cycle and deal size, and marks each difference verified only when a statistical test backs it.</p>
 
       <div className="tile">
         <h2>Pipeline <Tag kind="mute">exact count</Tag></h2>

@@ -24,6 +24,7 @@ EXEMPT = frozenset(
         "/api/auth/status",
         "/api/auth/setup",
         "/api/auth/login",
+        "/api/auth/signup",
         "/api/auth/forgot",
         "/api/auth/reset",
         "/api/connectors/tamtam/callback",

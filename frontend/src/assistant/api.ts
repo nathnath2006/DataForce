@@ -1,11 +1,14 @@
 import { request, w } from "../api";
 import type * as T from "../types";
+import type { AiModelsOut } from "../api.gen";
 
 export const aiApi = {
   get: (ws: string) => request<T.AiSettingsOut>("GET", `${w(ws)}/ai`),
   put: (ws: string, b: T.AiSettingsIn) => request<T.AiSettingsOut>("PUT", `${w(ws)}/ai`, b),
   setMeetingOrg: (ws: string, enabled: boolean) =>
     request<T.AiSettingsOut>("PUT", `${w(ws)}/ai/meeting-org`, { enabled }),
+  models: (ws: string, provider?: T.AiProvider) =>
+    request<AiModelsOut>("GET", `${w(ws)}/ai/models${provider ? `?provider=${provider}` : ""}`),
   remove: (ws: string) => request<void>("DELETE", `${w(ws)}/ai`),
   test: (ws: string) => request<T.AiSettingsOut>("POST", `${w(ws)}/ai/test`),
   scope: (ws: string, s: T.AskScope) =>

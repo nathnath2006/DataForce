@@ -12,8 +12,9 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [demos, setDemos] = useState<DemoLogin[]>([]);
+  const [signupEnabled, setSignupEnabled] = useState(true);
   const a = useAction();
-  useEffect(() => { authApi.status().then((s) => setDemos(s.demo_logins ?? [])).catch(() => {}); }, []);
+  useEffect(() => { authApi.status().then((s) => { setDemos(s.demo_logins ?? []); setSignupEnabled(s.signup_enabled !== false); }).catch(() => {}); }, []);
   if (!loading && setupNeeded) return <Navigate to="/setup" replace />;
   if (user) return <Navigate to="/" replace />;
 
@@ -24,22 +25,18 @@ export function LoginPage() {
 
   return (
     <AuthShell
-      title="Sign in" subtitle="Welcome back."
+      title="Sign in to DataForce" tab="login" signupEnabled={signupEnabled}
       onSubmit={() => { if (email.trim() && !a.busy) void signIn(email, password); }}
-      footer="DataForce runs on this computer."
     >
       <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" placeholder="you@company.com" autoFocus /></label>
-      <div className="auth-field">
-        <PasswordField label="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-        <Link className="auth-link" to="/forgot">Forgot password?</Link>
-      </div>
+      <PasswordField label="Password" aside={<Link className="auth-link" to="/forgot">Forgot password?</Link>} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
       {failed ? (
         <div className="note err" role="alert">
           Wrong email or password.
           {isDemo && password !== "" && <> Demo accounts have no password: leave it empty.</>}
         </div>
       ) : <ErrorNote error={a.error} />}
-      <button className="primary" disabled={a.busy || email.trim() === ""}>{a.busy ? "Signing in…" : "Sign in"}</button>
+      <button className="primary" disabled={a.busy || email.trim() === ""}>{a.busy ? "Signing in…" : "Sign in →"}</button>
       {demos.length > 0 && (
         <section className="demo-box" aria-label="Demo accounts">
           <h2>Try a demo account</h2>

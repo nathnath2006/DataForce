@@ -92,13 +92,14 @@ function Flow(props: { variant: "page" | "modal"; onClose?: () => void; onDone: 
   );
 }
 
-/** /welcome: admin only. */
+/** /welcome: the superadmin, or an account with workspace credits. */
 export function WelcomePage() {
-  const { isAdmin, loading } = useAuth();
+  const { isAdmin, user, loading, refresh } = useAuth();
+  const canCreate = isAdmin || (user?.workspace_credits ?? 0) > 0;
   const nav = useNavigate();
-  const done = useCallback((s: string) => nav(`/w/${s}/home`, { replace: true }), [nav]);
+  const done = useCallback((s: string) => { void refresh(); nav(`/w/${s}/home`, { replace: true }); }, [nav, refresh]);
   if (loading) return null;
-  if (!isAdmin) return <Navigate to="/" replace />;
+  if (!canCreate) return <Navigate to="/" replace />;
   return <Flow variant="page" onDone={done} />;
 }
 

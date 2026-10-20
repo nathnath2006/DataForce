@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Response
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.api.deps import (
     AppSettings,
@@ -16,8 +16,9 @@ from app.api.deps import (
 )
 from app.api.schemas import UserCreate, UserOut, WorkspaceCreate, WorkspaceOut, WorkspaceSetup
 from app.auth.visibility import require_admin
-from app.db.models import Membership, Workspace
+from app.db.models import Membership, UserAccount, Workspace
 from app.domain.schemas import UserIn
+from app.services import limits as limits_service
 from app.services import user_accounts, users, workspace_setup, workspaces
 from app.services.admin import db_size
 from app.services.errors import ForbiddenError, NotFoundError
@@ -56,16 +57,29 @@ QUOTA_STOP_PCT = 80  # no new test workspace when the database is this full
 def create_workspace(
     body: WorkspaceCreate,
     db: Db,
-    admin: SuperAdmin,
+    user: SessionUser,
     settings: AppSettings,
     factory: SessionFactory,
 ) -> WorkspaceOut:
+    """A superadmin, or an account with workspace credits (one is taken). The creator is admin."""
+    if not user.is_admin:
+        # One atomic decrement: two requests cannot spend the same credit.
+        spent = db.execute(
+            update(UserAccount)
+            .where(UserAccount.id == user.id, UserAccount.workspace_credits > 0)
+            .values(workspace_credits=UserAccount.workspace_credits - 1)
+            .returning(UserAccount.id)
+        ).first()
+        if spent is None:
+            raise ForbiddenError("You cannot create a workspace.")
+    admin = user
     if body.kind == "real":
         ws = workspaces.create_workspace(db, body.slug, body.name, is_demo=False)
         user_accounts.add_membership(db, admin, ws, role="admin")
         db.commit()
         return _out(ws)
-    used = db_size(db, settings.db_quota_mb)["used_pct"]
+    quota = limits_service.effective(db, settings, "db_quota_mb", None)
+    used = db_size(db, quota)["used_pct"]
     if used is not None and used > QUOTA_STOP_PCT:
         raise HTTPException(
             status_code=409,
@@ -89,8 +103,12 @@ def create_workspace(
 
 
 @router.get("/workspaces/{slug}/setup", response_model=WorkspaceSetup, tags=["workspaces"])
-def workspace_setup_status(slug: str, db: Db, admin: SuperAdmin) -> WorkspaceSetup:
+def workspace_setup_status(slug: str, db: Db, user: SessionUser) -> WorkspaceSetup:
     ws = workspaces.get_workspace_by_slug(db, slug)
+    if not user.is_admin:  # the admin of a workspace they created may watch it fill
+        member = ws and user_accounts.get_membership(db, user.id, ws.id)
+        if member is None or member.role != "admin":
+            raise ForbiddenError("administrator only")
     job = workspace_setup.get(slug)
     total = workspace_setup.TOTAL
     # A ready row wins over a stale failed entry (the slug may have been reused within 10 min).

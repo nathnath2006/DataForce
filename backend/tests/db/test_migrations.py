@@ -55,6 +55,8 @@ LOCKDOWN_MIGRATIONS = (
     "0009_m4.py",
     "0010_mailbox.py",
     "0011_auth.py",
+    "0013_accounts.py",
+    "0014_limits_usage.py",
 )
 
 

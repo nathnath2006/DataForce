@@ -56,7 +56,7 @@ from app.db.models import (
 from app.domain.enums import OPEN_STAGES, RunStatus
 from app.enrichment.errors import EnrichmentConfigError, EnrichmentError
 from app.flows.blocks.domain import extract_domain, is_free
-from app.services import activities, runs
+from app.services import activities, limits, runs
 from app.services._common import require, require_deal
 from app.services.errors import InvalidInputError, NotFoundError
 
@@ -193,6 +193,7 @@ def _counts(db: Session, conn_id: uuid.UUID) -> MailboxCounts:
 
 
 def status_view(db: Session, settings: Settings, ws: Workspace) -> MailboxStatusOut:
+    settings = limits.effective_settings(db, settings, ws.id)
     views: list[MailboxConnectionOut] = []
     for name, mod in PROVIDERS.items():
         conn = get_connection(db, ws.id, name)
@@ -612,6 +613,7 @@ def _store_page(
 ) -> tuple[int, int, int]:
     """Upsert the candidates of one page. Returns (candidates, new, suggested). Idempotent:
     an existing row is only re-scored while it is still `suggested`."""
+    settings = limits.effective_settings(db, settings, ws_id)
     now = datetime.now(UTC)
     ids = [m.id for m in page]
     existing = {
@@ -678,6 +680,7 @@ def _store_page(
 async def sync(
     db: Session, settings: Settings, ws_id: uuid.UUID, provider: str | None = None
 ) -> MailboxSyncResultOut:
+    settings = limits.effective_settings(db, settings, ws_id)
     names = [provider] if provider else list(PROVIDERS)
 
     def start() -> tuple[uuid.UUID, list[str]]:

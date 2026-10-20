@@ -12,6 +12,7 @@ from app.config import Settings
 from app.db.models import UploadedFile
 from app.flows.sources import files as parsing
 from app.flows.sources.frame import column_infos
+from app.services import limits as limits_service
 from app.services._common import get_scoped
 from app.services.errors import InvalidInputError, NotFoundError
 
@@ -24,6 +25,7 @@ def create_file(
     sheet: str | None,
     settings: Settings,
 ) -> UploadedFile:
+    settings = limits_service.effective_settings(db, settings, ws_id)
     name = parsing.sanitize_name(filename)
     if not data:
         raise InvalidInputError("the file is empty")

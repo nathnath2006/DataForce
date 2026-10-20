@@ -291,6 +291,10 @@ class LlmCall(Base):
         ForeignKey("workspace.id", ondelete="CASCADE"), index=True
     )
     run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("run.id", ondelete="SET NULL"))
+    # Who caused the call; NULL = the system (background jobs, CLI) or a deleted account.
+    user_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL"), index=True
+    )
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
     model: Mapped[str] = mapped_column(String(64), nullable=False)
     purpose: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -764,7 +768,9 @@ class Task(Base):
     __tablename__ = "task"
     __table_args__ = (
         Index("ix_task_ws_status", "workspace_id", "status"),
-        CheckConstraint("status IN ('suggested','open','done','dismissed')", name="ck_task_status"),
+        CheckConstraint(
+            "status IN ('suggested','open','in_progress','done','dismissed')", name="ck_task_status"
+        ),
         CheckConstraint("source IN ('manual','ai_suggested','demo')", name="ck_task_source"),
     )
 
@@ -910,6 +916,7 @@ class UserAccount(Base):
     demo workspaces on loopback (docs/M5-LOGIN-AND-UI-CONTRACT.md)."""
 
     __tablename__ = "user_account"
+    __table_args__ = (CheckConstraint("workspace_credits >= 0", name="ck_user_account_credits"),)
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
@@ -919,6 +926,10 @@ class UserAccount(Base):
     disabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = _created()
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Workspaces this person may still create (a sign-up with a creation code gives 1).
+    workspace_credits: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
 
 
 class Membership(Base):
@@ -959,6 +970,62 @@ class UserSession(Base):
     last_seen_at: Mapped[datetime] = _created()
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     user_agent: Mapped[str | None] = mapped_column(String(200))
+
+
+# --- M6: creation codes and join tokens (migration 0013_accounts) --------------------------------
+class CreationCode(Base):
+    """A code the superadmin hands out so someone can sign up and create a workspace. Only the
+    SHA-256 of the code is stored."""
+
+    __tablename__ = "creation_code"
+    __table_args__ = (
+        CheckConstraint(
+            "max_uses >= 1 AND max_uses <= 100 AND uses >= 0", name="ck_creation_code_uses"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = _created()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    max_uses: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    uses: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class JoinToken(Base):
+    """A token a workspace admin hands out so someone can join that workspace. Only the SHA-256
+    of the token is stored."""
+
+    __tablename__ = "join_token"
+    __table_args__ = (
+        CheckConstraint("role IN ('admin', 'rep')", name="ck_join_token_role"),
+        CheckConstraint(
+            "max_uses >= 1 AND max_uses <= 50 AND uses >= 0", name="ck_join_token_uses"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspace.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    role: Mapped[str] = mapped_column(String(8), nullable=False, default="rep")
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = _created()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    max_uses: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    uses: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set when an invitation email was accepted for sending (counted for the daily caps).
+    emailed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # Performance indexes (migration 0008_indexes): `workspace_id` on the big tables, and every foreign
@@ -1018,3 +1085,74 @@ Index(
     MailboxMessage.suggested_deal_id,
     postgresql_where=_not_null("suggested_deal_id"),
 )
+
+
+# --- M6: admin-editable limits and AI prices ----------------------------------------------------
+class SettingOverride(Base):
+    """An admin-set value for an allow-listed limit (app/services/limits.py). `workspace_id`
+    NULL = global. The effective value is the workspace override, else the global one, else the
+    `.env` default."""
+
+    __tablename__ = "setting_override"
+    __table_args__ = (
+        Index(
+            "uq_setting_override_ws",
+            "key",
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("workspace_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_setting_override_global",
+            "key",
+            unique=True,
+            postgresql_where=text("workspace_id IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    key: Mapped[str] = mapped_column(String(80), nullable=False)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("workspace.id", ondelete="CASCADE")
+    )
+    value: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL")
+    )
+    updated_at: Mapped[datetime] = _updated()
+
+
+class SettingOverrideAudit(Base):
+    """Append-only trail of limit changes: who, when, old to new (NULL = the default)."""
+
+    __tablename__ = "setting_override_audit"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    key: Mapped[str] = mapped_column(String(80), nullable=False)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("workspace.id", ondelete="CASCADE")
+    )
+    old_value: Mapped[Any | None] = mapped_column(JSONB)
+    new_value: Mapped[Any | None] = mapped_column(JSONB)
+    changed_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL")
+    )
+    changed_at: Mapped[datetime] = _created()
+
+
+class ModelPrice(Base):
+    """What one million tokens of a model cost, set by the superadmin. No row = no price: the
+    usage page then says "set a price" instead of guessing."""
+
+    __tablename__ = "model_price"
+    __table_args__ = (UniqueConstraint("provider", "model", name="uq_model_price"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_per_mtok_eur: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
+    output_per_mtok_eur: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL")
+    )
+    updated_at: Mapped[datetime] = _updated()

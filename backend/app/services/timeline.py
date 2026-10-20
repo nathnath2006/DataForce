@@ -256,9 +256,12 @@ def _task_items(session, ws_id, deal_id, account_id, before, n, viewer=None) -> 
     out = []
     for t in rows:
         at = t.done_at or t.created_at
-        verb = {"done": "done", "dismissed": "dismissed", "suggested": "suggested"}.get(
-            t.status, "open"
-        )
+        verb = {
+            "done": "done",
+            "dismissed": "dismissed",
+            "suggested": "suggested",
+            "in_progress": "in progress",
+        }.get(t.status, "open")
         out.append(
             Item(
                 id=f"task:{t.id}",

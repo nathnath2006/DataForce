@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas_ai import (
     DATA_NOTICE,
+    AiModelsOut,
     AiSettingsIn,
     AiSettingsOut,
     AskIn,
@@ -33,6 +34,7 @@ from app.domain.ports import ChatMessage, ChatProvider
 from app.enrichment.errors import EnrichmentError
 from app.llm.errors import LLMError
 from app.llm.registry import get_chat_llm
+from app.services import limits as limits_service
 from app.services import llm_settings, org_ai
 from app.services.llm_usage import DbUsageRecorder
 
@@ -70,13 +72,19 @@ def _out(cred: LlmCredential | None) -> AiSettingsOut:
 
 
 def _provider(
-    db: Session, ws_id: uuid.UUID, cred: LlmCredential, settings: Settings, factory: ChatFactory
+    db: Session,
+    ws_id: uuid.UUID,
+    cred: LlmCredential,
+    settings: Settings,
+    factory: ChatFactory,
+    user_id: uuid.UUID | None = None,
 ) -> tuple[ChatProvider, str]:
     """(provider, plain key). The usage recorder writes in its own short transaction."""
     key = llm_settings.open_key(cred, settings)
     recorder = DbUsageRecorder(
         sessionmaker(bind=db.get_bind(), join_transaction_mode="create_savepoint"),
         workspace_id=ws_id,
+        user_id=user_id,
     )
     try:
         provider = factory(
@@ -103,6 +111,23 @@ async def _call(provider: ChatProvider, coro: Any, key: str) -> Any:
 def get_ai(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> AiSettingsOut:
     require_admin(viewer)
     return _out(llm_settings.get_credential(db, ws.id))
+
+
+@router.get("/w/{ws}/ai/models", response_model=AiModelsOut)
+def get_models(
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    viewer: CurrentViewer,
+    provider: Literal["gemini", "anthropic"] | None = None,
+) -> AiModelsOut:
+    """The models this workspace's own key can use (cached one hour); a built-in list when
+    there is no key for that provider or the provider does not answer."""
+    require_admin(viewer)
+    name, source, models = llm_settings.list_models(db, ws.id, provider, settings)
+    return AiModelsOut(
+        provider=name, source=source, default=llm_settings.DEFAULT_MODELS[name], models=models
+    )
 
 
 @router.put("/w/{ws}/ai", response_model=AiSettingsOut)
@@ -147,8 +172,9 @@ def test_ai(
 ) -> AiSettingsOut:
     require_admin(viewer)
     cred = llm_settings.require_credential(db, ws.id)
+    settings = limits_service.effective_settings(db, settings, ws.id)
     check_and_count(ws.id, settings.assistant_max_asks_per_hour)
-    provider, key = _provider(db, ws.id, cred, settings, factory)
+    provider, key = _provider(db, ws.id, cred, settings, factory, viewer.user_id)
     try:
         asyncio.run(
             _call(
@@ -192,6 +218,7 @@ def ask(
     viewer: CurrentViewer,
 ) -> AskOut:
     validate_scope(db, ws.id, body.scope.kind, body.scope.id, viewer)  # 404 before the quota counts
+    settings = limits_service.effective_settings(db, settings, ws.id)
     check_and_count(ws.id, settings.assistant_max_asks_per_hour)
     cred = llm_settings.require_credential(db, ws.id)
     ctx, _title = build_context(
@@ -202,7 +229,7 @@ def ask(
         max_chars=settings.assistant_max_context_chars,
         viewer=viewer,
     )
-    provider, key = _provider(db, ws.id, cred, settings, factory)
+    provider, key = _provider(db, ws.id, cred, settings, factory, viewer.user_id)
     history = [ChatMessage(role=t.role, content=t.content) for t in body.history]
     result, checked = asyncio.run(
         _call(

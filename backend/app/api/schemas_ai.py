@@ -48,6 +48,15 @@ class AiSettingsOut(BaseModel):
     data_notice: str
 
 
+class AiModelsOut(BaseModel):
+    provider: str
+    source: Literal[
+        "provider", "fallback"
+    ]  # fallback = the built-in list (no key, or the call failed)
+    default: str
+    models: list[str]
+
+
 class MeetingOrgIn(_In):
     enabled: bool
 

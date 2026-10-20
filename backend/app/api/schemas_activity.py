@@ -12,7 +12,7 @@ from app.domain.enums import DealStage
 
 ActivityKind = Literal["call", "email", "meeting", "other"]
 Direction = Literal["inbound", "outbound"]
-TaskStatusSettable = Literal["open", "done", "dismissed"]
+TaskStatusSettable = Literal["suggested", "open", "in_progress", "done", "dismissed"]
 
 
 class _In(BaseModel):

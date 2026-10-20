@@ -21,6 +21,7 @@ from app.db.models import Document, MeetingOrgAiCache
 from app.llm.errors import LLMError
 from app.orgchart import meeting_ai
 from app.orgchart.meetings import ChunkRec, ContactRef
+from app.services import limits as limits_service
 from app.services import llm_settings
 from app.services._budget import FAILURE_TTL_S, Budget  # noqa: F401 (re-exported)
 from app.services.llm_usage import DbUsageRecorder
@@ -106,8 +107,11 @@ class AiPass:
         ws_id: uuid.UUID,
         settings: Settings,
         factory: Callable[..., Any],
+        user_id: uuid.UUID | None = None,
     ) -> None:
         cred = llm_settings.require_credential(session, ws_id)
+        settings = limits_service.effective_settings(session, settings, ws_id)
+        self.user_id = user_id
         self.session, self.ws_id, self.settings, self.factory = session, ws_id, settings, factory
         self.provider_name, self.model = cred.provider, cred.model
         self.stats = AiStats()
@@ -126,6 +130,7 @@ class AiPass:
         recorder = DbUsageRecorder(
             sessionmaker(bind=self.session.get_bind(), join_transaction_mode="create_savepoint"),
             workspace_id=self.ws_id,
+            user_id=self.user_id,
         )
         return self.factory(
             cred.provider, api_key=key, model=cred.model, settings=self.settings, usage=recorder

@@ -59,7 +59,7 @@ export function ExplainPanel(props: {
   return (
     <aside className="card wb-side" aria-label="Explain">
       <div className="row between"><h3>Explain</h3><button className="ghost" aria-label="Close Explain" onClick={props.onClose}>×</button></div>
-      <p className="muted small">Each group against the rest, with the same gates and false-discovery control as Insights; that control runs across the whole Explain (all attributes together). The canvas filters apply.</p>
+      <p className="muted small">Each group against the rest, with the same gates and false-discovery control as the Pipeline scan; that control runs across the whole Explain (all attributes together). The canvas filters apply.</p>
       <label>Measure
         <select value={measure} onChange={(e) => { setMeasure(e.target.value); setRes(null); }}>
           {opts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}

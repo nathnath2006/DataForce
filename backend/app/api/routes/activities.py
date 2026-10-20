@@ -225,7 +225,9 @@ def list_tasks(
     deal_id: uuid.UUID | None = None,
     account_id: uuid.UUID | None = None,
     owner_id: uuid.UUID | None = None,
-    status: Annotated[str | None, Query(pattern="^(suggested|open|done|dismissed)$")] = None,
+    status: Annotated[
+        str | None, Query(pattern="^(suggested|open|in_progress|done|dismissed)$")
+    ] = None,
     due: Annotated[str | None, Query(pattern="^(overdue|this_week|later|none)$")] = None,
     sort: Literal["due_on", "title", "status", "created_at"] | None = None,
     direction: Annotated[Literal["asc", "desc"], Query(alias="dir")] = "asc",

@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, HTTPException, Request, Response
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import AppSettings, Db, SessionUser
 from app.api.schemas_auth import (
@@ -14,17 +15,20 @@ from app.api.schemas_auth import (
     AuthUserOut,
     DemoLogin,
     ForgotIn,
+    JoinIn,
     LoginIn,
     MembershipOut,
     MeOut,
     ResetIn,
     SetupIn,
+    SignupIn,
 )
 from app.auth import passwords, ratelimit, reset, sessions
 from app.auth.access import empty_password_allowed, is_loopback
-from app.config import Settings, is_hosted
+from app.config import Settings, is_hosted, ui_origin
 from app.db.models import AppUser, Membership, UserAccount, Workspace
-from app.services import user_accounts
+from app.services import access_codes, mailer, user_accounts
+from app.services.errors import AlreadyExistsError
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -46,7 +50,13 @@ def set_cookie(response: Response, token: str, settings: Settings) -> None:
 
 
 def _user_out(u: UserAccount) -> AuthUserOut:
-    return AuthUserOut(id=u.id, email=u.email, display_name=u.display_name, is_admin=u.is_admin)
+    return AuthUserOut(
+        id=u.id,
+        email=u.email,
+        display_name=u.display_name,
+        is_admin=u.is_admin,
+        workspace_credits=u.workspace_credits,
+    )
 
 
 @router.get("/status", response_model=AuthStatus)
@@ -60,6 +70,7 @@ def status(
     return AuthStatus(
         setup_needed=not user_accounts.admin_exists(db),
         signed_in=getattr(request.state, "user_id", None) is not None,
+        signup_enabled=settings.signup_enabled,
         demo_logins=[DemoLogin(email=e, display_name=n) for e, n in demo],
     )
 
@@ -113,7 +124,7 @@ def login(
 
 @router.post("/forgot", status_code=202)
 def forgot(body: ForgotIn, request: Request, db: Db, settings: AppSettings) -> dict[str, bool]:
-    """Always the same answer. The reset link goes to the server console only (no email)."""
+    """Always the same answer. The reset link is emailed; without SMTP it goes to the server log."""
     email = "forgot:" + body.email.strip().lower()
     client = "forgot:" + (request.client.host if request.client else "unknown")
     try:
@@ -125,13 +136,20 @@ def forgot(body: ForgotIn, request: Request, db: Db, settings: AppSettings) -> d
     if user is not None and not user.disabled:
         token = reset.make_token(settings, user)
         if token is not None:
-            origin = settings.public_origin or f"http://{settings.ui_host}:{settings.ui_port}"
-            log.warning(
-                "Password reset link for %s (valid 15 minutes): %s/reset?token=%s",
-                user.email,
-                origin,
-                token,
-            )
+            link = f"{ui_origin(settings)}/reset?token={token}"
+            if mailer.is_configured(settings):
+                mailer.send_async(
+                    settings,
+                    user.email,
+                    "Reset your DataForce password",
+                    "Someone asked to reset the password of your DataForce account.\n\n"
+                    f"Open this link within 15 minutes to choose a new password:\n{link}\n\n"
+                    "If this was not you, ignore this email: your password stays as it is.\n",
+                )
+            elif is_hosted(settings):
+                log.warning("Password reset requested but email is not configured")
+            else:
+                log.warning("Password reset link for %s (valid 15 minutes): %s", user.email, link)
     return {"accepted": True}
 
 
@@ -157,6 +175,82 @@ def reset_password(
     token = sessions.create_session(db, user, request.headers.get("user-agent"))
     db.commit()
     set_cookie(response, token, settings)
+    return _me(db, user)
+
+
+_BAD_CODE = access_codes.GENERIC_ERROR
+
+
+def _client(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+@router.post("/signup", response_model=MeOut, status_code=201)
+def signup(
+    body: SignupIn, request: Request, response: Response, db: Db, settings: AppSettings
+) -> MeOut:
+    """Public sign-up with a creation code (mode create) or a join token (mode join). Every
+    failure about the code or the email gives the same answer."""
+    if not settings.signup_enabled:
+        raise HTTPException(status_code=403, detail="sign-up is closed")
+    email = body.email.strip().lower()
+    client = "signup:" + _client(request)
+    key = "signup:" + email
+    try:
+        ratelimit.check(key, client)
+    except ratelimit.TooManyAttempts as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from None
+    # Hash first: a bad code costs the same time as a good one.
+    pw_hash = passwords.hash_for_new_password(body.password, empty_allowed=False)
+
+    def fail() -> HTTPException:
+        db.rollback()
+        ratelimit.record_failure(key, client)
+        return HTTPException(status_code=400, detail=_BAD_CODE)
+
+    if user_accounts.get_by_email(db, email) is not None:
+        raise fail()
+    row = (
+        access_codes.consume_code(db, body.code)
+        if body.mode == "create"
+        else access_codes.consume_join_token(db, body.code)
+    )
+    if row is None:
+        raise fail()
+    try:
+        user = user_accounts.create_account(db, email, body.display_name, pw_hash)
+        if body.mode == "create":
+            user.workspace_credits = 1
+        else:
+            ws = db.get(Workspace, row.workspace_id)
+            if ws is None:
+                raise fail()
+            user_accounts.add_membership(db, user, ws, role=row.role)
+        token = sessions.create_session(db, user, request.headers.get("user-agent"))
+        db.commit()
+    except (AlreadyExistsError, IntegrityError):
+        raise fail() from None
+    set_cookie(response, token, settings)
+    return _me(db, user)
+
+
+@router.post("/join", response_model=MeOut)
+def join(body: JoinIn, request: Request, db: Db, user: SessionUser) -> MeOut:
+    """A signed-in person joins a workspace with a join token."""
+    client = "join:" + _client(request)
+    key = f"join:{user.id}"
+    try:
+        ratelimit.check(key, client)
+    except ratelimit.TooManyAttempts as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from None
+    row = access_codes.consume_join_token(db, body.token)
+    ws = db.get(Workspace, row.workspace_id) if row is not None else None
+    if row is None or ws is None or user_accounts.get_membership(db, user.id, ws.id) is not None:
+        db.rollback()
+        ratelimit.record_failure(key, client)
+        raise HTTPException(status_code=400, detail=_BAD_CODE)
+    user_accounts.add_membership(db, user, ws, role=row.role)
+    db.commit()
     return _me(db, user)
 
 

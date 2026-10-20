@@ -228,7 +228,7 @@ def propose(
             from app.llm.registry import get_chat_llm
 
             factory = get_chat_llm
-        ai = org_ai.AiPass(session, ws_id, settings, factory)
+        ai = org_ai.AiPass(session, ws_id, settings, factory, viewer.user_id if viewer else None)
     with_chunks: set[uuid.UUID] | None = None
     if account_id is None and ProposalOrigin.MEETING.value in origin_values:
         with_chunks = set(

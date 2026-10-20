@@ -9,3 +9,4 @@ export { UserMenu } from "./UserMenu";
 export { AdminOnly, useCanDelete, useSeesAll } from "./AdminOnly";
 export { ForgotPage } from "./ForgotPage";
 export { ResetPage } from "./ResetPage";
+export { SignupPage } from "./SignupPage";

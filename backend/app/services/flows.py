@@ -17,6 +17,7 @@ from app.domain.schemas import GateConfig
 from app.flows.ports import FlowLimits, SourceLoader
 from app.flows.schemas import FlowGraph, NodeResult, ScoreConfig
 from app.flows.scoring import ModelSnapshot
+from app.services import limits as limits_service
 from app.services import runs
 from app.services._common import get_scoped
 from app.services.errors import InvalidInputError, NotFoundError
@@ -198,6 +199,7 @@ def execute(
     started_at, results)."""
     if target is not None and target not in {n.id for n in graph.nodes}:
         raise InvalidInputError("target is not a node of the graph")
+    settings = limits_service.effective_settings(db, settings, ws_id)
     slot = _semaphore(settings.flow_max_concurrent_runs)
     if not slot.acquire(blocking=False):
         raise TooManyRuns("another analysis is still running, try again in a moment")

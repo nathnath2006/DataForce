@@ -14,6 +14,7 @@ from app import __version__
 from app.api.deps import SessionFactory
 from app.api.errors import install_error_handlers
 from app.api.routes import (
+    access_codes,
     activities,
     admin,
     agent,
@@ -105,6 +106,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     routers += (saved_models, genai, mailbox)  # M4 phase 2
     routers += (home,)  # M5 home dashboard
     routers += (auth, users)  # M5 sign-in and members
+    routers += (access_codes,)  # M6 creation codes and join tokens
     for module in routers:
         app.include_router(module.router, prefix="/api")
     app.add_middleware(GZipMiddleware, minimum_size=1000)  # inside security: headers still added

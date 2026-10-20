@@ -37,6 +37,7 @@ from app.enrichment.errors import EnrichmentError
 from app.llm.errors import LLMError
 from app.llm.quotes import MAX_QUOTE_CHARS, match_key
 from app.llm.untrusted import sanitize_text, wrap_sources
+from app.services import limits as limits_service
 from app.services import llm_settings, tasks
 from app.services._budget import Budget
 from app.services._common import require_account, require_deal
@@ -238,7 +239,7 @@ def collect(
     if deals:
         raw.insert(0, ("deal", f"deal:{deals[0].id}", _facts_date(deals), _facts(deals)))
     src = Source(scope="deal" if deal_id else "account")
-    budget = settings.genai_max_source_chars
+    budget = limits_service.effective(session, settings, "genai_max_source_chars", ws_id)
     used = 0
     for kind, origin, at, text in raw:
         clean = sanitize_text(scrub_text(text)).strip()
@@ -257,10 +258,17 @@ def collect(
 # --- the call ---------------------------------------------------------------------------------
 class GenAi:
     def __init__(
-        self, session: Session, ws_id: uuid.UUID, settings: Settings, factory: Callable[..., Any]
+        self,
+        session: Session,
+        ws_id: uuid.UUID,
+        settings: Settings,
+        factory: Callable[..., Any],
+        user_id: uuid.UUID | None = None,
     ) -> None:
         cred = llm_settings.require_credential(session, ws_id)  # 409 without AI settings
+        settings = limits_service.effective_settings(session, settings, ws_id)
         self.session, self.ws_id, self.settings, self.factory = session, ws_id, settings, factory
+        self.user_id = user_id
         self.provider_name, self.model = cred.provider, cred.model
 
     def preview(self, src: Source) -> dict[str, Any]:
@@ -284,6 +292,7 @@ class GenAi:
         recorder = DbUsageRecorder(
             sessionmaker(bind=self.session.get_bind(), join_transaction_mode="create_savepoint"),
             workspace_id=self.ws_id,
+            user_id=self.user_id,
         )
 
         async def go() -> Any:
@@ -391,7 +400,7 @@ def _existing_titles(
     session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID | None, account_id: uuid.UUID | None
 ) -> set[str]:
     stmt = select(Task.title).where(
-        Task.workspace_id == ws_id, Task.status.in_(("open", "suggested"))
+        Task.workspace_id == ws_id, Task.status.in_(("open", "in_progress", "suggested"))
     )
     stmt = (
         stmt.where(Task.deal_id == deal_id)

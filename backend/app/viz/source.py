@@ -18,6 +18,7 @@ from app.flows.ports import FlowLimits, SourceError
 from app.flows.schemas import CrmSource, FileSource, PostgresSource
 from app.flows.sources.loader import DbSourceLoader
 from app.services import flows
+from app.services import limits as limits_service
 from app.services.errors import InvalidInputError
 from app.stats.engine import gate_config_from_settings
 
@@ -85,6 +86,7 @@ def load(
     sessions: Callable[[], Session],
     viewer: Viewer | None = None,
 ) -> Loaded:
+    settings = limits_service.effective_settings(db, settings, ws_id)
     loader = _Tracking(DbSourceLoader(sessions, ws_id, settings, viewer))
     max_rows = settings.flow_max_rows
     slot = flows._semaphore(settings.flow_max_concurrent_runs)  # noqa: SLF001

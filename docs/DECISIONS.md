@@ -699,3 +699,35 @@ Accepted for now:
 - `sslmode=require` without certificate checks (verify-full next);
 - reset links in Cloud Logging;
 - CPU only during requests on default Cloud Run billing.
+
+## T. M6: sign-up with codes, join tokens, reset emails, admin limits and usage (2026-10-20) [PO + build]
+
+`docs/M6-ACCOUNTS-ADMIN-CONTRACT.md`.
+
+**PO choices:**
+- **Creating** a workspace by sign-up needs a **creation code** from the superadmin; **joining**
+  one needs a **join token** from its admin.
+- Emails go out through the PO's **Gmail over SMTP** with an App Password: STARTTLS with certifi's
+  CA bundle, sent in the background.
+- Tasks became a **Kanban** (Suggested · To do · In progress · Done), with bento stats on top.
+- The **Activities** page was removed. **Insights** is now **Pipeline scan**, with a one-line
+  explanation.
+- The sign-in page is a split screen modelled on React Bits Pro "Auth 4", written in our own code
+  with no Tailwind. It has no fake social buttons or testimonial; its badges state true facts.
+
+**Admin, no coding:**
+- 15 limits editable globally (superadmin) or per workspace, lower only (workspace admin), with an
+  audit trail. `mailbox_suggest_threshold` is global only.
+- A **Usage** page: per user, model, day and purpose, with estimated cost from superadmin-entered
+  prices per model.
+- The model list comes from the provider, default `gemini-3.5-flash`.
+
+**Security review:** no high finding.
+- The one medium was invitation emails without a volume cap, fixed with caps per workspace and per
+  sender per day, a cap on active tokens, a bounded send pool and an hourly cap.
+- Lows fixed:
+  - no reset link in hosted logs;
+  - `SIGNUP_ENABLED` kill switch;
+  - DB checks on credits and use counts;
+  - a race on a concurrent first limit write;
+  - a cache for model-list failures.

@@ -45,8 +45,10 @@ def _task_out(t: Task) -> SuggestedTaskOut:
     )
 
 
-def _open(db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory) -> genai.GenAi:
-    return genai.GenAi(db, ws.id, settings, factory)
+def _open(
+    db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory, viewer: CurrentViewer
+) -> genai.GenAi:
+    return genai.GenAi(db, ws.id, settings, factory, viewer.user_id)
 
 
 @router.get("/w/{ws}/{scope}/{rid}/ai/preview", response_model=AiPreview)
@@ -60,7 +62,7 @@ def preview(
     viewer: CurrentViewer,
 ) -> AiPreview:
     src = genai.collect(db, ws.id, settings, viewer=viewer, **_ids(scope, rid))
-    return AiPreview(**_open(db, ws, settings, factory).preview(src))
+    return AiPreview(**_open(db, ws, settings, factory, viewer).preview(src))
 
 
 @router.post("/w/{ws}/{scope}/{rid}/ai/summary", response_model=SummaryOut)
@@ -73,7 +75,7 @@ def summary(
     factory: Factory,
     viewer: CurrentViewer,
 ) -> SummaryOut:
-    ai = _open(db, ws, settings, factory)
+    ai = _open(db, ws, settings, factory, viewer)
     src = genai.collect(db, ws.id, settings, viewer=viewer, **_ids(scope, rid))
     out = SummaryOut(**ai.summarize(src))
     db.commit()
@@ -90,7 +92,7 @@ def suggest_tasks(
     factory: Factory,
     viewer: CurrentViewer,
 ) -> ActionItemsOut:
-    ai = _open(db, ws, settings, factory)
+    ai = _open(db, ws, settings, factory, viewer)
     ids = _ids(scope, rid)
     src = genai.collect(db, ws.id, settings, viewer=viewer, **ids)
     res = ai.extract_tasks(src, deal_id=ids.get("deal_id"), account_id=ids.get("account_id"))

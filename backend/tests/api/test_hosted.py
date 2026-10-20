@@ -106,14 +106,23 @@ def test_hosted_oauth_cookies_secure(hosted, monkeypatch):
         assert "secure" in r.headers["set-cookie"].lower(), path
 
 
-def test_reset_link_uses_public_origin(hosted, caplog):
+def test_reset_link_uses_public_origin(hosted, caplog, monkeypatch):
+    from app.services import mailer
+
+    sent: list[str] = []
+    monkeypatch.setattr(mailer, "is_configured", lambda _s: True)
+    monkeypatch.setattr(
+        mailer, "send_async", lambda _s, _to, _subject, text, *a, **k: sent.append(text)
+    )
     hosted.post(
         "/api/auth/setup",
         json={"email": "h@x.co", "display_name": "H", "password": "S3cret-Passw0rd!"},
     )
     with caplog.at_level("WARNING"):
         assert hosted.post("/api/auth/forgot", json={"email": "h@x.co"}).status_code == 202
-    assert f"{ORIGIN}/reset?token=" in caplog.text
+    # The link is emailed, built from PUBLIC_ORIGIN, and never written to the hosted log.
+    assert len(sent) == 1 and f"{ORIGIN}/reset?token=" in sent[0]
+    assert "reset?token=" not in caplog.text
 
 
 # --- health ----------------------------------------------------------------------------------

@@ -43,15 +43,18 @@ class DbUsageRecorder:
         *,
         workspace_id: uuid.UUID,
         run_id: uuid.UUID | None = None,
+        user_id: uuid.UUID | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._workspace_id = workspace_id
         self._run_id = run_id
+        self._user_id = user_id  # who caused the calls; None = the system
 
     def record(self, call: LLMCallRecord) -> None:
         row = LlmCall(
             workspace_id=self._workspace_id,
             run_id=self._run_id,
+            user_account_id=self._user_id,
             provider=call.provider,
             model=call.model,
             purpose=call.purpose,
