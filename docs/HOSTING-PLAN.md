@@ -5,7 +5,11 @@
   with Alembic as the `dataforce_app` role, synthetic `test-data` loaded (16 MB), advisors checked (§3.1).
   The app still runs on the PO's computer, pointed at Supabase.
 - **Login and own-data visibility exist** (M5). The admin-editable caps are being built (wave 3).
-- **Hosted mode: done** (§2, 2026-10-20), tested in a local container against Supabase. Next: the Google Cloud steps (§3.2–3.4).
+- **Hosted mode: done** (§2, 2026-10-20), tested in a local container against Supabase.
+- **Deployed 2026-10-20:** https://dataforce-239133496698.europe-west1.run.app (Cloud Run `dataforce`,
+  project `gen-lang-client-0115533966`, europe-west1, revision `dataforce-00001`, image `app:6c2169c`).
+  Runs as service account `dataforce-run`, which can read only the two secrets. The Netlify site
+  redirects every path there. Still to confirm live: the client address used by the sign-in rate limits.
 
 Free-plan terms change often. They were checked on 2026-10-20 from the sources in §6; confirm them
 on each provider's page before deploying.
