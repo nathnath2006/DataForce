@@ -30,6 +30,8 @@ const ICONS: Record<string, ReactNode> = {
   insights: <><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" /></>,
   admin: <><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="M9 12l2 2 4-4" /></>,
+  me: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></>,
+  docs: <><path d="M6 3h9l3 3v15H6z" /><path d="M9 9h6M9 13h6M9 17h4" /></>,
 };
 
 interface Item { key: string; label: string; to: string }
@@ -52,6 +54,9 @@ export const NAV_GROUPS: Group[] = [
     { key: "workbooks", label: "Workbooks", to: "analysis/workbooks" },
     { key: "models", label: "Models", to: "analysis/models" },
     { key: "insights", label: "Insights", to: "analysis/scan" } ] },
+  { title: "You", items: [
+    { key: "me", label: "My settings", to: "me" },
+    { key: "docs", label: "Documentation", to: "docs" } ] },
   { title: "Admin", adminOnly: true, items: [
     { key: "settings", label: "Settings", to: "settings" },
     { key: "admin", label: "Admin", to: "admin" } ] },

@@ -171,3 +171,54 @@ The audit's must-dos for identity (SYS-01, SYS-10) apply here.
   stats, flow rows or assistant context.
 - A test proves that a rep cannot delete without *delete own*, nor another rep's record with it.
 - Light and dark mode checked in the browser.
+
+## Wave 3: the PO's UI feedback (2026-10-20)
+
+PO's words, condensed:
+- **Links:** "the default blue hyperlink is a mess". Use action buttons and quiet hover highlights instead, such as a grey bento box at low alpha. React Bits is the inspiration.
+- **Analysis:** the palette blocks need icons and two columns, and the whole Analysis section should follow a bento style.
+- **Docs:** warnings are good, but each block, method and warning needs detailed documentation, in a Docs section.
+- **Org chart:** inspired by `react-organizational-chart`: a centred tree with rounded connector lines (MIT; ideas only, no dependency).
+- **Summary:** styled like React Bits Pro *Analytics 1* (a bento of KPI cards with deltas and sparklines, plus charts), reusing the sign-in dot-sea background.
+- **Notes:** like Apple Notes, with no click-to-open friction. A list beside an inline editor, with smart preloading.
+- **Meetings:** a real calendar like React Bits Pro *Scheduling 6*, with the upcoming events listed underneath.
+- **Mailbox:** reps connect their own mailbox; the admin only registers the OAuth clients once.
+- **Settings for everyone:** change password, theme and display basics.
+- **Admin settings:** the admin controls caps and limits from the UI, not from `.env`.
+- **Assistant:** the chat UI is reworked.
+
+### Decisions (tech lead)
+
+- **Links.** Plain text links disappear from the app chrome:
+  - navigation uses rows with a hover highlight;
+  - record names in tables are the row's own hover target (the whole row is clickable);
+  - in-text links keep the ink colour with an underline on hover;
+  - actions are buttons (primary, quiet and ghost), with icons where helpful.
+- **Mailbox per user.** `mailbox_connection` gains `user_account_id` (migration `0012`).
+  - Each member connects their own mailbox.
+  - The candidate emails of a mailbox are private to its owner. Once an email is linked to a deal, it becomes a normal CRM activity that follows the visibility rules.
+  - The OAuth client registration stays with the admin, done once in workspace Settings.
+- **Admin-editable limits.**
+  - A `setting_override` table (global, plus optional per workspace) holds values for an allow-list of limits, each with bounds: AI daily caps, assistant rate, GenAI caps, mailbox sync caps, flow row and time caps, and similar.
+  - The effective value is the override if set, otherwise `.env`. Every service reads limits through one helper.
+  - Changes are audited (who, when, old → new).
+- **Personal settings** (`/w/:ws/me`, every member):
+  - change password (current + new; ends other sessions);
+  - theme (system, light or dark) and density (comfortable or compact), stored per user;
+  - my mailbox (connect, sync, disconnect).
+- **Documentation** (`/w/:ws/docs`, `/docs/:topic`): one page per block, method and warning. Each page covers:
+  - what it does, its inputs and outputs, and its config fields;
+  - how *verified* is decided, its caps and warnings with their meaning, a worked example, and references.
+
+  Every block form, result warning and verdict tag links to its topic.
+
+### Owners
+
+- **Wave 3A, in parallel:**
+  - **V1, visual system:** links, buttons, hovers, bento cards; the Analysis section in bento style; palette icons in two columns.
+  - **V4, settings:** personal settings, per-user mailbox, admin-editable limits.
+  - **V5, assistant:** the chat drawer redesign.
+- **Wave 3B, in parallel:**
+  - **V2:** Summary and Home in the analytics style with the dot-sea background, and the org chart tree.
+  - **V3:** Apple Notes-style notes, and the meetings calendar with upcoming events.
+  - **V6:** in-app documentation.

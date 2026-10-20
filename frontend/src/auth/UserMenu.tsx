@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { useState } from "react";
 import { ErrorNote, Field, useAction, useLoad } from "../ui";
 import { api } from "../api";
@@ -23,6 +24,7 @@ export function UserMenu() {
           {isAdmin && membership && (
             <IdentityPicker slug={membership.workspace_slug} current={membership.app_user_id} onChanged={() => void refresh()} />
           )}
+          {membership && <Link to={`/w/${membership.workspace_slug}/me`} className="menu-link">My settings</Link>}
           <button type="button" onClick={() => void signOut()}>Sign out</button>
         </div>
       )}

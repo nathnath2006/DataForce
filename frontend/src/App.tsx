@@ -23,6 +23,8 @@ const DealDetailPage = lazy(() => import("./pages/DealDetail").then((m) => ({ de
 const AnalysisPage = lazy(() => import("./pages/Analysis").then((m) => ({ default: m.AnalysisPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 const AdminPage = lazy(() => import("./pages/Admin").then((m) => ({ default: m.AdminPage })));
+const MySettingsPage = lazy(() => import("./pages/MySettings").then((m) => ({ default: m.MySettingsPage })));
+const DocsPage = lazy(() => import("./docs/DocsPage").then((m) => ({ default: m.DocsPage })));
 const CompaniesPage = lazy(() => import("./companies/CompaniesPage").then((m) => ({ default: m.CompaniesPage })));
 const CompanyDetailPage = lazy(() => import("./companies/CompanyDetail").then((m) => ({ default: m.CompanyDetailPage })));
 const MeetingsPage = lazy(() => import("./meetings/MeetingsPage").then((m) => ({ default: m.MeetingsPage })));
@@ -70,6 +72,9 @@ export function App() {
         <Route path="analysis/:flowId" element={<Suspense fallback={<Loading />}><FlowEditorPage /></Suspense>} />
         <Route path="settings" element={<AdminOnly><SettingsPage /></AdminOnly>} />
         <Route path="admin" element={<AdminOnly><AdminPage /></AdminOnly>} />
+        <Route path="me" element={<MySettingsPage />} />
+        <Route path="docs" element={<DocsPage />} />
+        <Route path="docs/:topic" element={<DocsPage />} />
         <Route path="*" element={<p className="muted">Page not found.</p>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
