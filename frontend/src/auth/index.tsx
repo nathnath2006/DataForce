@@ -6,4 +6,4 @@ export { RequireAuth } from "./RequireAuth";
 export { LoginPage } from "./LoginPage";
 export { SetupPage } from "./SetupPage";
 export { UserMenu } from "./UserMenu";
-export { AdminOnly, useCanDelete } from "./AdminOnly";
+export { AdminOnly, useCanDelete, useSeesAll } from "./AdminOnly";

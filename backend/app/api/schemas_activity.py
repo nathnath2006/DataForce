@@ -58,6 +58,8 @@ class ActivityOut(BaseModel):
     author_name: str | None
     participants: list[ParticipantOut]
     created_at: datetime
+    deal_name: str | None = None
+    account_name: str | None = None
 
 
 class TaskCreate(_In):
@@ -87,6 +89,8 @@ class TaskOut(BaseModel):
     evidence: dict[str, Any]
     done_at: datetime | None
     created_at: datetime
+    deal_name: str | None = None
+    account_name: str | None = None
 
 
 class MoveStage(_In):

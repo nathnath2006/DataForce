@@ -16,6 +16,9 @@ function Icon({ children }: { children: ReactNode }) {
 }
 
 const ICONS: Record<string, ReactNode> = {
+  home: <><path d="M4 11l8-7 8 7" /><path d="M6 10v10h12V10" /><path d="M10 20v-6h4v6" /></>,
+  tasks: <><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 12l3 3 5-6" /></>,
+  activities: <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
   companies: <><path d="M4 21V4h10v17" /><path d="M14 9h6v12" /><path d="M8 8h2M8 12h2M8 16h2" /></>,
   accounts: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V4h6v3" /></>,
   contacts: <><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></>,
@@ -33,6 +36,10 @@ interface Item { key: string; label: string; to: string }
 interface Group { title: string; items: Item[]; adminOnly?: boolean }
 
 export const NAV_GROUPS: Group[] = [
+  { title: "My work", items: [
+    { key: "home", label: "Home", to: "home" },
+    { key: "tasks", label: "Tasks", to: "tasks" },
+    { key: "activities", label: "Activities", to: "activities" } ] },
   { title: "Customers", items: [
     { key: "companies", label: "Companies", to: "companies" },
     { key: "accounts", label: "Accounts", to: "accounts" },

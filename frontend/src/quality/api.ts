@@ -1,4 +1,4 @@
-import { request, w } from "../api";
+import { q, request, w } from "../api";
 
 export type SegmentKind = "ok" | "warn" | "bad" | "unknown";
 export interface QualitySegment { kind: SegmentKind; label: string; count: number }
@@ -6,5 +6,5 @@ export interface QualityCheck { id: "managers" | "titles" | "amounts" | "compani
 export interface QualityOut { checks: QualityCheck[] }
 
 export const qualityApi = {
-  get: (ws: string) => request<QualityOut>("GET", `${w(ws)}/quality`),
+  get: (ws: string, owner?: string) => request<QualityOut>("GET", `${w(ws)}/quality${q({ owner })}`),
 };

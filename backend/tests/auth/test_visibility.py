@@ -118,7 +118,7 @@ def test_rep_sees_only_own_rows(client, world):
     # the shared account shows only A's deal in its counts
     acc = client.get(f"{w.base}/accounts/{w.ids['accS']}").json()
     assert acc["n_deals"] == 1
-    tasks = {t["title"] for t in client.get(f"{w.base}/tasks").json()}
+    tasks = {t["title"] for t in client.get(f"{w.base}/tasks").json()["items"]}
     assert tasks == {"task accA", "task accS"}
     assert client.get(f"{w.base}/accounts/{w.ids['accA']}/activities").status_code == 200
     comps = client.get(f"{w.base}/documents").json()
@@ -395,3 +395,75 @@ def test_account_owner_column_backs_visibility(client, world, db_session):
     assert acc.owner_id == uuid.UUID(w.a)
     assert db_session.get(AppUser, uuid.UUID(w.b)) is not None
     assert db_session.scalar(select(Deal.owner_id).where(Deal.id == uuid.UUID(w.ids["dU"]))) is None
+
+
+def test_home_counts_only_own_rows(client, world):
+    w = world
+    w.act_as(w.viewer(w.a))
+    h = client.get(f"{w.base}/home").json()
+    assert h["kpis"]["open_deals"] == 2
+    assert float(h["kpis"]["open_pipeline_eur"]) == 1200
+    assert {d["name"] for d in h["open_deals"]} == {"dA", "dSA"}
+    assert all(a["deal_name"] in ("dA", "dSA") for a in h["activity"])
+    # the admin sees everyone, and can look at one rep
+    w.admin()
+    assert client.get(f"{w.base}/home").json()["kpis"]["open_deals"] == 5
+    mine = client.get(f"{w.base}/home", params={"owner": w.a}).json()
+    assert mine["kpis"]["open_deals"] == 2
+    assert float(mine["kpis"]["open_pipeline_eur"]) == 1200
+    theirs = client.get(f"{w.base}/home", params={"owner": w.b}).json()
+    assert float(theirs["kpis"]["open_pipeline_eur"]) == 12000
+
+
+def test_home_owner_is_for_admin_and_see_all_only(client, world):
+    w = world
+    w.act_as(w.viewer(w.a))
+    assert client.get(f"{w.base}/home", params={"owner": w.b}).status_code == 403
+    assert client.get(f"{w.base}/home", params={"owner": w.a}).status_code == 200
+    assert client.get(f"{w.base}/quality", params={"owner": w.b}).status_code == 403
+    w.act_as(w.viewer(w.a, see_all=True))
+    h = client.get(f"{w.base}/home", params={"owner": w.b}).json()
+    assert float(h["kpis"]["open_pipeline_eur"]) == 12000
+    assert client.get(f"{w.base}/home", params={"owner": str(uuid.uuid4())}).status_code == 404
+
+
+def test_quality_per_rep(client, world):
+    w = world
+
+    def amounts(**params):
+        q = client.get(f"{w.base}/quality", params=params).json()
+        return next(c for c in q["checks"] if c["id"] == "amounts")["total"]
+
+    assert amounts() == 5  # the admin: everyone
+    assert amounts(owner=w.a) == 2
+    assert amounts(owner=w.b) == 2
+    w.act_as(w.viewer(w.a))
+    assert amounts() == 2
+
+
+def test_tasks_page_filters_and_visibility(client, world):
+    w = world
+    w.act_as(w.viewer(w.a))
+    page = client.get(f"{w.base}/tasks", params={"limit": 1}).json()
+    assert page["total"] == 2 and len(page["items"]) == 1 and page["limit"] == 1
+    assert page["items"][0]["account_name"] in ("accA", "accS")
+    assert client.get(f"{w.base}/tasks", params={"due": "none"}).json()["total"] == 2
+    assert client.get(f"{w.base}/tasks", params={"due": "overdue"}).json()["total"] == 0
+    assert client.get(f"{w.base}/tasks", params={"status": "done"}).json()["total"] == 0
+    assert client.get(f"{w.base}/tasks", params={"due": "nope"}).status_code == 422
+    assert client.get(f"{w.base}/tasks", params={"deal_id": w.ids["dB"]}).status_code == 404
+
+
+def test_activities_page(client, world):
+    w = world
+    w.act_as(w.viewer(w.a))
+    page = client.get(f"{w.base}/activities").json()
+    assert {i["subject"] for i in page["items"]} == {"call accA", "call accS"}
+    assert page["total"] == 2 and page["items"][0]["account_name"]
+    assert client.get(f"{w.base}/activities", params={"kind": "email"}).json()["total"] == 0
+    assert (
+        client.get(f"{w.base}/activities", params={"date_from": "2999-01-01"}).json()["total"] == 0
+    )
+    today = datetime.now(UTC).date().isoformat()
+    both = client.get(f"{w.base}/activities", params={"date_to": today}).json()
+    assert both["total"] == 2

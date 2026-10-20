@@ -8,6 +8,7 @@ export interface ActivityOut {
   id: string; account_id: string; deal_id: string | null; kind: ActivityKind; direction: Direction | null;
   occurred_at: string; subject: string; body: string | null; source: string;
   author_id: string | null; author_name: string | null; participants: Participant[]; created_at: string;
+  deal_name?: string | null; account_name?: string | null;
 }
 export interface ActivityCreate {
   kind: ActivityKind; direction?: Direction | null; occurred_at: string; subject: string;
@@ -17,6 +18,7 @@ export interface TaskOut {
   id: string; deal_id: string | null; account_id: string | null; title: string; due_on: string | null;
   status: TaskStatus; owner_id: string | null; owner_name: string | null; source: string;
   evidence: Record<string, unknown>; done_at: string | null; created_at: string;
+  deal_name?: string | null; account_name?: string | null;
 }
 export interface TaskCreate { title: string; deal_id?: string | null; account_id?: string | null; due_on?: string | null }
 export interface TaskUpdate { title?: string; due_on?: string | null; status?: "open" | "done" | "dismissed"; owner_id?: string | null }

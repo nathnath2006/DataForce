@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from datetime import date
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response
+from sqlalchemy import select
 
 from app.api.deps import CurrentViewer, CurrentWorkspace, Db
+from app.api.schemas import Page
 from app.api.schemas_activity import (
     ActivityCreate,
     ActivityOut,
@@ -17,8 +20,9 @@ from app.api.schemas_activity import (
     TaskOut,
     TaskUpdate,
 )
-from app.db.models import Activity, Task
+from app.db.models import Account, Activity, Deal, Task
 from app.services import activities, tasks, users
+from app.services._common import require_account, require_deal
 
 router = APIRouter(tags=["activities"])
 
@@ -26,7 +30,27 @@ Limit = Annotated[int, Query(ge=1, le=200)]
 Offset = Annotated[int, Query(ge=0)]
 
 
+def _link_names(
+    db: Db, deal_ids: list[uuid.UUID | None], account_ids: list[uuid.UUID | None]
+) -> tuple[dict[uuid.UUID, str], dict[uuid.UUID, str]]:
+    """({deal id: name}, {account id: name}) in two queries, for the cross-deal lists."""
+    deals = {i for i in deal_ids if i}
+    accounts = {i for i in account_ids if i}
+    dn = (
+        dict(db.execute(select(Deal.id, Deal.name).where(Deal.id.in_(deals))).all())
+        if deals
+        else {}
+    )
+    an = (
+        dict(db.execute(select(Account.id, Account.name).where(Account.id.in_(accounts))).all())
+        if accounts
+        else {}
+    )
+    return dn, an
+
+
 def _activities_out(db: Db, ws_id: uuid.UUID, rows: list[Activity]) -> list[ActivityOut]:
+    dn, an = _link_names(db, [r.deal_id for r in rows], [r.account_id for r in rows])
     names = users.user_names(db, ws_id, [r.author_user_id for r in rows if r.author_user_id])
     people = activities.participants_of(db, ws_id, [r.id for r in rows])
     return [
@@ -44,12 +68,15 @@ def _activities_out(db: Db, ws_id: uuid.UUID, rows: list[Activity]) -> list[Acti
             author_name=names.get(r.author_user_id) if r.author_user_id else None,
             participants=[ParticipantOut(id=i, full_name=n) for i, n in people.get(r.id, [])],
             created_at=r.created_at,
+            deal_name=dn.get(r.deal_id) if r.deal_id else None,
+            account_name=an.get(r.account_id),
         )
         for r in rows
     ]
 
 
 def _tasks_out(db: Db, ws_id: uuid.UUID, rows: list[Task]) -> list[TaskOut]:
+    dn, an = _link_names(db, [r.deal_id for r in rows], [r.account_id for r in rows])
     names = users.user_names(db, ws_id, [r.owner_user_id for r in rows if r.owner_user_id])
     return [
         TaskOut(
@@ -65,12 +92,42 @@ def _tasks_out(db: Db, ws_id: uuid.UUID, rows: list[Task]) -> list[TaskOut]:
             evidence=r.evidence or {},
             done_at=r.done_at,
             created_at=r.created_at,
+            deal_name=dn.get(r.deal_id) if r.deal_id else None,
+            account_name=an.get(r.account_id) if r.account_id else None,
         )
         for r in rows
     ]
 
 
 # --- activities -----------------------------------------------------------------------------
+@router.get("/w/{ws}/activities", response_model=Page[ActivityOut])
+def list_all_activities(
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
+    kind: Annotated[str | None, Query(pattern="^(call|email|meeting|other)$")] = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    sort: Literal["occurred_at", "kind", "subject"] | None = None,
+    direction: Annotated[Literal["asc", "desc"], Query(alias="dir")] = "desc",
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Offset = 0,
+) -> Page[ActivityOut]:
+    rows, total = activities.list_activities_page(
+        db,
+        ws.id,
+        kind=kind,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+        offset=offset,
+        sort=sort,
+        direction=direction,
+        viewer=viewer,
+    )
+    return Page(items=_activities_out(db, ws.id, rows), total=total, offset=offset, limit=limit)
+
+
 @router.get("/w/{ws}/accounts/{account_id}/activities", response_model=list[ActivityOut])
 def list_account_activities(
     account_id: uuid.UUID,
@@ -160,7 +217,7 @@ def delete_activity(
 
 
 # --- tasks ----------------------------------------------------------------------------------
-@router.get("/w/{ws}/tasks", response_model=list[TaskOut])
+@router.get("/w/{ws}/tasks", response_model=Page[TaskOut])
 def list_tasks(
     db: Db,
     ws: CurrentWorkspace,
@@ -169,21 +226,31 @@ def list_tasks(
     account_id: uuid.UUID | None = None,
     owner_id: uuid.UUID | None = None,
     status: Annotated[str | None, Query(pattern="^(suggested|open|done|dismissed)$")] = None,
-    limit: Limit = 200,
+    due: Annotated[str | None, Query(pattern="^(overdue|this_week|later|none)$")] = None,
+    sort: Literal["due_on", "title", "status", "created_at"] | None = None,
+    direction: Annotated[Literal["asc", "desc"], Query(alias="dir")] = "asc",
+    limit: Limit = 50,
     offset: Offset = 0,
-) -> list[TaskOut]:
-    rows = tasks.list_tasks(
+) -> Page[TaskOut]:
+    if deal_id is not None:
+        require_deal(db, ws.id, deal_id, viewer)
+    if account_id is not None:
+        require_account(db, ws.id, account_id, viewer)
+    rows, total = tasks.list_tasks_page(
         db,
         ws.id,
         deal_id=deal_id,
         account_id=account_id,
         owner_user_id=owner_id,
         status=status,
+        due=due,
         limit=limit,
         offset=offset,
+        sort=sort,
+        direction=direction,
         viewer=viewer,
     )
-    return _tasks_out(db, ws.id, rows)
+    return Page(items=_tasks_out(db, ws.id, rows), total=total, offset=offset, limit=limit)
 
 
 @router.get("/w/{ws}/deals/{deal_id}/tasks", response_model=list[TaskOut])

@@ -11,6 +11,9 @@ import { AssistantDrawer, useDrawerOpen } from "./shell/AssistantDrawer";
 import { ScopeProvider } from "./shell/scope";
 
 // Every page is its own chunk, loaded on first visit (the shell and login stay in the main chunk).
+const HomePage = lazy(() => import("./pages/Home").then((m) => ({ default: m.HomePage })));
+const TasksPage = lazy(() => import("./pages/Tasks").then((m) => ({ default: m.TasksPage })));
+const ActivitiesPage = lazy(() => import("./pages/Activities").then((m) => ({ default: m.ActivitiesPage })));
 const AccountsPage = lazy(() => import("./pages/Accounts").then((m) => ({ default: m.AccountsPage })));
 const AccountDetailPage = lazy(() => import("./pages/AccountDetail").then((m) => ({ default: m.AccountDetailPage })));
 const ContactsPage = lazy(() => import("./pages/Contacts").then((m) => ({ default: m.ContactsPage })));
@@ -44,7 +47,10 @@ export function App() {
       <Route path="/setup" element={<SetupPage />} />
       <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
       <Route path="/w/:ws" element={<RequireAuth><Shell /></RequireAuth>}>
-        <Route index element={<Navigate to="companies" replace />} />
+        <Route index element={<HomePage />} />
+        <Route path="home" element={<HomePage />} />
+        <Route path="tasks" element={<TasksPage />} />
+        <Route path="activities" element={<ActivitiesPage />} />
         <Route path="companies" element={<CompaniesPage />} />
         <Route path="companies/:id" element={<CompanyDetailPage />} />
         <Route path="accounts" element={<AccountsPage />} />
@@ -74,7 +80,7 @@ function Home() {
   const { data, error, reload } = useQuery("/workspaces", () => api.listWorkspaces());
   const [creating, setCreating] = useState(false);
   const first = data?.[0];
-  if (first) return <Navigate to={`/w/${first.slug}/accounts`} replace />;
+  if (first) return <Navigate to={`/w/${first.slug}/home`} replace />;
   return (
     <main className="center">
       <h1>DataForce</h1>

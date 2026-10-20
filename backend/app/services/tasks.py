@@ -4,16 +4,22 @@ through `accept_task`, a person's decision."""
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import case, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.auth import visibility
 from app.auth.viewer import Viewer
 from app.db.models import Task
-from app.services._common import require, require_account, require_deal, require_user
+from app.services._common import (
+    order_clauses,
+    require,
+    require_account,
+    require_deal,
+    require_user,
+)
 from app.services.errors import ForbiddenError, InvalidInputError
 from app.services.textclean import scrub_text
 
@@ -170,6 +176,71 @@ def list_tasks(
     )
     stmt = stmt.order_by(rank, Task.due_on.asc().nulls_last(), Task.created_at.desc(), Task.id)
     return list(session.scalars(stmt.limit(limit).offset(offset)))
+
+
+def week_end(today: date) -> date:
+    """The Sunday that closes the week of `today`."""
+    return today + timedelta(days=6 - today.weekday())
+
+
+_STATUS_RANK = case(
+    (Task.status == "open", 0), (Task.status == "suggested", 1), (Task.status == "done", 2), else_=3
+)
+TASK_SORT = {
+    "due_on": Task.due_on,
+    "title": Task.title,
+    "status": _STATUS_RANK,
+    "created_at": Task.created_at,
+}
+DUE_FILTERS = ("overdue", "this_week", "later", "none")
+
+
+def list_tasks_page(
+    session: Session,
+    ws_id: uuid.UUID,
+    *,
+    deal_id: uuid.UUID | None = None,
+    account_id: uuid.UUID | None = None,
+    status: str | None = None,
+    due: str | None = None,
+    owner_user_id: uuid.UUID | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    sort: str | None = None,
+    direction: str | None = None,
+    today: date | None = None,
+    viewer: Viewer | None = None,
+) -> tuple[list[Task], int]:
+    """Visible tasks, paged. `due`: overdue (open or suggested, before today), this_week (today
+    to Sunday), later (after Sunday) or none (no date). Default order: open first, earliest due."""
+    today = today or date.today()
+    cond = [
+        Task.workspace_id == ws_id,
+        *visibility.conds(visibility.account_or_deal(viewer, Task.account_id, Task.deal_id)),
+    ]
+    if deal_id is not None:
+        cond.append(Task.deal_id == deal_id)
+    if account_id is not None:
+        cond.append(Task.account_id == account_id)
+    if status:
+        cond.append(Task.status == status)
+    if owner_user_id is not None:
+        cond.append(Task.owner_user_id == owner_user_id)
+    if due == "overdue":
+        cond += [Task.due_on < today, Task.status.in_(("open", "suggested"))]
+    elif due == "this_week":
+        cond += [Task.due_on >= today, Task.due_on <= week_end(today)]
+    elif due == "later":
+        cond.append(Task.due_on > week_end(today))
+    elif due == "none":
+        cond.append(Task.due_on.is_(None))
+    elif due:
+        raise InvalidInputError(f"due must be one of {', '.join(DUE_FILTERS)}")
+    total = session.scalar(select(func.count()).select_from(Task).where(*cond)) or 0
+    default = [_STATUS_RANK, Task.due_on.asc().nulls_last(), Task.created_at.desc()]
+    order = order_clauses(TASK_SORT, sort, direction, default, Task.id)
+    stmt = select(Task).where(*cond).order_by(*order)
+    return list(session.scalars(stmt.limit(limit).offset(offset))), total
 
 
 def create_suggested(

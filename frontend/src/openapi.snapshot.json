@@ -642,6 +642,17 @@
       "title": "Account Id",
       "type": "string"
      },
+     "account_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Name"
+     },
      "author_id": {
       "anyOf": [
        {
@@ -692,6 +703,17 @@
        }
       ],
       "title": "Deal Id"
+     },
+     "deal_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deal Name"
      },
      "direction": {
       "anyOf": [
@@ -6161,6 +6183,289 @@
     "title": "Histogram",
     "type": "object"
    },
+   "HomeActivity": {
+    "properties": {
+     "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+     },
+     "author_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Author Name"
+     },
+     "deal_id": {
+      "format": "uuid",
+      "title": "Deal Id",
+      "type": "string"
+     },
+     "deal_name": {
+      "title": "Deal Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "kind",
+     "at",
+     "title",
+     "author_name",
+     "deal_id",
+     "deal_name"
+    ],
+    "title": "HomeActivity",
+    "type": "object"
+   },
+   "HomeDeal": {
+    "properties": {
+     "account_id": {
+      "format": "uuid",
+      "title": "Account Id",
+      "type": "string"
+     },
+     "account_name": {
+      "title": "Account Name",
+      "type": "string"
+     },
+     "amount_eur": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount Eur"
+     },
+     "created_on": {
+      "format": "date",
+      "title": "Created On",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "owner_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner Name"
+     },
+     "stage": {
+      "title": "Stage",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "account_id",
+     "account_name",
+     "stage",
+     "amount_eur",
+     "created_on",
+     "owner_name"
+    ],
+    "title": "HomeDeal",
+    "type": "object"
+   },
+   "HomeKpis": {
+    "properties": {
+     "open_deals": {
+      "title": "Open Deals",
+      "type": "integer"
+     },
+     "open_pipeline_eur": {
+      "title": "Open Pipeline Eur",
+      "type": "string"
+     },
+     "tasks_due_week": {
+      "title": "Tasks Due Week",
+      "type": "integer"
+     },
+     "tasks_overdue": {
+      "title": "Tasks Overdue",
+      "type": "integer"
+     },
+     "won_this_quarter": {
+      "title": "Won This Quarter",
+      "type": "integer"
+     },
+     "won_this_quarter_eur": {
+      "title": "Won This Quarter Eur",
+      "type": "string"
+     }
+    },
+    "required": [
+     "open_deals",
+     "open_pipeline_eur",
+     "won_this_quarter",
+     "won_this_quarter_eur",
+     "tasks_due_week",
+     "tasks_overdue"
+    ],
+    "title": "HomeKpis",
+    "type": "object"
+   },
+   "HomeOut": {
+    "properties": {
+     "activity": {
+      "items": {
+       "$ref": "#/components/schemas/HomeActivity"
+      },
+      "title": "Activity",
+      "type": "array"
+     },
+     "kpis": {
+      "$ref": "#/components/schemas/HomeKpis"
+     },
+     "open_deals": {
+      "items": {
+       "$ref": "#/components/schemas/HomeDeal"
+      },
+      "title": "Open Deals",
+      "type": "array"
+     },
+     "tasks": {
+      "items": {
+       "$ref": "#/components/schemas/HomeTask"
+      },
+      "title": "Tasks",
+      "type": "array"
+     }
+    },
+    "required": [
+     "kpis",
+     "open_deals",
+     "tasks",
+     "activity"
+    ],
+    "title": "HomeOut",
+    "type": "object"
+   },
+   "HomeTask": {
+    "properties": {
+     "account_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Id"
+     },
+     "account_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Name"
+     },
+     "deal_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deal Id"
+     },
+     "deal_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deal Name"
+     },
+     "due_on": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Due On"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "overdue": {
+      "title": "Overdue",
+      "type": "boolean"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "due_on",
+     "status",
+     "overdue",
+     "deal_id",
+     "deal_name",
+     "account_id",
+     "account_name"
+    ],
+    "title": "HomeTask",
+    "type": "object"
+   },
    "JobFunction": {
     "enum": [
      "sales",
@@ -8218,6 +8523,37 @@
     "title": "Page[AccountOut]",
     "type": "object"
    },
+   "Page_ActivityOut_": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ActivityOut"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "limit": {
+      "title": "Limit",
+      "type": "integer"
+     },
+     "offset": {
+      "title": "Offset",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "items",
+     "total",
+     "offset",
+     "limit"
+    ],
+    "title": "Page[ActivityOut]",
+    "type": "object"
+   },
    "Page_CompanyOut_": {
     "properties": {
      "items": {
@@ -8340,6 +8676,37 @@
      "limit"
     ],
     "title": "Page[DocumentOut]",
+    "type": "object"
+   },
+   "Page_TaskOut_": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TaskOut"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "limit": {
+      "title": "Limit",
+      "type": "integer"
+     },
+     "offset": {
+      "title": "Offset",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "items",
+     "total",
+     "offset",
+     "limit"
+    ],
+    "title": "Page[TaskOut]",
     "type": "object"
    },
    "ParticipantOut": {
@@ -11115,6 +11482,17 @@
       ],
       "title": "Account Id"
      },
+     "account_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Name"
+     },
      "created_at": {
       "format": "date-time",
       "title": "Created At",
@@ -11131,6 +11509,17 @@
        }
       ],
       "title": "Deal Id"
+     },
+     "deal_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deal Name"
      },
      "done_at": {
       "anyOf": [
@@ -13916,6 +14305,158 @@
     "summary": "Account Timeline",
     "tags": [
      "pipeline"
+    ]
+   }
+  },
+  "/api/w/{ws}/activities": {
+   "get": {
+    "operationId": "list_all_activities_api_w__ws__activities_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ws",
+      "required": true,
+      "schema": {
+       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+       "title": "Ws",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "kind",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "pattern": "^(call|email|meeting|other)$",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Kind"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date To"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sort",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "occurred_at",
+          "kind",
+          "subject"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sort"
+      }
+     },
+     {
+      "in": "query",
+      "name": "dir",
+      "required": false,
+      "schema": {
+       "default": "desc",
+       "enum": [
+        "asc",
+        "desc"
+       ],
+       "title": "Dir",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 200,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_ActivityOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List All Activities",
+    "tags": [
+     "activities"
     ]
    }
   },
@@ -18097,6 +18638,67 @@
     ]
    }
   },
+  "/api/w/{ws}/home": {
+   "get": {
+    "description": "`owner` (a CRM user id): that rep's numbers; admin and see-all members only (else 403).",
+    "operationId": "get_home_api_w__ws__home_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ws",
+      "required": true,
+      "schema": {
+       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+       "title": "Ws",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "owner",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "uuid",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Owner"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HomeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Home",
+    "tags": [
+     "home"
+    ]
+   }
+  },
   "/api/w/{ws}/lookup": {
    "get": {
     "operationId": "lookup_api_w__ws__lookup_get",
@@ -19765,6 +20367,7 @@
   },
   "/api/w/{ws}/quality": {
    "get": {
+    "description": "`owner` (a CRM user id): that rep's rows; admin and see-all members only (else 403).",
     "operationId": "get_quality_api_w__ws__quality_get",
     "parameters": [
      {
@@ -19775,6 +20378,23 @@
        "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
        "title": "Ws",
        "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "owner",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "uuid",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Owner"
       }
      }
     ],
@@ -20076,10 +20696,63 @@
      },
      {
       "in": "query",
+      "name": "due",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "pattern": "^(overdue|this_week|later|none)$",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Due"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sort",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "due_on",
+          "title",
+          "status",
+          "created_at"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sort"
+      }
+     },
+     {
+      "in": "query",
+      "name": "dir",
+      "required": false,
+      "schema": {
+       "default": "asc",
+       "enum": [
+        "asc",
+        "desc"
+       ],
+       "title": "Dir",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
       "name": "limit",
       "required": false,
       "schema": {
-       "default": 200,
+       "default": 50,
        "maximum": 200,
        "minimum": 1,
        "title": "Limit",
@@ -20103,11 +20776,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "items": {
-          "$ref": "#/components/schemas/TaskOut"
-         },
-         "title": "Response List Tasks Api W  Ws  Tasks Get",
-         "type": "array"
+         "$ref": "#/components/schemas/Page_TaskOut_"
         }
        }
       },

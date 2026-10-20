@@ -22,7 +22,7 @@ from sqlalchemy import ColumnElement, Select, and_, false, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth.viewer import Viewer
-from app.db.models import Account, Comment, Contact, Deal, Note
+from app.db.models import Account, AppUser, Comment, Contact, Deal, Note
 from app.services.errors import ForbiddenError, NotFoundError
 
 
@@ -213,6 +213,21 @@ def require_delete(viewer: Viewer, owner_app_user_id: uuid.UUID | None) -> None:
     """403 unless the admin, or a rep with *delete own* deleting their own record."""
     if not viewer.may_delete(owner_app_user_id):
         raise ForbiddenError("you are not allowed to delete this record")
+
+
+def scoped_viewer(session: Session, viewer: Viewer, owner_id: uuid.UUID | None) -> Viewer:
+    """The viewer whose rows a statistic covers. With `owner_id`, the admin and *see all* members
+    get that rep's view of the workspace; anyone else asking for another owner gets 403."""
+    if owner_id is None or owner_id == viewer.app_user_id:
+        return viewer
+    if not viewer.sees_everything:
+        raise ForbiddenError("only the administrator can look at another person's numbers")
+    user = session.get(AppUser, owner_id)
+    if user is None or user.workspace_id != viewer.workspace_id:
+        raise NotFoundError(f"user {owner_id} not found in this workspace")
+    return Viewer(
+        workspace_id=viewer.workspace_id, user_id=viewer.user_id, app_user_id=owner_id, role="rep"
+    )
 
 
 def apply(stmt: Select, *items: ColumnElement[bool] | None) -> Select:

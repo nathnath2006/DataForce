@@ -24,3 +24,9 @@ export function useCanDelete(): (ownerId: string | null | undefined) => boolean 
   return (ownerId) =>
     isAdmin || (!!membership?.delete_own && !!ownerId && ownerId === membership.app_user_id);
 }
+
+/** May the signed-in member look at other reps' numbers (the admin, or *see all*)? The server decides. */
+export function useSeesAll(): boolean {
+  const { isAdmin, membership } = useAuth();
+  return isAdmin || !!membership?.see_all;
+}

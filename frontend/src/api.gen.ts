@@ -84,11 +84,13 @@ export interface ActivityItem {
 
 export interface ActivityOut {
   account_id: string;
+  account_name?: string | null;
   author_id: string | null;
   author_name: string | null;
   body: string | null;
   created_at: string;
   deal_id: string | null;
+  deal_name?: string | null;
   direction: string | null;
   id: string;
   kind: string;
@@ -984,6 +986,55 @@ export interface Histogram {
   min: number;
 }
 
+export interface HomeActivity {
+  at: string;
+  author_name: string | null;
+  deal_id: string;
+  deal_name: string;
+  id: string;
+  kind: string;
+  title: string;
+}
+
+export interface HomeDeal {
+  account_id: string;
+  account_name: string;
+  amount_eur: string | null;
+  created_on: string;
+  id: string;
+  name: string;
+  owner_name: string | null;
+  stage: string;
+}
+
+export interface HomeKpis {
+  open_deals: number;
+  open_pipeline_eur: string;
+  tasks_due_week: number;
+  tasks_overdue: number;
+  won_this_quarter: number;
+  won_this_quarter_eur: string;
+}
+
+export interface HomeOut {
+  activity: HomeActivity[];
+  kpis: HomeKpis;
+  open_deals: HomeDeal[];
+  tasks: HomeTask[];
+}
+
+export interface HomeTask {
+  account_id: string | null;
+  account_name: string | null;
+  deal_id: string | null;
+  deal_name: string | null;
+  due_on: string | null;
+  id: string;
+  overdue: boolean;
+  status: string;
+  title: string;
+}
+
 export type JobFunction = "sales" | "marketing" | "executive" | "finance" | "operations" | "tech" | "hr" | "other" | "unknown";
 
 export interface JoinConfig {
@@ -1299,6 +1350,13 @@ export interface Page_AccountOut {
   total: number;
 }
 
+export interface Page_ActivityOut {
+  items: ActivityOut[];
+  limit: number;
+  offset: number;
+  total: number;
+}
+
 export interface Page_CompanyOut {
   items: CompanyOut[];
   limit: number;
@@ -1322,6 +1380,13 @@ export interface Page_DealOut {
 
 export interface Page_DocumentOut {
   items: DocumentOut[];
+  limit: number;
+  offset: number;
+  total: number;
+}
+
+export interface Page_TaskOut {
+  items: TaskOut[];
   limit: number;
   offset: number;
   total: number;
@@ -1823,8 +1888,10 @@ export interface TaskCreate {
 
 export interface TaskOut {
   account_id: string | null;
+  account_name?: string | null;
   created_at: string;
   deal_id: string | null;
+  deal_name?: string | null;
   done_at: string | null;
   due_on: string | null;
   evidence: {

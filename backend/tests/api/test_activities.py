@@ -124,7 +124,7 @@ def test_workspace_isolation(client, setup):
         client.post(f"{w2}/deals/{s['deal']['id']}/move", json={"stage": "proposal"}).status_code
         == 404
     )
-    assert client.get(f"{w2}/tasks").json() == []
+    assert client.get(f"{w2}/tasks").json()["items"] == []
 
 
 def test_tasks(client, setup):
@@ -151,7 +151,7 @@ def test_tasks(client, setup):
     assert client.patch(f"{ws}/tasks/{t1['id']}", json={"status": "suggested"}).status_code == 422
     assert client.post(f"{ws}/tasks/{t1['id']}/accept").status_code == 422  # not suggested
     assert len(client.get(f"{ws}/accounts/{s['acc']['id']}/tasks").json()) == 2
-    assert len(client.get(f"{ws}/tasks", params={"status": "done"}).json()) == 1
+    assert client.get(f"{ws}/tasks", params={"status": "done"}).json()["total"] == 1
     assert client.delete(f"{ws}/tasks/{t1['id']}").status_code == 204
 
 

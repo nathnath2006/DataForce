@@ -1,8 +1,12 @@
-.auth-page { min-height: 100vh; display: grid; place-items: center; background: var(--canvas); padding: 1rem; }
-.auth-card { width: 100%; max-width: 380px; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-1); padding: 1.5rem; display: grid; gap: .9rem; }
-.auth-card h1 { margin: 0; font-size: 1.25rem; }
-.auth-card label { display: grid; gap: .25rem; color: var(--ink-soft); }
-.auth-card button.primary { min-height: var(--ctl-h); }
+.auth-page { min-height: 100vh; display: grid; place-items: center; background: var(--canvas); padding: 16px; }
+.auth-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); box-shadow: var(--shadow-1); padding: 28px 28px 24px; display: grid; gap: 16px; }
+.wordmark { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+.auth-head h1 { margin: 0; font-size: 1.35rem; letter-spacing: -.01em; }
+.auth-head p { margin: 4px 0 0; font-size: 14px; line-height: 1.4; }
+.auth-card label { display: grid; gap: 6px; color: var(--ink-soft); font-size: 13px; }
+.auth-card input { width: 100%; box-sizing: border-box; }
+.auth-card button.primary { min-height: 36px; width: 100%; margin-top: 4px; }
+@media (max-width: 420px) { .auth-card { padding: 22px 18px 20px; } }
 .user-menu { position: relative; }
 .user-menu > button { display: flex; gap: .4rem; align-items: center; min-height: var(--ctl-h); }
 .user-menu .pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 260px; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); box-shadow: var(--shadow-2); padding: .8rem; display: grid; gap: .6rem; }

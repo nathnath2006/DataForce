@@ -100,7 +100,7 @@ def test_deal_level_rows_of_another_rep_are_hidden(client, make_member, db_sessi
     assert "B secret" not in str(acts)
     tasks = client.get(f"{base}/accounts/{acc.id}/tasks").json()
     assert [t["title"] for t in tasks] == ["Account task"]
-    assert [t["title"] for t in client.get(f"{base}/tasks").json()] == ["Account task"]
+    assert [t["title"] for t in client.get(f"{base}/tasks").json()["items"]] == ["Account task"]
     tl = client.get(f"{base}/accounts/{acc.id}/timeline").json()
     assert "B secret" not in str(tl) and "B task" not in str(tl)
     assert client.patch(f"{base}/activities/{act.id}", json={"subject": "x"}).status_code == 404

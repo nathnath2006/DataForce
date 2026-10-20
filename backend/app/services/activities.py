@@ -5,16 +5,23 @@ from __future__ import annotations
 import re
 import uuid
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import visibility
 from app.auth.viewer import Viewer
 from app.db.models import Activity, ActivityParticipant, Contact
-from app.services._common import get_scoped, require, require_account, require_deal, require_user
+from app.services._common import (
+    get_scoped,
+    order_clauses,
+    require,
+    require_account,
+    require_deal,
+    require_user,
+)
 from app.services.errors import InvalidInputError
 from app.services.textclean import scrub_optional, scrub_text
 
@@ -248,6 +255,52 @@ def list_activities(
         stmt = stmt.where(Activity.deal_id == deal_id)
     stmt = stmt.order_by(Activity.occurred_at.desc(), Activity.id.desc())
     return list(session.scalars(stmt.limit(limit).offset(offset)))
+
+
+ACTIVITY_SORT = {
+    "occurred_at": Activity.occurred_at,
+    "kind": Activity.kind,
+    "subject": Activity.subject,
+}
+
+
+def list_activities_page(
+    session: Session,
+    ws_id: uuid.UUID,
+    *,
+    kind: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    sort: str | None = None,
+    direction: str | None = None,
+    viewer: Viewer | None = None,
+) -> tuple[list[Activity], int]:
+    """Visible activities, paged, newest first. `date_from` and `date_to` are inclusive UTC days."""
+    cond = [
+        Activity.workspace_id == ws_id,
+        *visibility.conds(
+            visibility.in_accounts(viewer, Activity.account_id),
+            visibility.deal_gate(viewer, Activity.deal_id),
+        ),
+    ]
+    if kind:
+        _check_kind(kind, None)
+        cond.append(Activity.kind == kind)
+    if date_from is not None:
+        cond.append(Activity.occurred_at >= datetime.combine(date_from, time.min, tzinfo=UTC))
+    if date_to is not None:
+        cond.append(
+            Activity.occurred_at
+            < datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=UTC)
+        )
+    total = session.scalar(select(func.count()).select_from(Activity).where(*cond)) or 0
+    order = order_clauses(
+        ACTIVITY_SORT, sort, direction, [Activity.occurred_at.desc()], Activity.id.desc()
+    )
+    stmt = select(Activity).where(*cond).order_by(*order)
+    return list(session.scalars(stmt.limit(limit).offset(offset))), total
 
 
 def _channel_patterns(session: Session, ws_id: uuid.UUID, contact: Contact) -> list[re.Pattern]:

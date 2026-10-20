@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router";
 import { ErrorNote, useAction } from "../ui";
 import { authApi } from "./api";
 import { useAuth } from "./context";
+import { Wordmark } from "./Wordmark";
 import "./auth.css";
 
 /** /setup: shown once, while no admin exists. */
@@ -23,8 +24,11 @@ export function SetupPage() {
           nav("/", { replace: true });
         });
       }}>
-        <h1>Welcome to DataForce</h1>
-        <p className="muted">Create the administrator account.</p>
+        <Wordmark />
+        <div className="auth-head">
+          <h1>Welcome</h1>
+          <p className="muted">This creates the administrator, who manages the workspaces and the other people.</p>
+        </div>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} autoFocus /></label>
         <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required /></label>
         <label>Password (at least 10 characters)<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={10} required /></label>

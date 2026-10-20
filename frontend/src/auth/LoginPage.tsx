@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router";
 import { ErrorNote, useAction } from "../ui";
 import { authApi } from "./api";
 import { useAuth } from "./context";
+import { Wordmark } from "./Wordmark";
 import "./auth.css";
 
 /** /login: email and password. */
@@ -16,15 +17,20 @@ export function LoginPage() {
   if (user) return <Navigate to="/" replace />;
   return (
     <main className="auth-page">
-      <form className="auth-card" onSubmit={(ev) => {
+      <form className="auth-card" noValidate onSubmit={(ev) => {
         ev.preventDefault();
         void a.run(async () => { setMe(await authApi.login(email, password)); nav("/", { replace: true }); });
       }}>
-        <h1>Sign in to DataForce</h1>
-        <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required autoFocus /></label>
+        <Wordmark />
+        <div className="auth-head">
+          <h1>Sign in</h1>
+          <p className="muted">Welcome back. Use your work email.</p>
+        </div>
+        <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" placeholder="you@company.com" autoFocus /></label>
         <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></label>
         <ErrorNote error={a.error} />
-        <button className="primary" disabled={a.busy || email.trim() === ""}>Sign in</button>
+        {/* A demo workspace's rep may have an empty password: only the email is required here. */}
+        <button className="primary" disabled={a.busy || email.trim() === ""}>{a.busy ? "Signing in…" : "Sign in"}</button>
       </form>
     </main>
   );
