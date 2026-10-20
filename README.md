@@ -12,7 +12,8 @@ Design and build contract: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (M1) a
 [`docs/UI-CONTRACT.md`](docs/UI-CONTRACT.md) (M1b: local UI, TamTam connect) and
 [`docs/M2A-CONTRACT.md`](docs/M2A-CONTRACT.md) (M2a: flows, Company 360, AI assistant) and
 [`docs/M2B-CONTRACT.md`](docs/M2B-CONTRACT.md) (M2b: titles, org-chart proposals, meetings). Decisions:
-[`docs/DECISIONS.md`](docs/DECISIONS.md). What was built and why, for non-developers:
+[`docs/DECISIONS.md`](docs/DECISIONS.md). Hosting plan (Supabase + a free host, not built yet):
+[`docs/HOSTING-PLAN.md`](docs/HOSTING-PLAN.md). What was built and why, for non-developers:
 [`docs/DataForce-build-report.pdf`](docs/DataForce-build-report.pdf).
 
 ## Use it in the browser (M1b)
