@@ -98,6 +98,9 @@ M3: anyone who can run programs on this computer can use it, nobody else can.
   - **AI marks:** anything the AI produced carries a yellow *AI* badge.
 - **Theme**: the *Theme* button in the header cycles System / Light / Dark.
 - `make ui-dev` runs the same app with the Vite dev server (hot reload) on 127.0.0.1:5173.
+- **Netlify preview**: `netlify.toml` builds `frontend/` and serves the interface only. The API
+  and the data stay on your computer (no login before M3b), so on Netlify every screen says the
+  API is local instead of showing data.
 
 ## Quickstart
 
