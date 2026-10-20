@@ -10,3 +10,24 @@
 .quote { border-left: 3px solid var(--line); margin: .3rem 0; padding-left: .6rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .themes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: .8rem; }
 .pager { align-items: center; }
+
+/* Calendar (month grid + agenda + upcoming). */
+.cal-title { font-size: 20px; }
+.icon.flip { transform: scaleX(-1); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-wd { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); padding: 0 .4rem .2rem; }
+.cal-day { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; min-height: 5.6rem; padding: .35rem .4rem; border: 1px solid transparent; border-radius: var(--r-md); background: var(--hover); text-align: left; font-weight: 400; overflow: hidden; }
+.cal-day:hover:not(:disabled) { background: var(--press); border-color: transparent; }
+.cal-day.out { background: transparent; color: var(--ink-soft); }
+.cal-day.on, .cal-day.on:hover:not(:disabled) { border-color: var(--primary); background: var(--tint); }
+.cal-n { font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; width: 1.6rem; height: 1.6rem; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); }
+.cal-day.today .cal-n { background: var(--primary); color: var(--primary-ink); }
+.cal-ev { font-size: .72rem; line-height: 1.25; padding: .1rem .35rem; border-radius: var(--r-sm); background: var(--surface); border-left: 3px solid var(--primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-more { font-size: .7rem; color: var(--ink-soft); padding-left: .35rem; }
+.agenda { align-self: stretch; }
+.mrow { display: flex; align-items: center; gap: .5rem; }
+.mrow .row-link { flex: 1; min-width: 0; width: auto; margin: 0; }
+.mrow-acc { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda .mrow { flex-wrap: wrap; } .agenda .mrow-acc { max-width: 100%; padding-left: .5rem; margin-bottom: .3rem; }
+@media (max-width: 720px) { .cal-day { min-height: 3.2rem; } .cal-ev { display: none; } .cal-day .cal-more { display: none; }
+  .cal-day:has(.cal-ev)::after { content: ""; width: 6px; height: 6px; border-radius: var(--r-pill); background: var(--primary); margin: 2px auto 0; } }

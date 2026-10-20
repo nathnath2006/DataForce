@@ -8,25 +8,42 @@ import { meetingsApi } from "./api";
 import { DeleteMeeting, MeetingTable, TranscriptDialog } from "./MeetingsPanel";
 import { clampK, exactCount, formatDate } from "./text";
 import type { DocumentOut, ThemeOut } from "./types";
+import { loadAllMeetings } from "./all";
+import { MeetingsCalendar } from "./Calendar";
 import "./meetings.css";
 
 const PAGE = 25;
 
 export function MeetingsPage() {
   const { ws } = useWs();
+  const [mode, setMode] = useState<"calendar" | "list">("calendar");
   const [offset, setOffset] = useState(0);
+  const all = useLoad(() => loadAllMeetings(ws.slug), [ws.slug]);
   const list = useLoad(() => meetingsApi.page(ws.slug, { limit: PAGE, offset }), [ws.slug, offset]);
   const [viewing, setViewing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<DocumentOut | null>(null);
   const total = list.data?.total ?? 0;
+  const reload = () => { all.reload(); list.reload(); };
   return (
     <section className="stack">
-      <h1>Meetings</h1>
-      <ErrorNote error={list.error} />
-      {list.loading && !list.data && <Loading />}
-      {list.data && list.data.items.length === 0 && <Empty>No transcript yet. Upload one from an account or company page.</Empty>}
-      {list.data && list.data.items.length > 0 && (
-        <div className="card stack">
+      <div className="page-head">
+        <div>
+          <h1>Meetings</h1>
+          <p className="muted">{all.data ? exactCount(all.data.total, "meeting") : "…"}. Upload transcripts from an account or a company page.</p>
+        </div>
+        <div className="seg" role="group" aria-label="View">
+          <button aria-pressed={mode === "calendar"} onClick={() => setMode("calendar")}>Calendar</button>
+          <button aria-pressed={mode === "list"} onClick={() => setMode("list")}>List</button>
+        </div>
+      </div>
+      <ErrorNote error={mode === "calendar" ? all.error : list.error} />
+      {mode === "calendar" && (all.loading && !all.data ? <Loading /> : all.data && (
+        <MeetingsCalendar docs={all.data.items} onView={setViewing} />
+      ))}
+      {mode === "list" && list.loading && !list.data && <Loading />}
+      {mode === "list" && list.data && list.data.items.length === 0 && <Empty>No transcript yet. Upload one from an account or company page.</Empty>}
+      {mode === "list" && list.data && list.data.items.length > 0 && (
+        <div className="tile">
           <MeetingTable docs={list.data.items} showAccount onView={setViewing} onDelete={setDeleting} />
           <div className="row pager">
             <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>Previous</button>
@@ -36,8 +53,8 @@ export function MeetingsPage() {
         </div>
       )}
       {viewing && <TranscriptDialog id={viewing} onClose={() => setViewing(null)} />}
-      {deleting && <DeleteMeeting doc={deleting} onClose={() => setDeleting(null)} onDone={list.reload} />}
-      <ThemesSection onChanged={list.reload} />
+      {deleting && <DeleteMeeting doc={deleting} onClose={() => setDeleting(null)} onDone={reload} />}
+      <ThemesSection onChanged={reload} />
     </section>
   );
 }
@@ -62,7 +79,7 @@ function ThemesSection({ onChanged }: { onChanged: () => void }) {
           <Field label="Number of themes (2 to 30)">
             <input type="number" min={2} max={30} value={k} onChange={(ev) => setK(Number(ev.target.value))} />
           </Field>
-          <label className="row"><input type="checkbox" checked={useAi} onChange={(ev) => setUseAi(ev.target.checked)} /> Use AI to name themes</label>
+          <label className="check"><input type="checkbox" checked={useAi} onChange={(ev) => setUseAi(ev.target.checked)} /> Use AI to name themes</label>
           <button className="primary" disabled={a.busy} onClick={run}>{a.busy ? "Finding…" : "Find themes"}</button>
         </div>
         <p className="muted small">

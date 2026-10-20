@@ -38,26 +38,33 @@ function Branch(props: {
   const sugg = ov.suggestedByManager.get(n.id) ?? [];
   return (
     <li>
-      <span className="oc-fact">
-        <Link to={`${base}/contacts/${n.id}`}>{n.full_name}</Link>
-        {n.title && <span className="muted"> · {n.title}</span>}
-        {n.title_function && <span className="muted small"> ({classLabel(n.title_function, n.title_seniority)})</span>}
-        {t.orphan && <> <Tag kind="warn">manager not in chart</Tag></>}
-        {badge && <> <button type="button" className="link" aria-expanded={open} onClick={() => setOpen(!open)}><Tag kind="ok">{badge}</Tag></button></>}
-        {(n.signals ?? []).map((s) => <span key={s}> <Tag kind={signalKind(s)}>{signalLabel(s)}</Tag></span>)}
-      </span>
-      {open && (
-        <div className="oc-pop">
-          {ev ? <Evidence p={ev} /> : <p className="muted small">Validated from a {n.link_origin} proposal.</p>}
-        </div>
-      )}
+      <div className={`oc-node${t.orphan ? " orphan" : ""}`}>
+        <Link className="oc-name" to={`${base}/contacts/${n.id}`}>{n.full_name}</Link>
+        {n.title && <span className="oc-title">{n.title}</span>}
+        {n.title_function && <span className="muted small">{classLabel(n.title_function, n.title_seniority)}</span>}
+        {(t.orphan || badge || (n.signals ?? []).length > 0) && (
+          <span className="oc-tags">
+            {t.orphan && <Tag kind="warn">manager not in chart</Tag>}
+            {badge && <button type="button" className="oc-badge" aria-expanded={open} onClick={() => setOpen(!open)}><Tag kind="ok">{badge}</Tag></button>}
+            {(n.signals ?? []).map((s) => <Tag key={s} kind={signalKind(s)}>{signalLabel(s)}</Tag>)}
+          </span>
+        )}
+        {open && (
+          <div className="oc-pop">
+            {ev ? <Evidence p={ev} /> : <p className="muted small">Validated from a {n.link_origin} proposal.</p>}
+          </div>
+        )}
+      </div>
       {(t.children.length > 0 || sugg.length > 0) && (
         <ul>
           {t.children.map((c) => <Branch key={c.node.id} t={c} base={base} ov={ov} names={names} proposals={proposals} />)}
           {sugg.map((s) => (
-            <li key={s.proposalId} className="oc-suggest">
-              <Tag kind="mute">suggested</Tag> {names.get(s.contactId)?.full_name ?? s.contactId}
-              <span className="small"> (not confirmed)</span>
+            <li key={s.proposalId} className="sugg">
+              <div className="oc-node oc-suggest">
+                <span className="oc-name">{names.get(s.contactId)?.full_name ?? s.contactId}</span>
+                <span className="oc-tags"><Tag kind="mute">suggested</Tag></span>
+                <span className="small">not confirmed</span>
+              </div>
             </li>
           ))}
         </ul>
@@ -136,7 +143,9 @@ export function OrgChartPanel(props: { accountId: string; nodes: OrgChartNode[];
   return (
     <div className="stack">
       {ov.tree.length === 0 ? <Empty>No contacts yet.</Empty> : (
-        <ul className="tree">{ov.tree.map((t) => <Branch key={t.node.id} t={t} base={props.base} ov={ov} names={names} proposals={byId} />)}</ul>
+        <div className="oc-scroll" tabIndex={0} aria-label="Org chart (scroll sideways)">
+          <ul className="oc-tree">{ov.tree.map((t) => <Branch key={t.node.id} t={t} base={props.base} ov={ov} names={names} proposals={byId} />)}</ul>
+        </div>
       )}
       <p className="muted small">Solid lines are links people confirmed. Dashed "suggested" lines are proposals and are not facts until you accept them.</p>
       <div className="row between wrap">
