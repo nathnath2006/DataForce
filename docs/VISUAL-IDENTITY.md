@@ -38,6 +38,8 @@ tell the AI: "Follow VISUAL-IDENTITY.md exactly; use only the tokens; ask before
 | `--warn` / `--warn-bg` | `#854D0E` / `#FEF9C3` | `#FACC15` / `#3A2E10` | Needs attention |
 | `--bad` / `--bad-bg` | `#B91C1C` / `#FEE2E2` | `#F87171` / `#3B1B19` | Error, destructive |
 | `--mute-bg` | `#E5E7EB` | `#374151` | "Not verified", disabled, neutral tags |
+| `--hover` / `--press` *(derived)* | `rgba(17,24,39,.05)` / `.09` | `rgba(243,244,246,.06)` / `.11` | Low-alpha grey behind a hovered / pressed link, row, button or tile |
+| `--tint` *(derived)* | `rgba(29,78,216,.08)` | `rgba(96,165,250,.14)` | Blue wash behind the current item (nav, selected day, icon badges) |
 | `--backdrop` | `rgba(17,24,39,.45)` *(derived)* | `rgba(0,0,0,.6)` | Dialog backdrop behind the blur |
 | `--chart-1` … `--chart-6` *(derived)* | `#2A6FDB` `#B5651D` `#2E9D6B` `#B04FB0` `#9A7B0C` `#5F6B7A` | `#6C9CF5` `#F0A860` `#6FD39A` `#D58AD5` `#E6C860` `#A0ABBA` | Chart series (marks >= 3:1). Light `-2` and `-5` darkened from `#D9822B` / `#C4A21A` to reach 3:1 on white. |
 | `--mark-0` … `--mark-5` *(derived)* | `rgba` tints of blue, green, amber, red, violet, teal (.20 to .28 alpha) | same | Theme highlights behind transcript text (`.th0` … `.th5`) and `.mark-swatch` keys |
@@ -75,6 +77,17 @@ view region. Text contrast must stay ≥ 4.5:1 (checked: `#1D4ED8` on white 6.7:
 | **Transform step** | Row card: drag handle, icon, step name, small yellow "Auto" pill when generated, "⋮" menu. Steps stack with 8px gap; "+ Add step" dashed row at the end. |
 | **Columns grid** | Compact table: column name, inferred type tag, mini distribution sparkline, quality bar, semantic tag chip. Sticky header, 36px rows. |
 | **Analysis drawer** | Right-hand glass drawer, 16px left radius, icon rail on the far edge. |
+
+## 4b. Interaction and layout additions (2026-10-20)
+
+- **Links** read as text: `--ink`, no underline, a soft `--hover` pill on hover and blue text. Links inside
+  running text (`p`, `li`, `dd`, notes) stay blue. In-line actions (`button.link`) are pill chips, never underlined.
+- **Bento**: `.bento` is a 12-column grid of `.tile`s (16px radius, `--shadow-1`); `.w3` … `.w9` set the span,
+  stacking under 1100px and 720px. Clickable tiles lift on hover (no lift under reduced motion).
+- **Icons**: `frontend/src/icons.tsx`, 1.5px outline on a 24 grid, in the nav, the block palette and flow nodes.
+- **Segmented control** (`.seg`): one choice among a few (views, appearance preferences, result tabs).
+- **Appearance preferences** (Settings): theme, density (`data-density="compact"`), text size
+  (`data-text="large"`) and motion (`data-motion="reduced"`) on `<html>`, per browser. They never change a number.
 
 ## 5. Layout contract (all screens)
 

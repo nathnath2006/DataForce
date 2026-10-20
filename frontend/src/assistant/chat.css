@@ -1,0 +1,28 @@
+/* Assistant chat. The log scrolls; the composer stays at the bottom of the drawer. */
+.chat { display: flex; flex-direction: column; gap: .6rem; height: 100%; min-height: 0; }
+.chat-log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: .9rem; padding: .2rem .1rem .4rem; }
+.chat-empty { margin: auto 0; display: flex; flex-direction: column; align-items: flex-start; gap: .6rem; }
+.chat-empty p { margin: 0; }
+.chat-suggest { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.chat-suggest button { justify-content: flex-start; text-align: left; background: var(--hover); border-color: transparent; border-radius: var(--r-md); font-weight: 400; }
+.chat-suggest button:hover:not(:disabled) { background: var(--press); }
+.chat-pair { display: flex; flex-direction: column; gap: .5rem; }
+.bubble { max-width: 92%; padding: .6rem .8rem; border-radius: var(--r-lg); overflow-wrap: anywhere; }
+.bubble p { margin: 0; }
+.bubble.me { align-self: flex-end; background: var(--primary); color: var(--primary-ink); border-bottom-right-radius: var(--r-sm); }
+.bubble.bot { align-self: flex-start; background: var(--surface); border: 1px solid var(--hairline); border-bottom-left-radius: var(--r-sm); display: flex; flex-direction: column; gap: .5rem; }
+.bubble-meta { font-size: .72rem; color: var(--ink-soft); }
+.bubble.typing { flex-direction: row; gap: 4px; padding: .8rem .9rem; }
+.bubble.typing span { width: 6px; height: 6px; border-radius: var(--r-pill); background: var(--ink-soft); animation: df-blink 1.2s infinite ease-in-out; }
+.bubble.typing span:nth-child(2) { animation-delay: .15s; } .bubble.typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes df-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .bubble.typing span { animation: none; opacity: .6; } }
+.composer { display: flex; align-items: flex-end; gap: 6px; padding: 6px; border: 1px solid var(--hairline); border-radius: var(--r-lg); background: var(--surface); }
+.composer:focus-within { border-color: var(--primary); }
+.composer textarea { flex: 1; border: none; background: transparent; resize: none; min-height: 2.2rem; max-height: 9rem; field-sizing: content; padding: .45rem .5rem; }
+.composer textarea:focus-visible { outline: none; }
+.composer .send { width: 2.3rem; height: 2.3rem; padding: 0; border-radius: var(--r-pill); flex: none; }
+.chat-notice { font-size: .78rem; color: var(--ink-soft); }
+.chat-notice summary { cursor: pointer; width: max-content; border-radius: var(--r-pill); padding: .1rem .5rem; margin-left: -.5rem; }
+.chat-notice summary:hover { background: var(--hover); }
+.chat-notice p { margin: .3rem 0 0; }

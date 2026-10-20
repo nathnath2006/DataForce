@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { applyAppearance, readAppearance } from "./appearance";
 
 export type ThemeChoice = "system" | "light" | "dark";
 export const THEME_KEY = "df-theme";
@@ -34,6 +35,7 @@ export function applyTheme(t: ThemeChoice, root: { dataset: Record<string, strin
 /** Called from main.tsx before the first render. */
 export function initTheme(): void {
   applyTheme(readTheme());
+  applyAppearance(readAppearance());
 }
 
 /** The applied theme (follows the toggle): for widgets that take an explicit mode. */
@@ -53,14 +55,17 @@ export function useThemeChoice(): ThemeChoice {
 
 const LABEL: Record<ThemeChoice, string> = { system: "System", light: "Light", dark: "Dark" };
 
+/** Saves and applies a theme choice (top-bar toggle and Settings > Appearance stay in step through data-theme). */
+export function setThemeChoice(t: ThemeChoice): void { saveTheme(t); applyTheme(t); }
+
 export function ThemeToggle() {
-  const [t, setT] = useState<ThemeChoice>(() => readTheme());
+  const t = useThemeChoice();
   const n = nextTheme(t);
   return (
     <button
       type="button" className="theme-toggle"
       aria-label={`Theme: ${LABEL[t]}. Switch to ${LABEL[n]}.`} title={`Theme: ${LABEL[t]}`}
-      onClick={() => { setT(n); saveTheme(n); applyTheme(n); }}
+      onClick={() => setThemeChoice(n)}
     >
       Theme: {LABEL[t]}
     </button>

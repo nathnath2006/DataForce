@@ -50,7 +50,10 @@ export function AssistantDrawer({ open, setOpen }: { open: boolean; setOpen: (o:
         aria-label="Assistant" inert={!open}
       >
         <div className="drawer-head">
-          <h2>{scope ? `Ask about ${scope.name}` : "Assistant"}</h2>
+          <div>
+            <h2>Assistant</h2>
+            <p className="drawer-sub">{scope ? `About ${scope.name || `this ${scope.kind}`}` : "No record open"}</p>
+          </div>
           <button type="button" className="ghost" aria-label="Close assistant"
             onClick={() => { setOpen(false); rail.current?.focus(); }}>×</button>
         </div>
@@ -58,7 +61,10 @@ export function AssistantDrawer({ open, setOpen }: { open: boolean; setOpen: (o:
           {scope ? (
             <AskPanel key={`${scope.kind}:${scope.id}`} scope={{ kind: scope.kind, id: scope.id }} bare />
           ) : (
-            <p className="muted">Open an account or a company to ask about it.</p>
+            <div className="drawer-empty">
+              <span className="icon-badge"><AssistantIcon /></span>
+              <p className="muted">Open an account or a company to ask about it.</p>
+            </div>
           )}
         </div>
       </aside>

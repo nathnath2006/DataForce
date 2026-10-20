@@ -18,6 +18,7 @@ import { nodeState } from "./nodeState";
 import { ResultsPanel } from "./Results";
 import type { BlockType, FlowOut, NodeResult } from "./types";
 import "./flows.css";
+import { Icon } from "../icons";
 
 const MIME = "application/x-dataforce-block";
 
@@ -49,7 +50,7 @@ function BlockView({ id, data, selected }: NodeProps<BlockNode>) {
   return (
     <div className={`fnode ${nodeState(res, !!selected)}`}>
       <div className="fnode-head">
-        {glyph && <Hexagon />}
+        {glyph ? <Hexagon /> : <Icon name={data.config.type} size={16} className="fnode-icon" />}
         <div className="fnode-title">{data.label || blockTitle(data.config.type)}</div>
       </div>
       <div className="fnode-sub">{summary(data)}</div>
@@ -182,7 +183,7 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
 
   return (
     <section className="editor">
-      <div className="toolbar row wrap">
+      <div className="toolbar tile row wrap">
         <input aria-label="Flow name" className="flowname" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} />
         {dirty && <Tag kind="warn">unsaved changes</Tag>}
         {!dirty && msg && <span className="muted small">{msg}</span>}
@@ -193,30 +194,34 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
       </div>
       <ErrorNote error={save.error} /><ErrorNote error={run.error} />
       <div className="workspace">
-        <aside className="palette card" aria-label="Blocks">
+        <aside className="palette tile" aria-label="Blocks">
           {PALETTE_GROUPS.map((g) => (
-            <div key={g}><h3>{g}</h3>
-              {BLOCKS.filter((b) => b.group === g).map((b) => (
-                <div key={b.type} className="pitem" draggable onDragStart={(ev) => { ev.dataTransfer.setData(MIME, b.type); ev.dataTransfer.effectAllowed = "move"; }}
-                  role="button" tabIndex={0} onKeyDown={(ev) => { if (ev.key === "Enter") addBlock(b.type); }} onDoubleClick={() => addBlock(b.type)}>
-                  {b.title}
-                </div>
-              ))}
+            <div key={g} className="pgroup"><p className="eyebrow">{g}</p>
+              <div className="pgrid">
+                {BLOCKS.filter((b) => b.group === g).map((b) => (
+                  <div key={b.type} className="pitem" draggable onDragStart={(ev) => { ev.dataTransfer.setData(MIME, b.type); ev.dataTransfer.effectAllowed = "move"; }}
+                    role="button" tabIndex={0} title={`${b.title}: drag onto the canvas, or double-click`}
+                    onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); addBlock(b.type); } }} onDoubleClick={() => addBlock(b.type)}>
+                    <Icon name={b.type} size={18} />
+                    <span>{b.title}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
-          <p className="muted small">Drag onto the canvas, or double-click to add.</p>
+          <p className="muted small">Drag onto the canvas, or double-click (Enter) to add.</p>
         </aside>
-        <div className="canvas" ref={wrap} onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }} onDrop={onDrop}>
+        <div className="canvas tile" ref={wrap} onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }} onDrop={onDrop}>
           <ReactFlow nodes={shown} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
             onConnect={onConnect} isValidConnection={isValid} onSelectionChange={({ nodes: s }) => setSel(s[0]?.id ?? null)}
             deleteKeyCode="Backspace" fitView colorMode={colorMode}>
             <Background /><Controls /><MiniMap pannable zoomable />
           </ReactFlow>
         </div>
-        <aside className="config card" aria-label="Block settings">
+        <aside className="config tile" aria-label="Block settings">
           {!selected ? <p className="muted">Select a block to configure it.</p> : (
             <div className="stack tight">
-              <h3>{blockTitle(selected.data.config.type)}</h3>
+              <h3 className="tile-title"><Icon name={selected.data.config.type} size={18} />{blockTitle(selected.data.config.type)}</h3>
               <label>Label<input value={selected.data.label ?? ""} maxLength={100} onChange={(e) => patch(selected.id, { label: e.target.value })} /></label>
               <ConfigForm slug={slug} config={selected.data.config} onChange={(config) => patch(selected.id, { config })}
                 cols={selCols.cols.length || selected.data.config.type !== "dataset" ? selCols.cols : []} rightCols={selCols.right}
@@ -226,7 +231,7 @@ function Editor({ slug, flow }: { slug: string; flow: FlowOut }) {
           )}
         </aside>
       </div>
-      <div className="card resultsbox">
+      <div className="tile resultsbox">
         <ResultsPanel result={sel ? results[sel] : undefined} title={selected ? (selected.data.label || blockTitle(selected.data.config.type)) : "a block"} />
       </div>
     </section>

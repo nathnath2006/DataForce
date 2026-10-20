@@ -19,6 +19,9 @@ import { FlowsPage } from "./flows/FlowsPage";
 import { ThemeToggle } from "./theme";
 import { AssistantDrawer, useDrawerOpen } from "./shell/AssistantDrawer";
 import { ScopeProvider } from "./shell/scope";
+import { Icon, type IconName } from "./icons";
+import { SummaryPage } from "./pages/Summary";
+import { DocsPage } from "./docs/DocsPage";
 
 // The flow editor (and its canvas library) is the largest part of the bundle: load it on demand.
 const FlowEditorPage = lazy(() =>
@@ -30,7 +33,9 @@ export function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/w/:ws" element={<Shell />}>
-        <Route index element={<Navigate to="companies" replace />} />
+        <Route index element={<Navigate to="summary" replace />} />
+        <Route path="summary" element={<SummaryPage />} />
+        <Route path="docs" element={<DocsPage />} />
         <Route path="companies" element={<CompaniesPage />} />
         <Route path="companies/:id" element={<CompanyDetailPage />} />
         <Route path="accounts" element={<AccountsPage />} />
@@ -57,7 +62,7 @@ function Home() {
   const { data, error, reload } = useLoad(() => api.listWorkspaces(), []);
   const [creating, setCreating] = useState(false);
   const first = data?.[0];
-  if (first) return <Navigate to={`/w/${first.slug}/accounts`} replace />;
+  if (first) return <Navigate to={`/w/${first.slug}/summary`} replace />;
   return (
     <main className="center">
       <h1>DataForce</h1>
@@ -70,13 +75,16 @@ function Home() {
       )}
       {!data && !error && <Loading />}
       {creating && (
-        <NewWorkspace onClose={() => setCreating(false)} onCreated={(slug) => { reload(); nav(`/w/${slug}/accounts`); }} />
+        <NewWorkspace onClose={() => setCreating(false)} onCreated={(slug) => { reload(); nav(`/w/${slug}/summary`); }} />
       )}
     </main>
   );
 }
 
 const actingKey = (ws: string) => `dataforce.actingAs.${ws}`;
+const NAV: (IconName | "|")[] = [
+  "summary", "companies", "accounts", "contacts", "deals", "meetings", "analysis", "|", "docs", "settings", "admin",
+];
 
 function Shell() {
   const { ws: slug = "" } = useParams();
@@ -117,7 +125,7 @@ function Shell() {
           <span className="brand"><span className="logo" aria-hidden="true" />DataForce</span>
           <select
             className="ws-switch" aria-label="Workspace" value={slug}
-            onChange={(e) => (e.target.value === "__new" ? setCreating(true) : nav(`/w/${e.target.value}/accounts`))}
+            onChange={(e) => (e.target.value === "__new" ? setCreating(true) : nav(`/w/${e.target.value}/summary`))}
           >
             {(wss.data ?? []).map((w) => (
               <option key={w.slug} value={w.slug}>
@@ -142,8 +150,8 @@ function Shell() {
         )}
         <div className={`body has-rail ${drawerOpen ? "drawer-open" : ""}`}>
           <nav className={`side ${navOpen ? "open" : ""}`} onClick={() => setNavOpen(false)}>
-            {["companies", "accounts", "contacts", "deals", "meetings", "analysis", "settings", "admin"].map((p) => (
-              <NavLink key={p} to={`/w/${slug}/${p}`}>{p.charAt(0).toUpperCase() + p.slice(1)}</NavLink>
+            {NAV.map((p) => p === "|" ? <span key="sep" className="side-sep" aria-hidden="true" /> : (
+              <NavLink key={p} to={`/w/${slug}/${p}`}><Icon name={p} />{p.charAt(0).toUpperCase() + p.slice(1)}</NavLink>
             ))}
             <p className="muted small">Acting as is a label only: there is no login before M3.</p>
           </nav>
@@ -155,7 +163,7 @@ function Shell() {
       {creating && (
         <NewWorkspace
           onClose={() => setCreating(false)}
-          onCreated={(s) => { wss.reload(); nav(`/w/${s}/accounts`); }}
+          onCreated={(s) => { wss.reload(); nav(`/w/${s}/summary`); }}
         />
       )}
       {addUser && (

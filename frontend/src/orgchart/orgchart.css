@@ -1,5 +1,29 @@
-.oc-suggest { border-left: 2px dashed var(--muted); margin-left: .4rem; padding-left: .5rem; color: var(--muted); font-style: italic; }
-.oc-fact { border-left: 2px solid var(--line); }
+/* Top-down org tree (layout after daniel-hauser/react-organizational-chart, pure CSS: no dependency).
+   Connector lines are borders on each <li>; suggested links are dashed and never solid. */
+.oc-scroll { overflow-x: auto; padding: .4rem 0 1rem; border-radius: var(--r-md); }
+.oc-tree, .oc-tree ul { list-style: none; margin: 0; padding: 0; display: flex; justify-content: center; }
+.oc-tree { min-width: max-content; gap: 0; }
+.oc-tree ul { position: relative; padding-top: 20px; }
+.oc-tree ul::before { content: ""; position: absolute; top: 0; left: 50%; height: 20px; border-left: 1.5px solid var(--ink-soft); }
+.oc-tree li { position: relative; display: flex; flex-direction: column; align-items: center; padding: 20px 6px 0; }
+.oc-tree li::before, .oc-tree li::after { content: ""; position: absolute; top: 0; right: 50%; width: 50%; height: 20px; border-top: 1.5px solid var(--ink-soft); }
+.oc-tree li::after { right: auto; left: 50%; border-left: 1.5px solid var(--ink-soft); }
+.oc-tree li:first-child::before, .oc-tree li:last-child::after { border: 0 none; }
+.oc-tree li:last-child::before { border-right: 1.5px solid var(--ink-soft); border-radius: 0 var(--r-md) 0 0; }
+.oc-tree li:first-child::after { border-radius: var(--r-md) 0 0 0; }
+.oc-tree li:only-child::before, .oc-tree li:only-child::after { display: none; }
+.oc-tree li:only-child { padding-top: 0; }
+.oc-tree > li { padding-top: 0; } .oc-tree > li::before, .oc-tree > li::after { display: none; }
+.oc-tree > li + li { margin-left: 12px; }
+.oc-tree li.sugg::before, .oc-tree li.sugg::after { border-top-style: dashed; border-left-style: dashed; border-right-style: dashed; border-color: var(--ink-soft); }
+.oc-node { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 9.5rem; max-width: 13rem; padding: .55rem .7rem; text-align: center; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md); box-shadow: var(--shadow-1); transition: background-color .15s ease, box-shadow .15s ease; }
+.oc-node:hover { background: var(--hover); }
+.oc-node.orphan { border-color: var(--warn); }
+.oc-name { font-weight: 600; margin: 0; padding: .05em .3em; }
+.oc-title { color: var(--ink-soft); font-size: .8rem; line-height: 1.25; overflow-wrap: anywhere; }
+.oc-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-top: 2px; }
+.oc-badge { border: none; background: none; padding: 0; } .oc-badge:hover:not(:disabled) { background: none; filter: brightness(.95); }
+.oc-suggest { background: var(--mute-bg); color: var(--ink-soft); border: 1.5px dashed var(--ink-soft); box-shadow: none; font-style: italic; }
+.oc-pop { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 5; width: 18rem; text-align: left; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md); box-shadow: var(--shadow-2); padding: .5rem .7rem; font-size: .85rem; }
 .oc-item { border: 1px solid var(--line); border-radius: var(--r-md); padding: .5rem .7rem; margin: .5rem 0; }
-.oc-item blockquote { margin: .3rem 0; padding-left: .6rem; border-left: 3px solid var(--line); white-space: pre-wrap; }
-.oc-pop { border: 1px solid var(--line); border-radius: var(--r-md); padding: .4rem .6rem; margin: .2rem 0; font-size: .85rem; }
+.oc-item blockquote, .oc-pop blockquote { margin: .3rem 0; padding-left: .6rem; border-left: 3px solid var(--line); white-space: pre-wrap; }

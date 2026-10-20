@@ -1,3 +1,4 @@
+import { ReasonList, ReasonText } from "../docs/Reasons";
 import { useMemo, useState } from "react";
 import { formatNum, formatPct, formatPts, formatQ } from "../lib";
 import { Tag } from "../ui";
@@ -22,16 +23,16 @@ export function ResultsPanel({ result, title }: { result: NodeResult | undefined
           {result.n_rows != null && `${result.n_rows.toLocaleString("en-US")} rows · `}{result.elapsed_ms} ms
         </span>
         {hasTable && (
-          <span className="row">
-            {v && <button className={tab === "view" ? "primary" : ""} onClick={() => setTab("view")}>Result</button>}
-            <button className={tab === "table" || (!v && tab === "view") ? "primary" : ""} onClick={() => setTab("table")}>Table</button>
-            <button className={tab === "columns" ? "primary" : ""} onClick={() => setTab("columns")}>Columns</button>
+          <span className="seg" role="group" aria-label="Result view">
+            {v && <button aria-pressed={tab === "view"} onClick={() => setTab("view")}>Result</button>}
+            <button aria-pressed={tab === "table" || (!v && tab === "view")} onClick={() => setTab("table")}>Table</button>
+            <button aria-pressed={tab === "columns"} onClick={() => setTab("columns")}>Columns</button>
           </span>
         )}
       </div>
       {result.status === "error" && <div className="note err" role="alert">{result.error ?? "This block failed."}</div>}
       {result.status === "skipped" && <div className="note warn">Skipped: an upstream block failed.</div>}
-      {result.warnings.map((w, i) => <div className="note warn" key={i}>{w}</div>)}
+      {result.warnings.map((w, i) => <div className="note warn" key={i}><ReasonText text={w} /></div>)}
       {result.status === "ok" && (tab === "columns" ? <ColumnsGrid profile={result.profile} nRows={result.n_rows} /> : showView && v ? <ViewSwitch view={v} /> : <PreviewTable result={result} />)}
     </div>
   );
@@ -139,7 +140,7 @@ function StatsLine({ r, kind, overall }: { r: StatsRow; kind: "rate" | "median";
         <td>{overall ? "" : verified ? <Tag kind="ok">verified</Tag> : <Tag kind="mute">not verified</Tag>}</td>
       </tr>
       {!verified && !overall && r.reasons.length > 0 && (
-        <tr className="nv"><td colSpan={8}><ul className="reasons">{r.reasons.map((x, i) => <li key={i}>{x}</li>)}</ul></td></tr>
+        <tr className="nv"><td colSpan={8}><ReasonList reasons={r.reasons} /></td></tr>
       )}
     </>
   );
@@ -177,7 +178,7 @@ function ModelPanel({ view }: { view: ModelView }) {
       {!ok && (
         <div className="note warn">
           Not verified: do not act on this model.
-          <ul className="reasons">{view.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
+          <ReasonList reasons={view.reasons} />
         </div>
       )}
       <MetricsTable metrics={view.metrics} />
