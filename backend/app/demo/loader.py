@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.db.models import Workspace
 from app.demo.models import DemoDataset
 from app.domain.enums import RecordSource
 from app.domain.schemas import AccountIn, ContactIn, DealIn, UserIn
@@ -27,32 +29,49 @@ def load_dataset(
     workspace_slug: str,
     workspace_name: str | None = None,
     replace: bool = False,
+    workspace: Workspace | None = None,
+    on_step: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Create a demo workspace (`is_demo=True`) and fill it. Returns the counts and ids.
 
     `replace=True` first deletes any workspace with that slug (cascade). The caller commits.
+    With `workspace` (an existing demo workspace) nothing is created or replaced: it is filled.
+    `on_step(step_id)` is called as each stage begins (see services.workspace_setup.STEPS).
     """
-    existing = workspaces.get_workspace_by_slug(session, workspace_slug) if replace else None
+    step = on_step or (lambda _id: None)
+    existing = (
+        workspaces.get_workspace_by_slug(session, workspace_slug)
+        if replace and workspace is None
+        else None
+    )
     if existing is not None:
         if not existing.is_demo:
             raise InvalidInputError(
                 f"workspace {workspace_slug!r} is not a demo workspace: refusing to replace it"
             )
         workspaces.delete_workspace(session, workspace_slug)
-    ws = workspaces.create_workspace(
-        session,
-        workspace_slug,
-        workspace_name
-        or f"Synthetic demo ({dataset.ground_truth.variant}, seed {dataset.ground_truth.seed})",
-        is_demo=True,
-    )
+    if workspace is not None:
+        if not workspace.is_demo:
+            raise InvalidInputError("only a demo workspace can be filled with synthetic data")
+        ws = workspace
+    else:
+        ws = workspaces.create_workspace(
+            session,
+            workspace_slug,
+            workspace_name
+            or f"Synthetic demo ({dataset.ground_truth.variant}, seed {dataset.ground_truth.seed})",
+            is_demo=True,
+        )
     ws_id = ws.id
+    step("workspace")
+    step("people")
 
     user_ids: dict[str, uuid.UUID] = {}
     for u in dataset.users:
         data = UserIn(display_name=u.display_name, email=u.email, role=u.role)
         user_ids[u.key] = users.create_user(session, ws_id, data).id
 
+    step("companies")
     company_ids: dict[str, uuid.UUID] = {}
     for co in dataset.companies:
         company_ids[co.key] = company_svc.create_company(
@@ -74,6 +93,7 @@ def load_dataset(
             account.company_id = company_ids[dataset.account_company[a.key]]
         account_ids[a.key] = account.id
 
+    step("contacts")
     # Pass 1: contacts without manager; pass 2: reporting lines (the service checks the tree).
     contact_ids: dict[str, uuid.UUID] = {}
     for c in dataset.contacts:
@@ -91,6 +111,7 @@ def load_dataset(
                 session, ws_id, contact_ids[c.key], contact_ids[c.reports_to_key]
             )
 
+    step("deals")
     deal_ids: dict[str, uuid.UUID] = {}
     for d in dataset.deals:
         data = DealIn(
@@ -107,6 +128,7 @@ def load_dataset(
         )
         deal_ids[d.key] = deals.create_deal(session, ws_id, data).id
 
+    step("meetings")
     note_ids: dict[str, uuid.UUID] = {}
     n_corrections = 0
     for n in dataset.notes:

@@ -67,11 +67,17 @@ def _workspace_fk() -> Mapped[uuid.UUID]:
 
 class Workspace(Base):
     __tablename__ = "workspace"
+    __table_args__ = (
+        CheckConstraint("setup_state IN ('preparing')", name="ck_workspace_setup_state"),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    setup_state: Mapped[str | None] = mapped_column(
+        String(16)
+    )  # 'preparing' while filling; NULL = ready
     created_at: Mapped[datetime] = _created()
 
 

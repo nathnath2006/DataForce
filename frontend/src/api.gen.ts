@@ -2133,6 +2133,7 @@ export interface WorkbookUpdate {
 }
 
 export interface WorkspaceCreate {
+  kind?: "real" | "test";
   name: string;
   slug: string;
 }
@@ -2144,7 +2145,16 @@ export interface WorkspaceOut {
   n_contacts: number;
   n_deals: number;
   name: string;
+  setup_state?: "ready" | "preparing";
   slug: string;
+}
+
+export interface WorkspaceSetup {
+  done: number;
+  error: string | null;
+  state: "ready" | "preparing" | "failed" | "interrupted";
+  step: string | null;
+  total: number;
 }
 
 export interface app__api__schemas_ai__Citation {

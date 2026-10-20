@@ -67,3 +67,51 @@ def test_lockdown_list_covers_every_model_table():
         spec.loader.exec_module(module)
         covered |= set(module.TABLES)
     assert set(Base.metadata.tables) | {"alembic_version"} == covered
+
+
+def test_trigger_functions_have_a_fixed_search_path(engine: Engine):
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT proname, proconfig FROM pg_proc "
+                "WHERE proname IN ('enforce_append_only', 'guard_truncate')"
+            )
+        ).all()
+    assert {r.proname for r in rows} == {"enforce_append_only", "guard_truncate"}
+    for r in rows:
+        assert r.proconfig == ['search_path=""'], r.proname
+
+
+def test_onboarding_migration_round_trip(engine: Engine):
+    """0012 down and up again on the test database (nothing else is touched)."""
+    url = engine.url.render_as_string(hide_password=False)
+    engine.dispose()
+    try:
+        schema.downgrade(url, "0011_auth")
+        with engine.connect() as conn:
+            cols = {
+                r[0]
+                for r in conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'workspace'"
+                    )
+                )
+            }
+            cfg = conn.execute(
+                text("SELECT proconfig FROM pg_proc WHERE proname = 'guard_truncate'")
+            ).scalar_one()
+        assert "setup_state" not in cols and cfg is None
+    finally:
+        engine.dispose()
+        schema.upgrade(url)
+    with engine.connect() as conn:
+        assert (
+            conn.execute(
+                text(
+                    "SELECT count(*) FROM information_schema.columns "
+                    "WHERE table_name = 'workspace' AND column_name = 'setup_state'"
+                )
+            ).scalar_one()
+            == 1
+        )

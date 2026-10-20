@@ -1,10 +1,12 @@
-import { lazy, Suspense, useMemo, useState } from "react";
-import { Navigate, NavLink, Outlet, Route, Routes, useNavigate, useParams } from "react-router";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Navigate, Outlet, Route, Routes, useNavigate, useParams } from "react-router";
 import { api } from "./api";
 import { WsContext } from "./context";
-import { ForgotPage, LoginPage, RequireAuth, ResetPage, SetupPage, AdminOnly } from "./auth";
-import { ErrorNote, Field, Loading, Modal, useAction } from "./ui";
-import { useQuery } from "./data/useQuery";
+import { ForgotPage, LoginPage, RequireAuth, ResetPage, SetupPage, AdminOnly, useAuth } from "./auth";
+import { ErrorNote, Loading } from "./ui";
+import type { WorkspaceOut } from "./types";
+import { CalmCard, NewWorkspaceDialog, WelcomePage } from "./onboarding";
+import { invalidate, useQuery } from "./data/useQuery";
 import { SideNav, loadNavCollapsed, saveNavCollapsed } from "./shell/Nav";
 import { TopBar } from "./shell/TopBar";
 import { AssistantDrawer, useDrawerOpen } from "./shell/AssistantDrawer";
@@ -50,6 +52,7 @@ export function App() {
       <Route path="/setup" element={<SetupPage />} />
       <Route path="/forgot" element={<ForgotPage />} />
       <Route path="/reset" element={<ResetPage />} />
+      <Route path="/welcome" element={<RequireAuth><WelcomePage /></RequireAuth>} />
       <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
       <Route path="/w/:ws" element={<RequireAuth><Shell /></RequireAuth>}>
         <Route index element={<HomePage />} />
@@ -85,25 +88,19 @@ export function App() {
 }
 
 function Home() {
-  const nav = useNavigate();
-  const { data, error, reload } = useQuery("/workspaces", () => api.listWorkspaces());
-  const [creating, setCreating] = useState(false);
+  const { data, error } = useQuery("/workspaces", () => api.listWorkspaces());
+  const { isAdmin } = useAuth();
   const first = data?.[0];
   if (first) return <Navigate to={`/w/${first.slug}/home`} replace />;
+  if (data && data.length === 0) {
+    if (isAdmin) return <Navigate to="/welcome" replace />;
+    return <CalmCard title="You are not in a workspace yet" text="Ask your administrator to add you." />;
+  }
   return (
     <main className="center">
       <h1>DataForce</h1>
       <ErrorNote error={error} />
-      {data && data.length === 0 && (
-        <>
-          <p>No workspace yet.</p>
-          <button className="primary" onClick={() => setCreating(true)}>New workspace</button>
-        </>
-      )}
       {!data && !error && <Loading />}
-      {creating && (
-        <NewWorkspace onClose={() => setCreating(false)} onCreated={(slug) => { reload(); nav(`/w/${slug}/home`); }} />
-      )}
     </main>
   );
 }
@@ -119,7 +116,20 @@ function Shell() {
   const [navCollapsed, setNavCollapsed] = useState(loadNavCollapsed);
   const [drawerOpen, setDrawerOpen] = useDrawerOpen();
 
-  const ws = wss.data?.find((w) => w.slug === slug);
+  // A list cached before this workspace existed must not decide "not found": ask the server once.
+  const [fresh, setFresh] = useState<{ slug: string; list: WorkspaceOut[] } | null>(null);
+  const checking = useRef<string | null>(null);
+  const known = wss.data?.some((w) => w.slug === slug) ?? false;
+  useEffect(() => {
+    if (known || !wss.data || checking.current === slug) return;
+    checking.current = slug;
+    api.listWorkspaces().then(
+      (list) => { setFresh({ slug, list }); if (list.some((w) => w.slug === slug)) invalidate("/workspaces"); },
+      () => setFresh({ slug, list: [] }),
+    );
+  }, [known, wss.data, slug]);
+  const confirmed = fresh?.slug === slug;
+  const ws = (wss.data ?? []).find((w) => w.slug === slug) ?? (confirmed ? fresh.list.find((w) => w.slug === slug) : undefined);
   const userList = users.data ?? [];
 
   const { reload: reloadUsers } = users;
@@ -132,7 +142,14 @@ function Shell() {
 
   if (wss.loading) return <main className="center"><Loading /></main>;
   if (wss.error) return <main className="center"><ErrorNote error={wss.error} /></main>;
-  if (!ws) return <main className="center"><p>Workspace “{slug}” not found.</p><NavLink to="/">Back</NavLink></main>;
+  if (!ws && !confirmed) return <main className="center"><Loading /></main>;
+  if (!ws) {
+    return (
+      <CalmCard title="Workspace not found" text={`There is no workspace “${slug}” that you can open.`}>
+        <button className="primary" onClick={() => nav("/")}>Back to my workspaces</button>
+      </CalmCard>
+    );
+  }
 
   return (
     <WsContext.Provider value={wsValue!}>
@@ -155,46 +172,11 @@ function Shell() {
       </div>
       </ScopeProvider>
       {creating && (
-        <NewWorkspace
+        <NewWorkspaceDialog
           onClose={() => setCreating(false)}
-          onCreated={(s) => { wss.reload(); nav(`/w/${s}/home`); }}
+          onCreated={(s) => { setCreating(false); nav(`/w/${s}/home`); }}
         />
       )}
     </WsContext.Provider>
-  );
-}
-
-function slugify(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
-}
-
-function NewWorkspace(props: { onClose: () => void; onCreated: (slug: string) => void }) {
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [touched, setTouched] = useState(false);
-  const a = useAction();
-  const effective = touched ? slug : slugify(name);
-  const valid = name.trim() !== "" && /^[a-z0-9][a-z0-9-]{0,63}$/.test(effective);
-  return (
-    <Modal title="New workspace" onClose={props.onClose}>
-      <form className="stack" onSubmit={(ev) => {
-        ev.preventDefault();
-        void a.run(async () => {
-          const w = await api.createWorkspace({ slug: effective, name: name.trim() });
-          props.onClose();
-          props.onCreated(w.slug);
-        });
-      }}>
-        <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} autoFocus /></Field>
-        <Field label="Slug (lowercase letters, digits, dashes)">
-          <input value={effective} onChange={(e) => { setTouched(true); setSlug(e.target.value); }} />
-        </Field>
-        <ErrorNote error={a.error} />
-        <div className="row end">
-          <button type="button" onClick={props.onClose}>Cancel</button>
-          <button className="primary" disabled={!valid || a.busy}>Create</button>
-        </div>
-      </form>
-    </Modal>
   );
 }

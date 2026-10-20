@@ -1,6 +1,7 @@
 import { ApiError, parseApiError } from "./lib";
 import type * as T from "./types";
 import { invalidate } from "./data/cache";
+import type { SetupStatus, WorkspaceCreateBody, WorkspaceCreated } from "./onboarding/types";
 
 const BASE = "/api";
 
@@ -71,7 +72,9 @@ async function getPage<I>(path: string, params: object, signal?: AbortSignal): P
 export const api = {
   // workspaces and users
   listWorkspaces: () => request<T.WorkspaceOut[]>("GET", "/workspaces"),
-  createWorkspace: (b: { slug: string; name: string }) => request<T.WorkspaceOut>("POST", "/workspaces", b),
+  createWorkspace: (b: WorkspaceCreateBody) => request<WorkspaceCreated>("POST", "/workspaces", b),
+  getWorkspaceSetup: (slug: string, signal?: AbortSignal) => request<SetupStatus>("GET", `/workspaces/${e(slug)}/setup`, undefined, signal),
+  deleteWorkspace: (slug: string) => request<void>("DELETE", `/workspaces/${e(slug)}`),
   listUsers: (ws: string) => request<T.UserOut[]>("GET", `${w(ws)}/users`),
   createUser: (ws: string, b: { display_name: string; email?: string | null; role?: T.UserRole }) =>
     request<T.UserOut>("POST", `${w(ws)}/users`, b),

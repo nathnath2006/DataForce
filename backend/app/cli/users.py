@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Annotated
 
 import typer
@@ -13,8 +12,9 @@ from app.auth import passwords
 from app.auth.access import empty_password_allowed
 from app.cli._common import cli_command, console, fail, session_factory
 from app.config import get_settings
-from app.db.models import AppUser, UserAccount, Workspace
+from app.db.models import UserAccount, Workspace
 from app.services import user_accounts, workspaces
+from app.services.demo_logins import backfill_logins
 from app.services.errors import InvalidInputError, NotFoundError
 
 app = typer.Typer(
@@ -114,32 +114,6 @@ def disable_cmd(email: EmailArg) -> None:
         sessions.end_all_sessions(s, user.id)
         s.commit()
     console.print("disabled", markup=False)
-
-
-def _synthetic_email(name: str, slug: str) -> str:
-    parts = re.sub(r"[^a-z0-9 ]", "", name.lower()).split()
-    return f"{'.'.join(parts) or 'user'}@{slug}.demo"
-
-
-def backfill_logins(s: Session, slug: str) -> tuple[int, int]:
-    """One rep account per CRM user of a demo workspace. Returns (created, linked)."""
-    ws = _workspace(s, slug)
-    if not ws.is_demo:
-        raise InvalidInputError("backfill-logins only works on demo workspaces")
-    created = linked = 0
-    for au in s.scalars(select(AppUser).where(AppUser.workspace_id == ws.id)):
-        if any(m.app_user_id == au.id for m, _, _ in user_accounts.list_members(s, ws.id)):
-            continue
-        email = (au.email or "").strip().lower() or _synthetic_email(au.display_name, slug)
-        user = user_accounts.get_by_email(s, email)
-        if user is None:
-            user = user_accounts.create_account(s, email, au.display_name, None)
-            created += 1
-        elif user.is_admin or user_accounts.get_membership(s, user.id, ws.id) is not None:
-            continue  # never touch an admin or an existing member
-        user_accounts.add_membership(s, user, ws, role="rep", app_user_id=au.id)
-        linked += 1
-    return created, linked
 
 
 @cli_command

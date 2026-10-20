@@ -652,3 +652,26 @@ without hosting.
 tests.
 - High: a workspace admin could take over the superadmin.
 - Medium: another rep's deal-level rows on a shared account; a setup race.
+
+## R. Database on Supabase and workspace onboarding (2026-10-20) [PO + build]
+
+**Supabase** (`docs/HOSTING-PLAN.md` §3.1): project in **eu-west-1 (Ireland)**, not Frankfurt. Schema
+migrated with Alembic as a dedicated `dataforce_app` role (no superuser, no `bypassrls`; its
+`search_path` includes `extensions`, where `vector` lives). Synthetic `test-data` loaded. The app
+still runs on the PO's computer, pointed at Supabase for that process only; `backend/.env` stays local.
+Advisors: deny-all RLS notices (expected) and two mutable function search paths, fixed by
+migration `0012_onboarding` (`SET search_path = ''` on `enforce_append_only` and `guard_truncate`).
+
+**Onboarding** (`docs/WORKSPACE-ONBOARDING-CONTRACT.md`), from the PO's first Supabase run:
+- the first admin lands on `/welcome` and chooses a **test** workspace (synthetic data, six demo reps)
+  or a **real** one (empty), names it, and watches the name assemble from dots while the server
+  reports each step; never a fake percentage;
+- a test workspace is filled in a background thread (one at a time, refused near the DB quota),
+  shown as `preparing` until done; a failure deletes it; a restart mid-fill shows `interrupted`
+  with "Remove and start again" (`DELETE /api/workspaces/{slug}`, demo workspaces only);
+- the false "Workspace not found" after creating one is gone: the workspace list is refreshed until
+  it holds the new slug before the app opens it.
+
+Security review: no high or medium left; the thread-start failure, a `BaseException` escape and a
+stale `failed` status were fixed. Orphan demo sign-ins after removing a test workspace are kept
+(they cannot sign in: no workspace). Branch `wip/m5-wave3`'s `0012_user_settings` becomes `0013`.

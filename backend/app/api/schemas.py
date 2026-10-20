@@ -58,11 +58,21 @@ class WorkspaceOut(BaseModel):
     n_accounts: int
     n_contacts: int
     n_deals: int
+    setup_state: Literal["ready", "preparing"] = "ready"  # preparing: a test workspace is filling
 
 
 class WorkspaceCreate(_In):
     slug: str = Field(pattern=SLUG_PATTERN)
     name: str = Field(min_length=1, max_length=200)
+    kind: Literal["real", "test"] = "real"  # test: synthetic data, filled in the background
+
+
+class WorkspaceSetup(BaseModel):
+    state: Literal["ready", "preparing", "failed", "interrupted"]
+    step: str | None
+    done: int
+    total: int
+    error: str | None
 
 
 class UserOut(BaseModel):

@@ -12,7 +12,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Request
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.schemas import SLUG_PATTERN
 from app.auth.viewer import Viewer
@@ -32,6 +32,11 @@ def get_db() -> Iterator[Session]:
         session.close()
 
 
+def get_session_factory() -> sessionmaker[Session]:
+    """Where background threads open their own sessions (tests override it)."""
+    return SessionLocal
+
+
 def get_app_settings(request: Request) -> Settings:
     """The settings the app was built with (`dataforce ui --port` adjusts them), so a route never
     disagrees with the server it runs in (e.g. the OAuth redirect URI's port)."""
@@ -40,6 +45,7 @@ def get_app_settings(request: Request) -> Settings:
 
 
 Db = Annotated[Session, Depends(get_db)]
+SessionFactory = Annotated[sessionmaker[Session], Depends(get_session_factory)]
 AppSettings = Annotated[Settings, Depends(get_app_settings)]
 
 

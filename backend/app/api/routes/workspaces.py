@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Response
 from sqlalchemy import select
 
-from app.api.deps import CurrentViewer, CurrentWorkspace, Db, SessionUser, SuperAdmin
-from app.api.schemas import UserCreate, UserOut, WorkspaceCreate, WorkspaceOut
+from app.api.deps import (
+    AppSettings,
+    CurrentViewer,
+    CurrentWorkspace,
+    Db,
+    SessionFactory,
+    SessionUser,
+    SuperAdmin,
+)
+from app.api.schemas import UserCreate, UserOut, WorkspaceCreate, WorkspaceOut, WorkspaceSetup
 from app.auth.visibility import require_admin
 from app.db.models import Membership, Workspace
 from app.domain.schemas import UserIn
-from app.services import user_accounts, users, workspaces
+from app.services import user_accounts, users, workspace_setup, workspaces
+from app.services.admin import db_size
+from app.services.errors import ForbiddenError, NotFoundError
 
 router = APIRouter()
 
@@ -24,6 +34,7 @@ def _out(ws: Workspace, n_accounts: int = 0, n_contacts: int = 0, n_deals: int =
         n_accounts=n_accounts,
         n_contacts=n_contacts,
         n_deals=n_deals,
+        setup_state="preparing" if ws.setup_state == "preparing" else "ready",
     )
 
 
@@ -38,12 +49,74 @@ def list_workspaces(db: Db, user: SessionUser) -> list[WorkspaceOut]:
     return [_out(*row) for row in rows]
 
 
+QUOTA_STOP_PCT = 80  # no new test workspace when the database is this full
+
+
 @router.post("/workspaces", response_model=WorkspaceOut, status_code=201, tags=["workspaces"])
-def create_workspace(body: WorkspaceCreate, db: Db, admin: SuperAdmin) -> WorkspaceOut:
-    ws = workspaces.create_workspace(db, body.slug, body.name, is_demo=False)
-    user_accounts.add_membership(db, admin, ws, role="admin")
+def create_workspace(
+    body: WorkspaceCreate,
+    db: Db,
+    admin: SuperAdmin,
+    settings: AppSettings,
+    factory: SessionFactory,
+) -> WorkspaceOut:
+    if body.kind == "real":
+        ws = workspaces.create_workspace(db, body.slug, body.name, is_demo=False)
+        user_accounts.add_membership(db, admin, ws, role="admin")
+        db.commit()
+        return _out(ws)
+    used = db_size(db, settings.db_quota_mb)["used_pct"]
+    if used is not None and used > QUOTA_STOP_PCT:
+        raise HTTPException(
+            status_code=409,
+            detail=f"The database is {used:.0f}% full; a test workspace would not fit.",
+        )
+    if not workspace_setup.reserve(body.slug):
+        raise HTTPException(
+            status_code=409, detail="A test workspace is already being prepared. Please wait."
+        )
+    try:
+        ws = workspaces.create_workspace(db, body.slug, body.name, is_demo=True)
+        ws.setup_state = "preparing"
+        user_accounts.add_membership(db, admin, ws, role="admin")
+        db.commit()
+    except BaseException:
+        workspace_setup.release(body.slug)
+        raise
+    out = _out(ws)
+    workspace_setup.start(body.slug, factory)
+    return out
+
+
+@router.get("/workspaces/{slug}/setup", response_model=WorkspaceSetup, tags=["workspaces"])
+def workspace_setup_status(slug: str, db: Db, admin: SuperAdmin) -> WorkspaceSetup:
+    ws = workspaces.get_workspace_by_slug(db, slug)
+    job = workspace_setup.get(slug)
+    total = workspace_setup.TOTAL
+    # A ready row wins over a stale failed entry (the slug may have been reused within 10 min).
+    if ws is not None and ws.setup_state is None:
+        return WorkspaceSetup(state="ready", step=None, done=total, total=total, error=None)
+    if job is not None and job.state == "failed":
+        return WorkspaceSetup(state="failed", step=None, done=0, total=total, error=job.error)
+    if ws is None:
+        raise NotFoundError("workspace not found")
+    if job is None:
+        return WorkspaceSetup(state="interrupted", step=None, done=0, total=total, error=None)
+    return WorkspaceSetup(state="preparing", step=job.step, done=job.done, total=total, error=None)
+
+
+@router.delete("/workspaces/{slug}", status_code=204, tags=["workspaces"])
+def delete_workspace(slug: str, db: Db, admin: SuperAdmin) -> Response:
+    ws = workspaces.get_workspace_by_slug(db, slug)
+    if ws is None:
+        raise NotFoundError("workspace not found")
+    if not ws.is_demo:
+        raise ForbiddenError("Only a test workspace can be removed here.")
+    if workspace_setup.is_running(slug):
+        raise HTTPException(status_code=409, detail="This workspace is still being prepared.")
+    workspaces.delete_workspace(db, slug)
     db.commit()
-    return _out(ws)
+    return Response(status_code=204)
 
 
 @router.get("/w/{ws}/users", response_model=list[UserOut], tags=["workspaces"])

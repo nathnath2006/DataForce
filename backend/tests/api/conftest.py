@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.api.deps import get_app_settings, get_db
+from app.api.deps import get_app_settings, get_db, get_session_factory
 from app.api.main import create_app
 from app.auth import ratelimit
 from app.config import Settings
@@ -49,6 +49,7 @@ def app(api_settings: Settings, session_factory: sessionmaker[Session]) -> FastA
 
     application.dependency_overrides[get_db] = _db
     application.dependency_overrides[get_app_settings] = lambda: api_settings
+    application.dependency_overrides[get_session_factory] = lambda: session_factory
     return application
 
 

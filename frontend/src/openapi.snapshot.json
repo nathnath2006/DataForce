@@ -12829,6 +12829,15 @@
    "WorkspaceCreate": {
     "additionalProperties": false,
     "properties": {
+     "kind": {
+      "default": "real",
+      "enum": [
+       "real",
+       "test"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
      "name": {
       "maxLength": 200,
       "minLength": 1,
@@ -12875,6 +12884,15 @@
       "title": "Name",
       "type": "string"
      },
+     "setup_state": {
+      "default": "ready",
+      "enum": [
+       "ready",
+       "preparing"
+      ],
+      "title": "Setup State",
+      "type": "string"
+     },
      "slug": {
       "title": "Slug",
       "type": "string"
@@ -12890,6 +12908,59 @@
      "n_deals"
     ],
     "title": "WorkspaceOut",
+    "type": "object"
+   },
+   "WorkspaceSetup": {
+    "properties": {
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "state": {
+      "enum": [
+       "ready",
+       "preparing",
+       "failed",
+       "interrupted"
+      ],
+      "title": "State",
+      "type": "string"
+     },
+     "step": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "state",
+     "step",
+     "done",
+     "total",
+     "error"
+    ],
+    "title": "WorkspaceSetup",
     "type": "object"
    },
    "app__api__schemas_ai__Citation": {
@@ -22251,6 +22322,83 @@
      }
     },
     "summary": "Create Workspace",
+    "tags": [
+     "workspaces"
+    ]
+   }
+  },
+  "/api/workspaces/{slug}": {
+   "delete": {
+    "operationId": "delete_workspace_api_workspaces__slug__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "slug",
+      "required": true,
+      "schema": {
+       "title": "Slug",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Workspace",
+    "tags": [
+     "workspaces"
+    ]
+   }
+  },
+  "/api/workspaces/{slug}/setup": {
+   "get": {
+    "operationId": "workspace_setup_status_api_workspaces__slug__setup_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "slug",
+      "required": true,
+      "schema": {
+       "title": "Slug",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WorkspaceSetup"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Workspace Setup Status",
     "tags": [
      "workspaces"
     ]
