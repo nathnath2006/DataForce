@@ -38,7 +38,9 @@ class _In(BaseModel):
 
 class Page[T](BaseModel):
     items: list[T]
-    total: int
+    total: int  # exact count of the rows the viewer may see, ignoring offset and limit
+    offset: int
+    limit: int
 
 
 class Health(BaseModel):
@@ -85,6 +87,7 @@ class AccountOut(AccountRead):
     n_open_deals: int
     company_name: str | None = None  # M2a
     owner_id: UUID | None = None  # M5: the rep who owns the account
+    owner_name: str | None = None
 
 
 class AccountCreate(_In):

@@ -20,6 +20,7 @@ from app.services._common import (
     LIKE_ESCAPE,
     get_scoped,
     like_contains,
+    order_clauses,
     require,
     require_account,
     require_workspace,
@@ -195,6 +196,16 @@ def _match(term: str):
     return or_(*cond)
 
 
+COMPANY_SORT = {
+    "name": Company.name,
+    "city": Company.city,
+    "siren": Company.siren,
+    "category": Company.category,
+    "size_bracket": Company.size_bracket,
+    "created_at": Company.created_at,
+}
+
+
 def list_companies_page(
     session: Session,
     ws_id: uuid.UUID,
@@ -202,6 +213,8 @@ def list_companies_page(
     q: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    sort: str | None = None,
+    direction: str | None = None,
     viewer: Viewer | None = None,
 ) -> tuple[list[Company], int]:
     cond = [
@@ -211,7 +224,8 @@ def list_companies_page(
     if q:
         cond.append(_match(q))
     total = session.scalar(select(func.count()).select_from(Company).where(*cond)) or 0
-    stmt = select(Company).where(*cond).order_by(Company.name, Company.id)
+    order = order_clauses(COMPANY_SORT, sort, direction, [Company.name], Company.id)
+    stmt = select(Company).where(*cond).order_by(*order)
     return list(session.scalars(stmt.limit(limit).offset(offset))), total
 
 

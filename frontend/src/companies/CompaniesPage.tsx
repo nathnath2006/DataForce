@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useWs } from "../context";
 import type { CompanyOut, RegistryCompanyOut } from "../types";
-import { Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, useAction, useDebounced, useLoad } from "../ui";
+import { Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, useAction } from "../ui";
+import { useQuery } from "../data/useQuery";
+import { DataTable, type Column } from "../table/DataTable";
+import { Pager } from "../table/Pager";
+import { useListQuery, useUrlSearch } from "../table/useListQuery";
 import { companiesApi } from "./api";
 import { registrySummary } from "./format";
-
-const PAGE = 25;
 
 export function InteractedBadge({ c }: { c: Pick<CompanyOut, "interacted" | "last_interaction"> }) {
   return c.interacted
@@ -18,32 +20,33 @@ export function CompaniesPage() {
   const { ws } = useWs();
   const nav = useNavigate();
   const base = `/w/${ws.slug}`;
-  const [params] = useSearchParams();
-  const [text, setText] = useState(params.get("q") ?? "");
-  const dq = useDebounced(text.trim(), 250);
-  const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
   const [hits, setHits] = useState<RegistryCompanyOut[] | null>(null);
   const [addFor, setAddFor] = useState<RegistryCompanyOut | null>(null);
   const reg = useAction();
 
-  const lookup = useLoad(() => (dq ? companiesApi.lookup(ws.slug, dq) : Promise.resolve(null)), [ws.slug, dq]);
-  const list = useLoad(() => (dq ? Promise.resolve(null) : companiesApi.list(ws.slug, { limit: PAGE, offset })), [ws.slug, dq, offset]);
-
+  const list = useListQuery<CompanyOut>({
+    resource: "companies", filters: ["q"], defaultSort: { key: "name", dir: "asc" },
+    fetch: (p, signal) => companiesApi.list(ws.slug, p, signal),
+    enabled: (f) => !f.q, // a search text goes to the CRM lookup instead
+  });
+  const dq = list.f("q");
+  const [text, setText] = useUrlSearch(dq, (v) => { setHits(null); list.setFilter("q", v, true); });
+  const lookup = useQuery(dq ? `/w/${ws.slug}/lookup?q=${encodeURIComponent(dq)}` : null, () => companiesApi.lookup(ws.slug, dq));
   const searchRegistry = () => {
     if (text.trim().length < 2) return;
     void reg.run(async () => { setHits(await companiesApi.registrySearch(ws.slug, text.trim())); });
   };
 
-  const row = (c: CompanyOut) => (
-    <tr key={c.id}>
-      <td><Link to={`${base}/companies/${c.id}`}>{c.name}</Link></td>
-      <td>{c.siren ?? "—"}</td><td>{c.city ?? "—"}</td>
-      <td className="num">{c.n_accounts}</td><td className="num">{c.n_deals}</td>
-      <td><InteractedBadge c={c} /></td>
-    </tr>
-  );
-  const head = <thead><tr><th>Company</th><th>SIREN</th><th>City</th><th className="num">Accounts</th><th className="num">Deals</th><th>Interaction</th></tr></thead>;
+  const columns: Column<CompanyOut>[] = [
+    { key: "name", header: "Company", sortable: true, cell: (c) => c.name },
+    { key: "siren", header: "SIREN", sortable: true, cell: (c) => c.siren ?? "—" },
+    { key: "city", header: "City", sortable: true, cell: (c) => c.city ?? "—" },
+    { key: "n_accounts", header: "Accounts", numeric: true, cell: (c) => c.n_accounts },
+    { key: "n_deals", header: "Deals", numeric: true, cell: (c) => c.n_deals },
+    { key: "interaction", header: "Interaction", cell: (c) => <InteractedBadge c={c} /> },
+  ];
+  const companyHref = (c: CompanyOut) => `${base}/companies/${c.id}`;
   const l = lookup.data;
 
   return (
@@ -54,14 +57,14 @@ export function CompaniesPage() {
       </div>
       <form className="row wrap" onSubmit={(ev) => { ev.preventDefault(); searchRegistry(); }}>
         <input type="search" aria-label="Search companies" placeholder="Name, domain or SIREN" value={text}
-          onChange={(ev) => { setText(ev.target.value); setOffset(0); setHits(null); }} style={{ flex: 1, minWidth: 220 }} />
+          onChange={(ev) => setText(ev.target.value)} style={{ flex: 1, minWidth: 220 }} />
         <button type="submit" disabled={reg.busy || text.trim().length < 2}>Search the public registry</button>
       </form>
       <p className="muted small">
         Typing searches your CRM only. The registry button sends your search text to the public French company
         registry (api.gouv.fr).
       </p>
-      <ErrorNote error={lookup.error} /><ErrorNote error={list.error} /><ErrorNote error={reg.error} />
+      <ErrorNote error={lookup.error} /><ErrorNote error={dq ? null : list.error} /><ErrorNote error={reg.error} />
 
       {hits && (
         <div className="card">
@@ -90,7 +93,9 @@ export function CompaniesPage() {
           <div className="card stack">
             <h2>In your CRM</h2>
             {l.companies.length === 0 && l.accounts.length === 0 && <Empty>No match in your CRM. Try the public registry.</Empty>}
-            {l.companies.length > 0 && <div className="tablewrap"><table>{head}<tbody>{l.companies.map(row)}</tbody></table></div>}
+            {l.companies.length > 0 && (
+              <DataTable columns={columns} rows={l.companies} rowKey={(c) => c.id} rowHref={companyHref} caption="Companies in your CRM" />
+            )}
             {l.accounts.length > 0 && (
               <>
                 <h3>Accounts without a company</h3>
@@ -101,18 +106,11 @@ export function CompaniesPage() {
             )}
           </div>
         )
-      ) : list.loading && !list.data ? <Loading /> : list.data && (
-        <div className="card stack">
-          {list.data.items.length === 0 ? <Empty>No companies yet.</Empty> : (
-            <div className="tablewrap"><table>{head}<tbody>{list.data.items.map(row)}</tbody></table></div>
-          )}
-          <div className="row between">
-            <span className="muted small">{list.data.total} companies</span>
-            <div className="row">
-              <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>Previous</button>
-              <button disabled={offset + PAGE >= list.data.total} onClick={() => setOffset(offset + PAGE)}>Next</button>
-            </div>
-          </div>
+      ) : (
+        <div className="stack">
+          <DataTable columns={columns} rows={list.data?.items ?? []} rowKey={(c) => c.id} rowHref={companyHref}
+            sort={list.sort} onSort={list.setSort} loading={list.loading} caption="Companies" empty="No companies yet." />
+          {list.data && <Pager offset={list.data.offset} limit={list.data.limit} shown={list.data.items.length} total={list.data.total} onOffset={list.setOffset} />}
         </div>
       )}
 

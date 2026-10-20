@@ -3,7 +3,7 @@ BACKEND := backend
 VENV    := $(BACKEND)/.venv/bin
 
 # testdata: load the synthetic 'Test data' workspace (replaces it; deletes old demo-* workspaces)
-.PHONY: testdata help db-up db-down migrate db-reset-test test test-integration test-all lint lock notebook ui ui-dev
+.PHONY: testdata help db-up db-down migrate db-reset-test test test-integration test-all lint lock notebook ui ui-dev api-types
 
 # Used by `make lock`: pip-tools from the dev extras. UPGRADE=1 also bumps every pinned version.
 PIP_COMPILE := $(CURDIR)/$(VENV)/pip-compile --generate-hashes --strip-extras --allow-unsafe --quiet
@@ -19,9 +19,15 @@ help:
 	@echo "lint             ruff check"
 	@echo "lock             regenerate the three hashed locks (UPGRADE=1 to bump)"
 	@echo "ui               build the frontend if needed and serve the local UI on http://127.0.0.1:8800"
+	@echo "api-types        refresh the OpenAPI snapshot and regenerate frontend/src/api.gen.ts"
 	@echo "ui-dev           API on 8800 + Vite dev server on 127.0.0.1:5173 (hot reload)"
 	@echo "notebook         open the Milestone 1 demo notebook in JupyterLab"
 	@echo "testdata         load the synthetic 'Test data' workspace for the app"
+
+# api-types: refresh the OpenAPI snapshot from the app, then regenerate frontend/src/api.gen.ts
+api-types:
+	cd $(BACKEND) && .venv/bin/python -c "import json; from app.api.main import create_app; print(json.dumps(create_app().openapi(), indent=1, sort_keys=True))" > ../frontend/src/openapi.snapshot.json
+	cd frontend && node scripts/gen-api-types.mjs
 
 db-up:
 	docker compose up -d --wait db

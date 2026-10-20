@@ -1,0 +1,13 @@
+.ta { position: relative; min-width: 0; }
+.ta input { width: 100%; }
+.ta-list {
+  position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: .25rem; list-style: none;
+  max-height: 16rem; overflow: auto; background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--r-md); box-shadow: var(--shadow-2);
+}
+.ta-opt { padding: .35rem .5rem; border-radius: var(--r-sm); cursor: pointer; display: flex; justify-content: space-between; gap: .75rem; }
+.ta-opt[aria-selected="true"], .ta-opt:hover { background: var(--primary-soft); }
+.ta-hint { color: var(--ink-soft); font-size: .85em; }
+.ta-state { padding: .35rem .5rem; color: var(--ink-soft); }
+.ta-chosen { display: flex; gap: .5rem; align-items: center; }
+.ta-chosen > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

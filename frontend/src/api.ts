@@ -1,10 +1,11 @@
 import { ApiError, parseApiError } from "./lib";
 import type * as T from "./types";
+import { invalidate } from "./data/cache";
 
 const BASE = "/api";
 
 /** JSON request to the local API (shared by every feature module). */
-export async function request<R>(method: string, path: string, body?: unknown): Promise<R> {
+export async function request<R>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<R> {
   const mutating = method !== "GET";
   const headers: Record<string, string> = { Accept: "application/json" };
   if (mutating) {
@@ -14,10 +15,11 @@ export async function request<R>(method: string, path: string, body?: unknown): 
   let res: Response;
   try {
     res = await fetch(BASE + path, {
-      method, headers, credentials: "same-origin",
+      method, headers, credentials: "same-origin", signal,
       body: body === undefined ? (mutating ? "{}" : undefined) : JSON.stringify(body),
     });
   } catch {
+    if (signal?.aborted) throw new DOMException("aborted", "AbortError");
     throw new ApiError(0, "network_error", "Cannot reach the DataForce API. Is `dataforce ui` running?");
   }
   if (res.status === 204) return undefined as R;
@@ -31,6 +33,11 @@ export async function request<R>(method: string, path: string, body?: unknown): 
     window.location.assign("/login"); // the session ended: sign in again
   }
   if (!res.ok) throw parseApiError(res.status, data);
+  if (mutating) {
+    // A write may change any list of its workspace: drop the cached responses (/w/<slug>/...).
+    const m = /^\/w\/[^/]+\//.exec(path);
+    if (m) invalidate(m[0]);
+  }
   return data as R;
 }
 
@@ -43,6 +50,24 @@ export const q = (params: Record<string, string | number | undefined | null>): s
 export const e = encodeURIComponent;
 export const w = (ws: string) => `/w/${e(ws)}`;
 
+export interface ListOpts { limit?: number; offset?: number; sort?: string; dir?: "asc" | "desc" }
+const MAX_LIMIT = 200; // the server's cap per request
+
+/** GET a page; a `limit` above the server cap is served by walking the pages (never truncated). */
+async function getPage<I>(path: string, params: object, signal?: AbortSignal): Promise<T.Page<I>> {
+  const p = params as Record<string, string | number | undefined | null>;
+  const want = typeof p.limit === "number" ? p.limit : undefined;
+  if (want === undefined || want <= MAX_LIMIT) return request<T.Page<I>>("GET", path + q(p), undefined, signal);
+  const first = await request<T.Page<I>>("GET", path + q({ ...p, limit: MAX_LIMIT }), undefined, signal);
+  const items = [...first.items];
+  while (items.length < Math.min(want, first.total) && !signal?.aborted) {
+    const next = await request<T.Page<I>>("GET", path + q({ ...p, limit: MAX_LIMIT, offset: items.length }), undefined, signal);
+    if (next.items.length === 0) break;
+    items.push(...next.items);
+  }
+  return { ...first, items: items.slice(0, want), limit: want };
+}
+
 export const api = {
   // workspaces and users
   listWorkspaces: () => request<T.WorkspaceOut[]>("GET", "/workspaces"),
@@ -52,8 +77,8 @@ export const api = {
     request<T.UserOut>("POST", `${w(ws)}/users`, b),
 
   // accounts
-  listAccounts: (ws: string, p: { q?: string; segment?: string; limit?: number; offset?: number } = {}) =>
-    request<T.Page<T.AccountOut>>("GET", `${w(ws)}/accounts${q(p)}`),
+  listAccounts: (ws: string, p: { q?: string; segment?: string } & ListOpts = {}, signal?: AbortSignal) =>
+    getPage<T.AccountOut>(`${w(ws)}/accounts`, p, signal),
   createAccount: (ws: string, b: T.AccountCreate) => request<T.AccountOut>("POST", `${w(ws)}/accounts`, b),
   getAccount: (ws: string, id: string) => request<T.AccountOut>("GET", `${w(ws)}/accounts/${e(id)}`),
   updateAccount: (ws: string, id: string, b: T.AccountUpdate) =>
@@ -62,8 +87,8 @@ export const api = {
   getOrgChart: (ws: string, id: string) => request<T.OrgChartOut>("GET", `${w(ws)}/accounts/${e(id)}/org-chart`),
 
   // contacts
-  listContacts: (ws: string, p: { account_id?: string; q?: string; limit?: number; offset?: number } = {}) =>
-    request<T.Page<T.ContactOut>>("GET", `${w(ws)}/contacts${q(p)}`),
+  listContacts: (ws: string, p: { account_id?: string; q?: string } & ListOpts = {}, signal?: AbortSignal) =>
+    getPage<T.ContactOut>(`${w(ws)}/contacts`, p, signal),
   createContact: (ws: string, b: T.ContactCreate) => request<T.ContactOut>("POST", `${w(ws)}/contacts`, b),
   getContact: (ws: string, id: string) => request<T.ContactOut>("GET", `${w(ws)}/contacts/${e(id)}`),
   updateContact: (ws: string, id: string, b: T.ContactUpdate) =>
@@ -75,8 +100,9 @@ export const api = {
   // deals
   listDeals: (
     ws: string,
-    p: { account_id?: string; stage?: string; lead_source?: string; owner_id?: string; q?: string; limit?: number; offset?: number } = {},
-  ) => request<T.Page<T.DealOut>>("GET", `${w(ws)}/deals${q(p)}`),
+    p: { account_id?: string; stage?: string; lead_source?: string; owner_id?: string; q?: string } & ListOpts = {},
+    signal?: AbortSignal,
+  ) => getPage<T.DealOut>(`${w(ws)}/deals`, p, signal),
   createDeal: (ws: string, b: T.DealCreate) => request<T.DealOut>("POST", `${w(ws)}/deals`, b),
   getDeal: (ws: string, id: string) => request<T.DealOut>("GET", `${w(ws)}/deals/${e(id)}`),
   updateDeal: (ws: string, id: string, b: T.DealUpdate) =>

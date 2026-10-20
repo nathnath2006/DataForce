@@ -2,24 +2,36 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { api } from "../api";
 import { useWs } from "../context";
-import { Empty, ErrorNote, Field, Loading, Modal, emptyToNull, useAction, useDebounced, useLoad } from "../ui";
+import { ErrorNote, Field, Modal, emptyToNull, useAction } from "../ui";
+import { DataTable, type Column } from "../table/DataTable";
+import { Pager } from "../table/Pager";
+import { useListQuery, useUrlSearch } from "../table/useListQuery";
+import { AccountPicker } from "../ui/pickers";
 import type { ContactOut } from "../types";
 import { NormalizeButton, ReviewTitles } from "../titles/TitlesToolbar";
 import { classLabel } from "../orgchart/model";
 
+const CONTACT_COLUMNS = (slug: string): Column<ContactOut>[] => [
+  { key: "full_name", header: "Name", sortable: true, cell: (c) => c.full_name },
+  { key: "title", header: "Title", sortable: true, cell: (c) => <>{c.title ?? "—"}{c.title_flag && <> <span className="tag warn" title={c.title_flag}>check</span></>}</> },
+  { key: "title_function", header: "Function", sortable: true, cell: (c) => classLabel(c.title_function, "x").split(" · ")[0] },
+  { key: "title_seniority", header: "Seniority", sortable: true, cell: (c) => classLabel("x", c.title_seniority).split(" · ")[1] },
+  { key: "account", header: "Account", cell: (c) => <Link to={`/w/${slug}/accounts/${c.account_id}`}>{c.account_name}</Link> },
+  { key: "reports_to", header: "Reports to", cell: (c) => c.reports_to_name ?? "—" },
+  { key: "n_notes", header: "Notes", numeric: true, cell: (c) => c.n_notes },
+];
+
 export function ContactsPage() {
   const { ws } = useWs();
   const nav = useNavigate();
-  const [q, setQ] = useState("");
-  const [accountId, setAccountId] = useState("");
-  const dq = useDebounced(q);
   const [creating, setCreating] = useState(false);
-  const [flagged, setFlagged] = useState(false);
   const [reviewing, setReviewing] = useState(false);
-  const accounts = useLoad(() => api.listAccounts(ws.slug, { limit: 1000 }), [ws.slug]);
-  const { data, error, loading, reload } = useLoad(
-    () => api.listContacts(ws.slug, { q: dq, account_id: accountId, limit: 1000 }), [ws.slug, dq, accountId]);
-  const shown = (data?.items ?? []).filter((c) => !flagged || !!c.title_flag);
+  const list = useListQuery<ContactOut>({
+    resource: "contacts", filters: ["q", "account_id"], defaultSort: { key: "full_name", dir: "asc" },
+    fetch: (p, signal) => api.listContacts(ws.slug, p, signal),
+  });
+  const [text, setText] = useUrlSearch(list.f("q"), (v) => list.setFilter("q", v, true));
+  const { data, reload } = list;
   return (
     <section>
       <div className="row between wrap">
@@ -32,28 +44,15 @@ export function ContactsPage() {
       </div>
       {reviewing ? <ReviewTitles onChanged={reload} /> : <>
       <div className="row wrap filters">
-        <input type="search" placeholder="Search name or title" aria-label="Search" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select aria-label="Account" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-          <option value="">All accounts</option>
-          {accounts.data?.items.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
-        <label className="check"><input type="checkbox" checked={flagged} onChange={(e) => setFlagged(e.target.checked)} />Flagged only</label>
-        {data && <span className="muted">{shown.length} of {data.total}</span>}
+        <input type="search" placeholder="Search name or title" aria-label="Search" value={text} onChange={(e) => setText(e.target.value)} />
+        <div style={{ minWidth: 240 }}>
+          <AccountPicker id={list.f("account_id")} ariaLabel="Filter by account" onChange={(id) => list.setFilter("account_id", id)} />
+        </div>
       </div>
-      <ErrorNote error={error} />
-      {loading && !data ? <Loading /> : data && shown.length === 0 ? <Empty>No contacts match.</Empty> : data && (
-        <div className="tablewrap"><table>
-          <thead><tr><th>Name</th><th>Title</th><th>Function</th><th>Seniority</th><th>Account</th><th>Reports to</th><th className="num">Notes</th></tr></thead>
-          <tbody>{shown.map((c) => (
-            <tr key={c.id}>
-              <td><Link to={c.id}>{c.full_name}</Link></td><td>{c.title ?? "—"}{c.title_flag && <> <span className="tag warn" title={c.title_flag}>check</span></>}</td>
-              <td>{classLabel(c.title_function, "x").split(" · ")[0]}</td><td>{classLabel("x", c.title_seniority).split(" · ")[1]}</td>
-              <td><Link to={`/w/${ws.slug}/accounts/${c.account_id}`}>{c.account_name}</Link></td>
-              <td>{c.reports_to_name ?? "—"}</td><td className="num">{c.n_notes}</td>
-            </tr>
-          ))}</tbody>
-        </table></div>
-      )}
+      <ErrorNote error={list.error} />
+      <DataTable columns={CONTACT_COLUMNS(ws.slug)} rows={data?.items ?? []} rowKey={(c) => c.id} rowHref={(c) => c.id}
+        sort={list.sort} onSort={list.setSort} loading={list.loading} caption="Contacts" empty="No contacts match." />
+      {data && <Pager offset={data.offset} limit={data.limit} shown={data.items.length} total={data.total} onOffset={list.setOffset} />}
       </>}
       {creating && <ContactForm onClose={() => setCreating(false)} onSaved={(c) => nav(c.id)} />}
     </section>
@@ -68,7 +67,6 @@ export function ContactForm(props: {
   const [name, setName] = useState(c0?.full_name ?? "");
   const [title, setTitle] = useState(c0?.title ?? "");
   const [accountId, setAccountId] = useState(props.accountId ?? "");
-  const accounts = useLoad(() => api.listAccounts(ws.slug, { limit: 1000 }), [ws.slug]);
   const act = useAction();
   return (
     <Modal title={c0 ? "Edit contact" : "New contact"} onClose={props.onClose}>
@@ -87,10 +85,7 @@ export function ContactForm(props: {
         <Field label="Title"><input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} /></Field>
         {!c0 && !props.accountId && (
           <Field label="Account">
-            <select value={accountId} onChange={(e) => setAccountId(e.target.value)} required>
-              <option value="">Choose…</option>
-              {accounts.data?.items.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            <AccountPicker id={accountId} onChange={setAccountId} required />
           </Field>
         )}
         <ErrorNote error={act.error} />

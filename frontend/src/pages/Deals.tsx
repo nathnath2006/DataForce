@@ -5,18 +5,23 @@ import { useCanDelete } from "../auth";
 import { useWs } from "../context";
 import { formatEur, label } from "../lib";
 import { DEAL_STAGES, LEAD_SOURCES, type DealOut, type DealStage, type LeadSource } from "../types";
-import { Confirm, Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, todayIso, useAction, useDebounced, useLoad } from "../ui";
+import { Confirm, ErrorNote, Field, Modal, Tag, emptyToNull, todayIso, useAction } from "../ui";
+import { DataTable, type Column } from "../table/DataTable";
+import { Pager } from "../table/Pager";
+import { useListQuery, useUrlSearch } from "../table/useListQuery";
+import { AccountPicker } from "../ui/pickers";
 
 const isClosed = (s: DealStage) => s === "closed_won" || s === "closed_lost";
 
 export function DealsPage() {
   const { ws, users } = useWs();
   const mayDelete = useCanDelete();
-  const [f, setF] = useState({ stage: "", lead_source: "", owner_id: "", q: "" });
-  const dq = useDebounced(f.q);
-  const { data, error, loading, reload } = useLoad(
-    () => api.listDeals(ws.slug, { stage: f.stage, lead_source: f.lead_source, owner_id: f.owner_id, q: dq, limit: 1000 }),
-    [ws.slug, f.stage, f.lead_source, f.owner_id, dq]);
+  const list = useListQuery<DealOut>({
+    resource: "deals", filters: ["q", "stage", "lead_source", "owner_id"], defaultSort: { key: "created_on", dir: "desc" },
+    fetch: (p, signal) => api.listDeals(ws.slug, p, signal),
+  });
+  const [text, setText] = useUrlSearch(list.f("q"), (v) => list.setFilter("q", v, true));
+  const { data, reload } = list;
   const [editing, setEditing] = useState<DealOut | "new" | null>(null);
   const [closing, setClosing] = useState<{ deal: DealOut; stage: DealStage } | null>(null);
   const [deleting, setDeleting] = useState<DealOut | null>(null);
@@ -26,6 +31,27 @@ export function DealsPage() {
     if (isClosed(stage)) { setClosing({ deal: d, stage }); return; }
     void act.run(async () => { await api.setStage(ws.slug, d.id, { stage }); reload(); });
   };
+  const columns: Column<DealOut>[] = [
+    { key: "name", header: "Deal", sortable: true, cell: (d) => d.name },
+    { key: "account", header: "Account", cell: (d) => <Link to={`/w/${ws.slug}/accounts/${d.account_id}`}>{d.account_name}</Link> },
+    { key: "stage", header: "Stage", sortable: true, cell: (d) => (
+      <select aria-label={`Stage of ${d.name}`} value={d.stage} onChange={(e) => changeStage(d, e.target.value as DealStage)}>
+        {DEAL_STAGES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
+      </select>
+    ) },
+    { key: "amount_eur", header: "Amount", numeric: true, sortable: true, cell: (d) => formatEur(d.amount_eur) },
+    { key: "lead_source", header: "Source", sortable: true, cell: (d) => (d.lead_source ? <Tag>{label(d.lead_source)}</Tag> : "—") },
+    { key: "owner", header: "Owner", cell: (d) => d.owner_name ?? "—" },
+    { key: "created_on", header: "Created", sortable: true, cell: (d) => d.created_on },
+    { key: "closed_on", header: "Closed", sortable: true, cell: (d) => d.closed_on ?? "—" },
+    { key: "cycle_days", header: "Cycle (d)", numeric: true, cell: (d) => d.cycle_days ?? "—" },
+    { key: "actions", header: "", cell: (d) => (
+      <span className="row end">
+        <button className="link" onClick={() => setEditing(d)}>Edit</button>
+        {mayDelete(d.owner_id) && <button className="link" onClick={() => setDeleting(d)}>Delete</button>}
+      </span>
+    ) },
+  ];
   return (
     <section>
       <div className="row between wrap">
@@ -33,40 +59,21 @@ export function DealsPage() {
         <button className="primary" onClick={() => setEditing("new")}>New deal</button>
       </div>
       <div className="row wrap filters">
-        <input type="search" placeholder="Search deal name" aria-label="Search" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
-        <select aria-label="Stage" value={f.stage} onChange={(e) => setF({ ...f, stage: e.target.value })}>
+        <input type="search" placeholder="Search deal name" aria-label="Search" value={text} onChange={(e) => setText(e.target.value)} />
+        <select aria-label="Stage" value={list.f("stage")} onChange={(e) => list.setFilter("stage", e.target.value)}>
           <option value="">All stages</option>{DEAL_STAGES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
         </select>
-        <select aria-label="Lead source" value={f.lead_source} onChange={(e) => setF({ ...f, lead_source: e.target.value })}>
+        <select aria-label="Lead source" value={list.f("lead_source")} onChange={(e) => list.setFilter("lead_source", e.target.value)}>
           <option value="">All sources</option>{LEAD_SOURCES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
         </select>
-        <select aria-label="Owner" value={f.owner_id} onChange={(e) => setF({ ...f, owner_id: e.target.value })}>
+        <select aria-label="Owner" value={list.f("owner_id")} onChange={(e) => list.setFilter("owner_id", e.target.value)}>
           <option value="">All owners</option>{users.map((u) => <option key={u.id} value={u.id}>{u.display_name}</option>)}
         </select>
-        {data && <span className="muted">{data.items.length} of {data.total}</span>}
       </div>
-      <ErrorNote error={error} /><ErrorNote error={act.error} />
-      {loading && !data ? <Loading /> : data && data.items.length === 0 ? <Empty>No deals match.</Empty> : data && (
-        <div className="tablewrap"><table>
-          <thead><tr><th>Deal</th><th>Account</th><th>Stage</th><th className="num">Amount</th><th>Source</th><th>Owner</th><th>Created</th><th>Closed</th><th className="num">Cycle (d)</th><th></th></tr></thead>
-          <tbody>{data.items.map((d) => (
-            <tr key={d.id}>
-              <td><Link to={`/w/${ws.slug}/deals/${d.id}`}>{d.name}</Link></td>
-              <td><Link to={`/w/${ws.slug}/accounts/${d.account_id}`}>{d.account_name}</Link></td>
-              <td>
-                <select aria-label={`Stage of ${d.name}`} value={d.stage} onChange={(e) => changeStage(d, e.target.value as DealStage)}>
-                  {DEAL_STAGES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
-                </select>
-              </td>
-              <td className="num">{formatEur(d.amount_eur)}</td>
-              <td>{d.lead_source ? <Tag>{label(d.lead_source)}</Tag> : "—"}</td>
-              <td>{d.owner_name ?? "—"}</td><td>{d.created_on}</td><td>{d.closed_on ?? "—"}</td>
-              <td className="num">{d.cycle_days ?? "—"}</td>
-              <td className="row end"><button className="link" onClick={() => setEditing(d)}>Edit</button>{mayDelete(d.owner_id) && <button className="link" onClick={() => setDeleting(d)}>Delete</button>}</td>
-            </tr>
-          ))}</tbody>
-        </table></div>
-      )}
+      <ErrorNote error={list.error} /><ErrorNote error={act.error} />
+      <DataTable columns={columns} rows={data?.items ?? []} rowKey={(d) => d.id} rowHref={(d) => `/w/${ws.slug}/deals/${d.id}`}
+        sort={list.sort} onSort={list.setSort} loading={list.loading} caption="Deals" empty="No deals match." />
+      {data && <Pager offset={data.offset} limit={data.limit} shown={data.items.length} total={data.total} onOffset={list.setOffset} />}
       {editing && <DealForm deal={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} onSaved={reload} />}
       {closing && <CloseDialog {...closing} onClose={() => setClosing(null)} onDone={reload} />}
       {deleting && (
@@ -100,7 +107,6 @@ function CloseDialog(props: { deal: DealOut; stage: DealStage; onClose: () => vo
 export function DealForm(props: { deal?: DealOut; onClose: () => void; onSaved: () => void }) {
   const { ws, users } = useWs();
   const d0 = props.deal;
-  const accounts = useLoad(() => api.listAccounts(ws.slug, { limit: 1000 }), [ws.slug]);
   const [f, setF] = useState({
     name: d0?.name ?? "", account_id: d0?.account_id ?? "", amount: d0?.amount_eur?.toString() ?? "",
     lead_source: (d0?.lead_source ?? "") as LeadSource | "", owner_id: d0?.owner_id ?? "",
@@ -134,9 +140,7 @@ export function DealForm(props: { deal?: DealOut; onClose: () => void; onSaved: 
         <Field label="Name"><input value={f.name} onChange={set("name")} required maxLength={300} autoFocus /></Field>
         {!d0 && (
           <Field label="Account">
-            <select value={f.account_id} onChange={set("account_id")} required>
-              <option value="">Choose…</option>{accounts.data?.items.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-            </select>
+            <AccountPicker id={f.account_id} onChange={(id) => setF({ ...f, account_id: id })} required />
           </Field>
         )}
         <div className="grid2">

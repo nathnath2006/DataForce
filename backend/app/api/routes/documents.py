@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile
 from sqlalchemy import func, select
@@ -26,7 +26,7 @@ from app.db.models import Account, Document, DocumentChunk
 from app.services import companies as company_svc
 from app.services import documents as svc
 from app.services import themes as theme_svc
-from app.services._common import require_account
+from app.services._common import LIKE_ESCAPE, like_contains, require_account
 
 router = APIRouter(tags=["documents"])
 
@@ -129,7 +129,11 @@ def account_documents(
 ) -> list[DocumentOut]:
     require_account(db, ws.id, account_id, viewer)
     stmt = _order(
-        select(Document).where(Document.workspace_id == ws.id, Document.account_id == account_id)
+        select(Document).where(
+            Document.workspace_id == ws.id,
+            Document.account_id == account_id,
+            *visibility.conds(visibility.deal_gate(viewer, Document.deal_id)),
+        )
     )
     return _outs(db, ws.id, list(db.scalars(stmt)), viewer)
 
@@ -145,7 +149,10 @@ def company_documents(
         .where(
             Document.workspace_id == ws.id,
             Account.company_id == company_id,
-            *visibility.conds(visibility.in_accounts(viewer, Document.account_id)),
+            *visibility.conds(
+                visibility.in_accounts(viewer, Document.account_id),
+                visibility.deal_gate(viewer, Document.deal_id),
+            ),
         )
     )
     return _outs(db, ws.id, list(db.scalars(stmt)), viewer)
@@ -156,17 +163,31 @@ def list_documents(
     db: Db,
     ws: CurrentWorkspace,
     viewer: CurrentViewer,
+    q: Annotated[str | None, Query(max_length=200, pattern=r"^[^\x00-\x1f\x7f]*$")] = None,
+    sort: Literal["meeting_date", "title", "created_at", "kind", "language"] | None = None,
+    direction: Annotated[Literal["asc", "desc"], Query(alias="dir")] = "desc",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
 ) -> Page[DocumentOut]:
-    stmt = _order(
-        select(Document).where(
-            Document.workspace_id == ws.id,
-            *visibility.conds(visibility.in_accounts(viewer, Document.account_id)),
-        )
-    )
+    cond = [
+        Document.workspace_id == ws.id,
+        *visibility.conds(
+            visibility.in_accounts(viewer, Document.account_id),
+            visibility.deal_gate(viewer, Document.deal_id),
+        ),
+    ]
+    if q:
+        cond.append(Document.title.ilike(like_contains(q), escape=LIKE_ESCAPE))
+    total = db.scalar(select(func.count()).select_from(Document).where(*cond)) or 0
+    stmt = select(Document).where(*cond).options(defer(Document.text))
+    if sort:
+        col = getattr(Document, sort)
+        stmt = stmt.order_by((col.desc() if direction == "desc" else col.asc()).nulls_last())
+        stmt = stmt.order_by(Document.id)
+    else:
+        stmt = _order(stmt)
     rows = list(db.scalars(stmt.limit(limit).offset(offset)))
-    return Page(items=_outs(db, ws.id, rows, viewer), total=svc.count_documents(db, ws.id, viewer))
+    return Page(items=_outs(db, ws.id, rows, viewer), total=total, offset=offset, limit=limit)
 
 
 @router.get("/w/{ws}/documents/{doc_id}", response_model=DocumentDetail)

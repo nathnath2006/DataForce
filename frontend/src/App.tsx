@@ -3,26 +3,29 @@ import { Navigate, NavLink, Outlet, Route, Routes, useNavigate, useParams } from
 import { api } from "./api";
 import { WsContext } from "./context";
 import { LoginPage, RequireAuth, SetupPage, AdminOnly } from "./auth";
-import { ErrorNote, Field, Loading, Modal, useAction, useLoad } from "./ui";
-import { AccountsPage } from "./pages/Accounts";
-import { AccountDetailPage } from "./pages/AccountDetail";
-import { ContactsPage } from "./pages/Contacts";
-import { ContactDetailPage } from "./pages/ContactDetail";
-import { DealsPage } from "./pages/Deals";
-import { DealDetailPage } from "./pages/DealDetail";
-import { AnalysisPage } from "./pages/Analysis";
-import { SettingsPage } from "./pages/Settings";
-import { AdminPage } from "./pages/Admin";
-import { CompaniesPage } from "./companies/CompaniesPage";
-import { CompanyDetailPage } from "./companies/CompanyDetail";
-import { MeetingsPage } from "./meetings/MeetingsPage";
-import { FlowsPage } from "./flows/FlowsPage";
-import { ModelsPage } from "./analysis/ModelsPage";
-import { WorkbooksPage } from "./workbooks/WorkbooksPage";
+import { ErrorNote, Field, Loading, Modal, useAction } from "./ui";
+import { useQuery } from "./data/useQuery";
 import { SideNav, loadNavCollapsed, saveNavCollapsed } from "./shell/Nav";
 import { TopBar } from "./shell/TopBar";
 import { AssistantDrawer, useDrawerOpen } from "./shell/AssistantDrawer";
 import { ScopeProvider } from "./shell/scope";
+
+// Every page is its own chunk, loaded on first visit (the shell and login stay in the main chunk).
+const AccountsPage = lazy(() => import("./pages/Accounts").then((m) => ({ default: m.AccountsPage })));
+const AccountDetailPage = lazy(() => import("./pages/AccountDetail").then((m) => ({ default: m.AccountDetailPage })));
+const ContactsPage = lazy(() => import("./pages/Contacts").then((m) => ({ default: m.ContactsPage })));
+const ContactDetailPage = lazy(() => import("./pages/ContactDetail").then((m) => ({ default: m.ContactDetailPage })));
+const DealsPage = lazy(() => import("./pages/Deals").then((m) => ({ default: m.DealsPage })));
+const DealDetailPage = lazy(() => import("./pages/DealDetail").then((m) => ({ default: m.DealDetailPage })));
+const AnalysisPage = lazy(() => import("./pages/Analysis").then((m) => ({ default: m.AnalysisPage })));
+const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
+const AdminPage = lazy(() => import("./pages/Admin").then((m) => ({ default: m.AdminPage })));
+const CompaniesPage = lazy(() => import("./companies/CompaniesPage").then((m) => ({ default: m.CompaniesPage })));
+const CompanyDetailPage = lazy(() => import("./companies/CompanyDetail").then((m) => ({ default: m.CompanyDetailPage })));
+const MeetingsPage = lazy(() => import("./meetings/MeetingsPage").then((m) => ({ default: m.MeetingsPage })));
+const FlowsPage = lazy(() => import("./flows/FlowsPage").then((m) => ({ default: m.FlowsPage })));
+const ModelsPage = lazy(() => import("./analysis/ModelsPage").then((m) => ({ default: m.ModelsPage })));
+const WorkbooksPage = lazy(() => import("./workbooks/WorkbooksPage").then((m) => ({ default: m.WorkbooksPage })));
 
 // The flow editor (and its canvas library) is the largest part of the bundle: load it on demand.
 const FlowEditorPage = lazy(() =>
@@ -68,7 +71,7 @@ export function App() {
 
 function Home() {
   const nav = useNavigate();
-  const { data, error, reload } = useLoad(() => api.listWorkspaces(), []);
+  const { data, error, reload } = useQuery("/workspaces", () => api.listWorkspaces());
   const [creating, setCreating] = useState(false);
   const first = data?.[0];
   if (first) return <Navigate to={`/w/${first.slug}/accounts`} replace />;
@@ -93,8 +96,9 @@ function Home() {
 function Shell() {
   const { ws: slug = "" } = useParams();
   const nav = useNavigate();
-  const wss = useLoad(() => api.listWorkspaces(), [slug]);
-  const users = useLoad(() => api.listUsers(slug), [slug]);
+  // Both start at once and are cached: switching back to a workspace shows it without a round trip.
+  const wss = useQuery("/workspaces", () => api.listWorkspaces());
+  const users = useQuery(`/w/${encodeURIComponent(slug)}/users`, () => api.listUsers(slug));
   const [creating, setCreating] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(loadNavCollapsed);
@@ -111,7 +115,7 @@ function Shell() {
     [ws, users.data, reloadUsers, reloadWorkspaces],
   );
 
-  if (wss.loading && !wss.data) return <main className="center"><Loading /></main>;
+  if (wss.loading) return <main className="center"><Loading /></main>;
   if (wss.error) return <main className="center"><ErrorNote error={wss.error} /></main>;
   if (!ws) return <main className="center"><p>Workspace “{slug}” not found.</p><NavLink to="/">Back</NavLink></main>;
 
@@ -130,7 +134,7 @@ function Shell() {
         <div className={`body has-rail ${drawerOpen ? "drawer-open" : ""}`}>
           <SideNav slug={slug} collapsed={navCollapsed} open={navOpen} onNavigate={() => setNavOpen(false)} />
           {navOpen && <div className="nav-scrim" onClick={() => setNavOpen(false)} />}
-          <main className="content"><Outlet /></main>
+          <main className="content"><Suspense fallback={<Loading />}><Outlet /></Suspense></main>
         </div>
         <AssistantDrawer open={drawerOpen} setOpen={setDrawerOpen} />
       </div>

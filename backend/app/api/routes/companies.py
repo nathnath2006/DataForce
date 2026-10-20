@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Response
 
 from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
-from app.api.routes.crm import Limit, Offset, SearchQ, _accounts_out, _contacts_out, _deals_out
+from app.api.routes.crm import (
+    Direction,
+    Limit,
+    Offset,
+    SearchQ,
+    _accounts_out,
+    _contacts_out,
+    _deals_out,
+)
 from app.api.schemas import AccountOut, Page
 from app.api.schemas_companies import (
     AccountCompanyLink,
@@ -66,11 +75,17 @@ def list_companies(
     ws: CurrentWorkspace,
     viewer: CurrentViewer,
     q: SearchQ = None,
+    sort: Literal["name", "city", "siren", "category", "size_bracket", "created_at"] | None = None,
+    direction: Direction = "asc",
     limit: Limit = 50,
     offset: Offset = 0,
 ) -> Page[CompanyOut]:
-    rows, total = svc.list_companies_page(db, ws.id, q=q, limit=limit, offset=offset, viewer=viewer)
-    return Page(items=_companies_out(db, ws.id, rows, viewer), total=total)
+    rows, total = svc.list_companies_page(
+        db, ws.id, q=q, limit=limit, offset=offset, sort=sort, direction=direction, viewer=viewer
+    )
+    return Page(
+        items=_companies_out(db, ws.id, rows, viewer), total=total, offset=offset, limit=limit
+    )
 
 
 @router.post("/w/{ws}/companies", response_model=CompanyOut, status_code=201)

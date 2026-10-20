@@ -8,3 +8,4 @@
 .dt-sort:hover:not(:disabled) { background: none; color: var(--ink); }
 .dt-state { text-align: center; padding: 1.5rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pager { justify-content: flex-end; margin-top: .6rem; }

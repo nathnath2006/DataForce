@@ -18,6 +18,7 @@ from app.services._common import (
     LIKE_ESCAPE,
     get_scoped,
     like_contains,
+    order_clauses,
     require_account,
     require_deal,
     require_user,
@@ -158,6 +159,16 @@ def delete_deal(
     session.flush()
 
 
+DEAL_SORT = {
+    "name": Deal.name,
+    "amount_eur": Deal.amount_eur,
+    "stage": Deal.stage,
+    "lead_source": Deal.lead_source,
+    "created_on": Deal.created_on,
+    "closed_on": Deal.closed_on,
+}
+
+
 def list_deals_page(
     session: Session,
     ws_id: uuid.UUID,
@@ -169,6 +180,8 @@ def list_deals_page(
     q: str | None = None,
     limit: int = 200,
     offset: int = 0,
+    sort: str | None = None,
+    direction: str | None = None,
     viewer: Viewer | None = None,
 ) -> tuple[list[Deal], int]:
     """Newest `created_on` first. `q` is a literal case-insensitive substring of the name."""
@@ -184,7 +197,8 @@ def list_deals_page(
     if q:
         cond.append(Deal.name.ilike(like_contains(q), escape=LIKE_ESCAPE))
     total = session.scalar(select(func.count()).select_from(Deal).where(*cond)) or 0
-    stmt = select(Deal).where(*cond).order_by(Deal.created_on.desc(), Deal.id)
+    order = order_clauses(DEAL_SORT, sort, direction, [Deal.created_on.desc()], Deal.id)
+    stmt = select(Deal).where(*cond).order_by(*order)
     return list(session.scalars(stmt.limit(limit).offset(offset))), total
 
 

@@ -1,21 +1,34 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { api } from "../api";
 import { useWs } from "../context";
 import { segmentLabel } from "../lib";
 import { SEGMENTS, type AccountCreate, type AccountOut, type Segment } from "../types";
 import { DataQualityCard } from "../quality/DataQuality";
-import { Empty, ErrorNote, Field, Loading, Modal, Tag, emptyToNull, useAction, useDebounced, useLoad } from "../ui";
+import { ErrorNote, Field, Modal, Tag, emptyToNull, useAction } from "../ui";
+import { DataTable, type Column } from "../table/DataTable";
+import { Pager } from "../table/Pager";
+import { useListQuery, useUrlSearch } from "../table/useListQuery";
+
+const ACCOUNT_COLUMNS: Column<AccountOut>[] = [
+  { key: "name", header: "Name", sortable: true, cell: (a) => <>{a.name}{a.domain && <div className="muted small">{a.domain}</div>}</> },
+  { key: "industry", header: "Industry", sortable: true, cell: (a) => a.industry ?? "—" },
+  { key: "segment", header: "Segment", sortable: true, cell: (a) => (a.segment ? <Tag>{segmentLabel(a.segment)}</Tag> : "—") },
+  { key: "region", header: "Region", sortable: true, cell: (a) => a.region ?? "—" },
+  { key: "n_contacts", header: "Contacts", numeric: true, cell: (a) => a.n_contacts },
+  { key: "n_open_deals", header: "Open deals", numeric: true, cell: (a) => a.n_open_deals },
+];
 
 export function AccountsPage() {
   const { ws } = useWs();
   const nav = useNavigate();
-  const [q, setQ] = useState("");
-  const [segment, setSegment] = useState("");
-  const dq = useDebounced(q);
   const [creating, setCreating] = useState(false);
-  const { data, error, loading } = useLoad(
-    () => api.listAccounts(ws.slug, { q: dq, segment, limit: 1000 }), [ws.slug, dq, segment]);
+  const list = useListQuery<AccountOut>({
+    resource: "accounts", filters: ["q", "segment"], defaultSort: { key: "name", dir: "asc" },
+    fetch: (p, signal) => api.listAccounts(ws.slug, p, signal),
+  });
+  const [text, setText] = useUrlSearch(list.f("q"), (v) => list.setFilter("q", v, true));
+  const { data } = list;
   return (
     <section>
       <div className="row between wrap">
@@ -24,33 +37,16 @@ export function AccountsPage() {
       </div>
       <DataQualityCard />
       <div className="row wrap filters">
-        <input type="search" placeholder="Search name or domain" aria-label="Search" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select aria-label="Segment" value={segment} onChange={(e) => setSegment(e.target.value)}>
+        <input type="search" placeholder="Search name or domain" aria-label="Search" value={text} onChange={(e) => setText(e.target.value)} />
+        <select aria-label="Segment" value={list.f("segment")} onChange={(e) => list.setFilter("segment", e.target.value)}>
           <option value="">All segments</option>
           {SEGMENTS.map((s) => <option key={s} value={s}>{segmentLabel(s)}</option>)}
         </select>
-        {data && <span className="muted">{data.items.length} of {data.total}</span>}
       </div>
-      <ErrorNote error={error} />
-      {loading && !data ? <Loading /> : data && data.items.length === 0 ? <Empty>No accounts match.</Empty> : data && (
-        <div className="tablewrap">
-          <table>
-            <thead><tr><th>Name</th><th>Industry</th><th>Segment</th><th>Region</th><th className="num">Contacts</th><th className="num">Open deals</th></tr></thead>
-            <tbody>
-              {data.items.map((a) => (
-                <tr key={a.id}>
-                  <td><Link to={a.id}>{a.name}</Link>{a.domain && <div className="muted small">{a.domain}</div>}</td>
-                  <td>{a.industry ?? "—"}</td>
-                  <td>{a.segment ? <Tag>{segmentLabel(a.segment)}</Tag> : "—"}</td>
-                  <td>{a.region ?? "—"}</td>
-                  <td className="num">{a.n_contacts}</td>
-                  <td className="num">{a.n_open_deals}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ErrorNote error={list.error} />
+      <DataTable columns={ACCOUNT_COLUMNS} rows={data?.items ?? []} rowKey={(a) => a.id} rowHref={(a) => a.id}
+        sort={list.sort} onSort={list.setSort} loading={list.loading} caption="Accounts" empty="No accounts match." />
+      {data && <Pager offset={data.offset} limit={data.limit} shown={data.items.length} total={data.total} onOffset={list.setOffset} />}
       {creating && <AccountForm onClose={() => setCreating(false)} onSaved={(a) => nav(a.id)} />}
     </section>
   );

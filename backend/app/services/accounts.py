@@ -19,6 +19,7 @@ from app.services._common import (
     erasure,
     get_scoped,
     like_contains,
+    order_clauses,
     pairs,
     require_account,
     require_user,
@@ -128,6 +129,17 @@ def update_account(
     return account
 
 
+ACCOUNT_SORT = {
+    "name": Account.name,
+    "domain": Account.domain,
+    "industry": Account.industry,
+    "segment": Account.segment,
+    "employee_count": Account.employee_count,
+    "country": Account.country,
+    "region": Account.region,
+}
+
+
 def list_accounts_page(
     session: Session,
     ws_id: uuid.UUID,
@@ -136,6 +148,8 @@ def list_accounts_page(
     segment: str | None = None,
     limit: int = 200,
     offset: int = 0,
+    sort: str | None = None,
+    direction: str | None = None,
     viewer: Viewer | None = None,
 ) -> tuple[list[Account], int]:
     """A page of accounts (by name) and the total matching. `q` is a literal, case-insensitive
@@ -155,7 +169,8 @@ def list_accounts_page(
     if segment:
         cond.append(Account.segment == segment)
     total = session.scalar(select(func.count()).select_from(Account).where(*cond)) or 0
-    stmt = select(Account).where(*cond).order_by(Account.name, Account.id)
+    order = order_clauses(ACCOUNT_SORT, sort, direction, [Account.name], Account.id)
+    stmt = select(Account).where(*cond).order_by(*order)
     return list(session.scalars(stmt.limit(limit).offset(offset))), total
 
 

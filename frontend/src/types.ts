@@ -15,7 +15,30 @@ export type Metric = "win_rate" | "cycle_days" | "deal_amount";
 export type Dimension = "lead_source" | "segment" | "industry" | "region" | "owner" | "amount_band";
 export type StatStatus = "verified" | "not_verified";
 
-export interface Page<T> { items: T[]; total: number }
+export interface AccountOut {
+  id: string; workspace_id: string; created_at: string; name: string; domain: string | null;
+  industry: string | null; segment: Segment | null; employee_count: number | null;
+  region: string | null; country: string | null; source: RecordSource; external_ref: string | null;
+  n_contacts: number; n_deals: number; n_open_deals: number;
+  company_id?: string | null; company_name?: string | null;
+  owner_id?: string | null; owner_name?: string | null;
+}
+export interface ContactOut {
+  id: string; workspace_id: string; created_at: string; account_id: string; full_name: string;
+  title: string | null; reports_to_id: string | null; source: RecordSource; source_ref: string | null;
+  title_function: string | null; title_seniority: string | null;
+  title_source?: string | null; title_flag?: string | null;
+  account_name: string; reports_to_name: string | null; n_direct_reports: number;
+  n_notes: number; n_channels: number;
+}
+export interface DealOut {
+  id: string; workspace_id: string; created_at: string; account_id: string; owner_id: string | null;
+  name: string; amount_eur: string | number | null; stage: DealStage; lead_source: LeadSource | null;
+  created_on: string; closed_on: string | null; lost_reason: string | null; source: RecordSource;
+  account_name: string; owner_name: string | null; is_closed: boolean; cycle_days: number | null;
+}
+
+export interface Page<T> { items: T[]; total: number; offset: number; limit: number }
 
 export type ErrorCode =
   | "not_found" | "invalid_input" | "conflict" | "forbidden" | "paid_lookup_refused"
@@ -27,27 +50,12 @@ export interface WorkspaceOut {
 }
 export interface UserOut { id: string; display_name: string; email: string | null; role: UserRole }
 
-export interface AccountOut {
-  id: string; workspace_id: string; created_at: string; name: string; domain: string | null;
-  industry: string | null; segment: Segment | null; employee_count: number | null;
-  region: string | null; country: string | null; source: RecordSource; external_ref: string | null;
-  n_contacts: number; n_deals: number; n_open_deals: number;
-  company_id?: string | null; company_name?: string | null;
-}
 export interface AccountCreate {
   name: string; domain?: string | null; industry?: string | null; segment?: Segment | null;
   employee_count?: number | null; region?: string | null; country?: string | null;
 }
 export type AccountUpdate = Partial<AccountCreate>;
 
-export interface ContactOut {
-  id: string; workspace_id: string; created_at: string; account_id: string; full_name: string;
-  title: string | null; reports_to_id: string | null; source: RecordSource; source_ref: string | null;
-  title_function: string | null; title_seniority: string | null;
-  title_source?: string | null; title_flag?: string | null;
-  account_name: string; reports_to_name: string | null; n_direct_reports: number;
-  n_notes: number; n_channels: number;
-}
 export interface ContactCreate {
   account_id: string; full_name: string; title?: string | null; reports_to_id?: string | null;
 }
@@ -58,12 +66,6 @@ export interface OrgChartNode {
 }
 export interface OrgChartOut { account_id: string; account_name: string; nodes: OrgChartNode[] }
 
-export interface DealOut {
-  id: string; workspace_id: string; created_at: string; account_id: string; owner_id: string | null;
-  name: string; amount_eur: string | number | null; stage: DealStage; lead_source: LeadSource | null;
-  created_on: string; closed_on: string | null; lost_reason: string | null; source: RecordSource;
-  account_name: string; owner_name: string | null; is_closed: boolean; cycle_days: number | null;
-}
 export interface DealCreate {
   account_id: string; owner_id?: string | null; name: string; amount_eur?: number | string | null;
   stage?: DealStage; lead_source?: LeadSource | null; created_on: string; closed_on?: string | null;

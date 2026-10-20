@@ -3,8 +3,8 @@ import type * as T from "../types";
 
 export const companiesApi = {
   lookup: (ws: string, text: string) => request<T.LookupOut>("GET", `${w(ws)}/lookup${q({ q: text })}`),
-  list: (ws: string, p: { q?: string; limit?: number; offset?: number } = {}) =>
-    request<T.Page<T.CompanyOut>>("GET", `${w(ws)}/companies${q(p)}`),
+  list: (ws: string, p: { q?: string; limit?: number; offset?: number; sort?: string; dir?: "asc" | "desc" } = {}, signal?: AbortSignal) =>
+    request<T.Page<T.CompanyOut>>("GET", `${w(ws)}/companies${q(p)}`, undefined, signal),
   create: (ws: string, b: T.CompanyCreate) => request<T.CompanyOut>("POST", `${w(ws)}/companies`, b),
   get: (ws: string, id: string) => request<T.Company360>("GET", `${w(ws)}/companies/${e(id)}`),
   update: (ws: string, id: string, b: T.CompanyUpdate) =>

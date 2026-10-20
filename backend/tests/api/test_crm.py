@@ -347,3 +347,28 @@ def test_list_params_are_bounded_422_never_500(client, ws, path):
 def test_employee_count_too_big_is_422(client, ws):
     r = client.post(f"{ws}/accounts", json={"name": "E", "employee_count": 10**12})
     assert r.status_code == 422
+
+
+def test_rep_account_returns_owner_id_and_name(client: TestClient, ws: str, make_member):
+    from tests.api.auth_helpers import login_as
+
+    me = client.post(f"{ws}/users", json={"display_name": "Rep Zed"}).json()
+    m = make_member("t1", app_user_id=uuid.UUID(me["id"]))
+    login_as(client, m.email, m.password)
+    acc = mk_account(client, ws, "Mine")
+    assert acc["owner_id"] == me["id"] and acc["owner_name"] == "Rep Zed"
+    listed = client.get(f"{ws}/accounts").json()["items"][0]
+    assert listed["owner_id"] == me["id"]
+
+
+def test_paging_contract_and_sort(client: TestClient, ws: str):
+    for n in ("b", "c", "a"):
+        mk_account(client, ws, n)
+    p = client.get(f"{ws}/accounts", params={"limit": 2, "offset": 0}).json()
+    assert (p["total"], p["offset"], p["limit"], len(p["items"])) == (3, 0, 2, 2)
+    s = client.get(f"{ws}/accounts", params={"sort": "name", "dir": "desc"}).json()
+    assert [i["name"] for i in s["items"]] == ["c", "b", "a"]
+    assert client.get(f"{ws}/accounts", params={"sort": "bogus"}).status_code == 422
+    assert client.get(f"{ws}/accounts", params={"limit": 201}).status_code == 422
+    assert client.get(f"{ws}/deals", params={"sort": "amount_eur"}).json()["total"] == 0
+    assert client.get(f"{ws}/documents", params={"sort": "title"}).json()["limit"] == 50

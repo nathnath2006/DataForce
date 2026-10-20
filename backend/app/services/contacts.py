@@ -18,6 +18,7 @@ from app.services._common import (
     erasure,
     get_scoped,
     like_contains,
+    order_clauses,
     pairs,
     require_account,
     require_contact,
@@ -205,6 +206,14 @@ def update_contact(
     return contact
 
 
+CONTACT_SORT = {
+    "full_name": Contact.full_name,
+    "title": Contact.title,
+    "title_function": Contact.title_function,
+    "title_seniority": Contact.title_seniority,
+}
+
+
 def list_contacts_page(
     session: Session,
     ws_id: uuid.UUID,
@@ -213,6 +222,8 @@ def list_contacts_page(
     q: str | None = None,
     limit: int = 200,
     offset: int = 0,
+    sort: str | None = None,
+    direction: str | None = None,
     viewer: Viewer | None = None,
 ) -> tuple[list[Contact], int]:
     cond = [
@@ -230,7 +241,8 @@ def list_contacts_page(
             )
         )
     total = session.scalar(select(func.count()).select_from(Contact).where(*cond)) or 0
-    stmt = select(Contact).where(*cond).order_by(Contact.full_name, Contact.id)
+    order = order_clauses(CONTACT_SORT, sort, direction, [Contact.full_name], Contact.id)
+    stmt = select(Contact).where(*cond).order_by(*order)
     return list(session.scalars(stmt.limit(limit).offset(offset))), total
 
 

@@ -1,41 +1,53 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
+import { useCanDelete } from "../auth";
+import { DataTable, type Column } from "../table/DataTable";
+import { Pager } from "../table/Pager";
+import { useListQuery, useUrlSearch } from "../table/useListQuery";
 import { useWs } from "../context";
 import { flowApi } from "../flows/flowApi";
 import { themesVsWinRateGraph } from "../flows/graph";
 import { AiBadge, Empty, ErrorNote, Field, Loading, Tag, useAction, useLoad } from "../ui";
 import { meetingsApi } from "./api";
-import { DeleteMeeting, MeetingTable, TranscriptDialog } from "./MeetingsPanel";
+import { DeleteMeeting, TranscriptDialog } from "./MeetingsPanel";
 import { formatDate, formatDateTime } from "../lib";
-import { clampK, exactCount } from "./text";
+import { clampK, exactCount, speakerNames } from "./text";
 import type { DocumentOut, ThemeOut } from "./types";
 import "./meetings.css";
 
-const PAGE = 25;
-
 export function MeetingsPage() {
   const { ws } = useWs();
-  const [offset, setOffset] = useState(0);
-  const list = useLoad(() => meetingsApi.page(ws.slug, { limit: PAGE, offset }), [ws.slug, offset]);
+  const mayDelete = useCanDelete();
+  const list = useListQuery<DocumentOut>({
+    resource: "documents", filters: ["q"], defaultSort: { key: "meeting_date", dir: "desc" },
+    fetch: (p, signal) => meetingsApi.page(ws.slug, p as { limit: number; offset: number }, signal),
+  });
+  const [text, setText] = useUrlSearch(list.f("q"), (v) => list.setFilter("q", v, true));
   const [viewing, setViewing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<DocumentOut | null>(null);
-  const total = list.data?.total ?? 0;
+  const columns: Column<DocumentOut>[] = [
+    { key: "meeting_date", header: "Date", sortable: true, cell: (d) => formatDate(d.meeting_date) },
+    { key: "title", header: "Title", sortable: true, cell: (d) => <>{d.title}{d.deal_id && <> <Tag kind="mute">deal</Tag></>}</> },
+    { key: "account", header: "Account", cell: (d) => <Link to={`/w/${ws.slug}/accounts/${d.account_id}`}>{d.account_name}</Link> },
+    { key: "speakers", header: "Speakers", cell: (d) => <span className="small">{speakerNames(d.speakers) || "—"}</span> },
+    { key: "themes", header: "Themes", cell: (d) => <>{d.theme_labels.map((l) => <span key={l} className="chip">{l}</span>)}</> },
+    { key: "actions", header: "", cell: (d) => (
+      <span className="row end">
+        <button onClick={() => setViewing(d.id)}>View</button>
+        {mayDelete(null) && <button className="danger" onClick={() => setDeleting(d)}>Delete</button>}
+      </span>
+    ) },
+  ];
   return (
     <section className="stack">
       <h1>Meetings</h1>
+      <div className="row wrap filters">
+        <input type="search" placeholder="Search title" aria-label="Search" value={text} onChange={(e) => setText(e.target.value)} />
+      </div>
       <ErrorNote error={list.error} />
-      {list.loading && !list.data && <Loading />}
-      {list.data && list.data.items.length === 0 && <Empty>No transcript yet. Upload one from an account or company page.</Empty>}
-      {list.data && list.data.items.length > 0 && (
-        <div className="card stack">
-          <MeetingTable docs={list.data.items} showAccount onView={setViewing} onDelete={setDeleting} />
-          <div className="row pager">
-            <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>Previous</button>
-            <span className="muted small">{offset + 1}–{Math.min(offset + PAGE, total)} of {total}</span>
-            <button disabled={offset + PAGE >= total} onClick={() => setOffset(offset + PAGE)}>Next</button>
-          </div>
-        </div>
-      )}
+      <DataTable columns={columns} rows={list.data?.items ?? []} rowKey={(d) => d.id} sort={list.sort} onSort={list.setSort}
+        loading={list.loading} caption="Meetings" empty="No transcript yet. Upload one from an account or company page." />
+      {list.data && <Pager offset={list.data.offset} limit={list.data.limit} shown={list.data.items.length} total={list.data.total} onOffset={list.setOffset} />}
       {viewing && <TranscriptDialog id={viewing} onClose={() => setViewing(null)} />}
       {deleting && <DeleteMeeting doc={deleting} onClose={() => setDeleting(null)} onDone={list.reload} />}
       <ThemesSection onChanged={list.reload} />

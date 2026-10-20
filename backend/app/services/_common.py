@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -13,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.auth import visibility
 from app.auth.viewer import Viewer
 from app.db.models import Account, AppUser, Contact, Deal, Workspace
-from app.services.errors import NotFoundError
+from app.services.errors import InvalidInputError, NotFoundError
 
 
 def pairs(result) -> dict:
@@ -29,6 +30,26 @@ def like_contains(term: str) -> str:
 
 
 LIKE_ESCAPE = "\\"
+
+
+def order_clauses(
+    allow: dict[str, Any],
+    sort: str | None,
+    direction: str | None,
+    default: list[Any],
+    tiebreak: Any,
+) -> list[Any]:
+    """ORDER BY for a list endpoint: `sort` must be a key of `allow` (a column allow-list; never
+    interpolated), `direction` asc or desc; NULLs last; `tiebreak` (the id) keeps pages stable."""
+    if not sort:
+        return [*default, tiebreak]
+    col = allow.get(sort)
+    if col is None:
+        raise InvalidInputError(f"cannot sort by {sort!r}; allowed: {', '.join(sorted(allow))}")
+    if direction not in (None, "asc", "desc"):
+        raise InvalidInputError("dir must be asc or desc")
+    ordered = col.desc() if direction == "desc" else col.asc()
+    return [ordered.nulls_last(), tiebreak]
 
 
 def get_scoped[T](

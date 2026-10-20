@@ -167,6 +167,8 @@ def require_document(
         raise NotFoundError("document not found")
     if not visibility.can_see_account(session, viewer, doc.account_id):
         raise NotFoundError("document not found")
+    if doc.deal_id is not None and not visibility.can_see_deal(session, viewer, doc.deal_id):
+        raise NotFoundError("document not found")
     return doc
 
 
@@ -216,7 +218,10 @@ def count_documents(session: Session, ws_id: uuid.UUID, viewer: Viewer | None = 
             .select_from(Document)
             .where(
                 Document.workspace_id == ws_id,
-                *visibility.conds(visibility.in_accounts(viewer, Document.account_id)),
+                *visibility.conds(
+                    visibility.in_accounts(viewer, Document.account_id),
+                    visibility.deal_gate(viewer, Document.deal_id),
+                ),
             )
         )
         or 0

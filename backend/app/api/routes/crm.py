@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response
+from sqlalchemy import select
 
 from app.api.deps import CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas import (
@@ -26,7 +27,7 @@ from app.api.schemas import (
 )
 from app.auth import visibility
 from app.auth.viewer import Viewer
-from app.db.models import Account, Contact, Deal
+from app.db.models import Account, AppUser, Contact, Deal
 from app.domain.enums import CLOSED_STAGES, DealStage, LeadSource, Segment
 from app.domain.schemas import AccountIn, AccountRead, ContactIn, ContactRead, DealIn, DealRead
 from app.services import accounts, contacts, deals, org_proposals
@@ -35,7 +36,8 @@ from app.services.companies import company_names
 
 router = APIRouter(tags=["crm"])
 
-Limit = Annotated[int, Query(ge=1, le=1000)]
+Limit = Annotated[int, Query(ge=1, le=200)]
+Direction = Annotated[Literal["asc", "desc"], Query(alias="dir")]
 Offset = Annotated[int, Query(ge=0, le=1_000_000)]
 # Search text: at most 200 characters and no control characters (NUL makes Postgres fail).
 SearchQ = Annotated[str | None, Query(max_length=200, pattern=r"^[^\x00-\x1f\x7f]*$")]
@@ -47,6 +49,16 @@ def _accounts_out(
 ) -> list[AccountOut]:
     counts = accounts.account_counts(db, ws_id, [a.id for a in rows], viewer)
     cnames = company_names(db, ws_id, list({a.company_id for a in rows if a.company_id}))
+    owner_ids = {a.owner_id for a in rows if a.owner_id}
+    owners = (
+        dict(
+            db.execute(
+                select(AppUser.id, AppUser.display_name).where(AppUser.id.in_(owner_ids))
+            ).all()
+        )
+        if owner_ids
+        else {}
+    )
     out = []
     for a in rows:
         n_contacts, n_deals, n_open = counts[a.id]
@@ -58,6 +70,7 @@ def _accounts_out(
                 n_open_deals=n_open,
                 company_name=cnames.get(a.company_id) if a.company_id else None,
                 owner_id=a.owner_id,
+                owner_name=owners.get(a.owner_id) if a.owner_id else None,
             )
         )
     return out
@@ -94,7 +107,10 @@ def list_accounts(
     viewer: CurrentViewer,
     q: SearchQ = None,
     segment: Segment | None = None,
-    limit: Limit = 200,
+    sort: Literal["name", "domain", "industry", "segment", "employee_count", "country", "region"]
+    | None = None,
+    direction: Direction = "asc",
+    limit: Limit = 50,
     offset: Offset = 0,
 ) -> Page[AccountOut]:
     rows, total = accounts.list_accounts_page(
@@ -104,9 +120,13 @@ def list_accounts(
         segment=segment.value if segment else None,
         limit=limit,
         offset=offset,
+        sort=sort,
+        direction=direction,
         viewer=viewer,
     )
-    return Page(items=_accounts_out(db, ws.id, rows, viewer), total=total)
+    return Page(
+        items=_accounts_out(db, ws.id, rows, viewer), total=total, offset=offset, limit=limit
+    )
 
 
 @router.post("/w/{ws}/accounts", response_model=AccountOut, status_code=201)
@@ -181,13 +201,23 @@ def list_contacts(
     viewer: CurrentViewer,
     account_id: uuid.UUID | None = None,
     q: SearchQ = None,
-    limit: Limit = 200,
+    sort: Literal["full_name", "title", "title_function", "title_seniority"] | None = None,
+    direction: Direction = "asc",
+    limit: Limit = 50,
     offset: Offset = 0,
 ) -> Page[ContactOut]:
     rows, total = contacts.list_contacts_page(
-        db, ws.id, account_id=account_id, q=q, limit=limit, offset=offset, viewer=viewer
+        db,
+        ws.id,
+        account_id=account_id,
+        q=q,
+        limit=limit,
+        offset=offset,
+        sort=sort,
+        direction=direction,
+        viewer=viewer,
     )
-    return Page(items=_contacts_out(db, ws.id, rows), total=total)
+    return Page(items=_contacts_out(db, ws.id, rows), total=total, offset=offset, limit=limit)
 
 
 @router.post("/w/{ws}/contacts", response_model=ContactOut, status_code=201)
@@ -251,7 +281,10 @@ def list_deals(
     lead_source: LeadSource | None = None,
     owner_id: uuid.UUID | None = None,
     q: SearchQ = None,
-    limit: Limit = 200,
+    sort: Literal["name", "amount_eur", "stage", "lead_source", "created_on", "closed_on"]
+    | None = None,
+    direction: Direction = "desc",
+    limit: Limit = 50,
     offset: Offset = 0,
 ) -> Page[DealOut]:
     rows, total = deals.list_deals_page(
@@ -264,9 +297,11 @@ def list_deals(
         q=q,
         limit=limit,
         offset=offset,
+        sort=sort,
+        direction=direction,
         viewer=viewer,
     )
-    return Page(items=_deals_out(db, ws.id, rows), total=total)
+    return Page(items=_deals_out(db, ws.id, rows), total=total, offset=offset, limit=limit)
 
 
 @router.post("/w/{ws}/deals", response_model=DealOut, status_code=201)

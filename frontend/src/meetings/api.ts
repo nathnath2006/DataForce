@@ -30,8 +30,8 @@ async function upload(ws: string, accountId: string, f: UploadFields): Promise<D
 export const meetingsApi = {
   forAccount: (ws: string, id: string) => request<DocumentOut[]>("GET", `${w(ws)}/accounts/${e(id)}/documents`),
   forCompany: (ws: string, id: string) => request<DocumentOut[]>("GET", `${w(ws)}/companies/${e(id)}/documents`),
-  page: (ws: string, p: { limit: number; offset: number }) =>
-    request<T.Page<DocumentOut>>("GET", `${w(ws)}/documents${q(p)}`),
+  page: (ws: string, p: { limit: number; offset: number; sort?: string; dir?: "asc" | "desc"; q?: string }, signal?: AbortSignal) =>
+    request<T.Page<DocumentOut>>("GET", `${w(ws)}/documents${q(p)}`, undefined, signal),
   get: (ws: string, id: string) => request<DocumentDetail>("GET", `${w(ws)}/documents/${e(id)}`),
   remove: (ws: string, id: string) => request<void>("DELETE", `${w(ws)}/documents/${e(id)}`),
   upload,
