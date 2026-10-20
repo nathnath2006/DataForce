@@ -27,7 +27,7 @@ from app.services._common import require_account, require_deal
 router = APIRouter(tags=["activities"])
 
 Limit = Annotated[int, Query(ge=1, le=200)]
-Offset = Annotated[int, Query(ge=0)]
+Offset = Annotated[int, Query(ge=0, le=1_000_000)]
 
 
 def _link_names(

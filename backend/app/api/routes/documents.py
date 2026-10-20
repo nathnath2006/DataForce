@@ -26,7 +26,7 @@ from app.db.models import Account, Document, DocumentChunk
 from app.services import companies as company_svc
 from app.services import documents as svc
 from app.services import themes as theme_svc
-from app.services._common import LIKE_ESCAPE, like_contains, require_account
+from app.services._common import LIKE_ESCAPE, like_contains, order_clauses, require_account
 
 router = APIRouter(tags=["documents"])
 
@@ -83,6 +83,16 @@ def _outs(
         )
         for d in docs
     ]
+
+
+# the columns a meetings list may be sorted by (an allow-list, like every other list)
+_DOC_SORT = {
+    "meeting_date": Document.meeting_date,
+    "title": Document.title,
+    "created_at": Document.created_at,
+    "kind": Document.kind,
+    "language": Document.language,
+}
 
 
 def _order(stmt):
@@ -181,9 +191,7 @@ def list_documents(
     total = db.scalar(select(func.count()).select_from(Document).where(*cond)) or 0
     stmt = select(Document).where(*cond).options(defer(Document.text))
     if sort:
-        col = getattr(Document, sort)
-        stmt = stmt.order_by((col.desc() if direction == "desc" else col.asc()).nulls_last())
-        stmt = stmt.order_by(Document.id)
+        stmt = stmt.order_by(*order_clauses(_DOC_SORT, sort, direction, [], Document.id))
     else:
         stmt = _order(stmt)
     rows = list(db.scalars(stmt.limit(limit).offset(offset)))
