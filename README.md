@@ -30,8 +30,20 @@ make testdata                                  # the synthetic "Test data" works
 
 Then, every time: `make ui` and open **http://127.0.0.1:8800** (use exactly this address: the
 TamTam sign-in comes back to it). `make ui` creates the secret key in `backend/.env` the first time,
-builds the frontend when it changed, and starts the app on loopback only. There is no login before
-M3: anyone who can run programs on this computer can use it, nobody else can.
+builds the frontend when it changed, and starts the app on loopback only.
+
+**Signing in (M5).**
+- **First launch:** the app asks you to create the administrator (email and password). After that,
+  everyone signs in with email and password. The admin sees every workspace.
+- **Reps:** a rep sees only their own deals, the accounts they own or have a deal on, and what
+  hangs off those. Their statistics, flows, workbooks and AI cover only that.
+- **People and access** (Admin page): the admin adds people, links each one to a CRM user, and can
+  grant *see all* (everyone's data) or *delete own* (delete their own records). Only the admin
+  deletes anything by default.
+- **Test data logins:** `dataforce demo backfill-logins --workspace test-data` creates
+  `rep0@demo.example` … `rep5@demo.example` with empty passwords. Empty passwords work only for
+  demo workspaces while the app runs on this computer.
+- **CLI:** `dataforce users list | create | reset-password | disable`.
 
 - **Test data (synthetic)** holds generated companies, people, deals, notes and 160 meetings,
   with a known answer key. Enrichment there always uses a fake provider and never spends credits.

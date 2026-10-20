@@ -613,3 +613,42 @@ properly". Flag what cannot be backed instead of dropping it, as the Ask panel a
 - **Unchanged:** consent before sending, the untrusted wrapping, the daily cap, the call log, and
   erasure.
 - **Supersedes:** SR19-G1 and SR19-G2. The whole-token number matching remains, now as a flag.
+
+## Q. M5: login, roles, own-data visibility and the UI rework (2026-10-20) [PO + build]
+Contract: `docs/M5-LOGIN-AND-UI-CONTRACT.md`. This is the login part of M3b, brought forward
+without hosting.
+
+**PO decisions.**
+- A setup screen on first launch creates the admin. One login spans many workspaces.
+- A rep sees only their own data, and their statistics cover only it, unless the admin grants
+  *see all*. *Delete own* can be granted. Only the admin deletes by default.
+- Empty passwords only in demo workspaces, and only on loopback.
+- Design: Framer simplicity, OAC DV analysis, Dynamics organisation.
+
+**Built.**
+- **Sign-in:**
+  - scrypt (standard library), session cookies with only their hash stored, 14-day sliding and
+    30-day absolute expiry;
+  - every `/api` path needs a session (ASGI middleware), and non-members get 404;
+  - a members API with a People and access page, the `dataforce users` CLI, and the Test data
+    login backfill.
+- **Visibility** (`app/auth/visibility.py`):
+  - deals by owner; accounts the rep owns or has a deal on (new `account.owner_id`, backfilled);
+  - records attached to an account follow it, and rows attached to a deal follow their deal;
+  - applied to every read path, analytics included;
+  - authors and owners are set by the server;
+  - settings, connectors, files, connections, Admin and erasure are admin-only.
+- **UI:**
+  - new tokens; grouped navigation (My work, Customers, Sales, Analysis, Admin);
+  - a `RecordPage` template, with deal, account, contact and company pages built on it;
+  - a clickable org chart;
+  - server paging (50 rows) on the big lists, typeahead pickers, a cached data layer with
+    request cancellation;
+  - every page lazy-loaded (main chunk 468 → 260 kB);
+  - generated API types with a drift test.
+- **Flows:** `standardize` and `regex` cleaning blocks.
+
+**Security review** (`docs/security/SR20-m5-login.md`): 1 high, 2 medium, 3 low, all fixed with
+tests.
+- High: a workspace admin could take over the superadmin.
+- Medium: another rep's deal-level rows on a shared account; a setup race.
