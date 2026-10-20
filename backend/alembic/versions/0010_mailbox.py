@@ -40,7 +40,9 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.CheckConstraint("provider IN ('gmail','outlook')", name="ck_mailbox_connection_provider"),
+        sa.CheckConstraint(
+            "provider IN ('gmail','outlook')", name="ck_mailbox_connection_provider"
+        ),
         sa.CheckConstraint(
             "status IN ('configured','connected','needs_reconnect')",
             name="ck_mailbox_connection_status",
