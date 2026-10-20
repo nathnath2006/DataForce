@@ -13,11 +13,15 @@ import { DeleteMeeting, TranscriptDialog } from "./MeetingsPanel";
 import { formatDate, formatDateTime } from "../lib";
 import { clampK, exactCount, speakerNames } from "./text";
 import type { DocumentOut, ThemeOut } from "./types";
+import { loadAllMeetings } from "./all";
+import { MeetingsCalendar } from "./Calendar";
 import "./meetings.css";
 
 export function MeetingsPage() {
   const { ws } = useWs();
   const mayDelete = useCanDelete();
+  const [mode, setMode] = useState<"calendar" | "list">("calendar");
+  const all = useLoad(() => loadAllMeetings(ws.slug), [ws.slug]);
   const list = useListQuery<DocumentOut>({
     resource: "documents", filters: ["q"], defaultSort: { key: "meeting_date", dir: "desc" },
     fetch: (p, signal) => meetingsApi.page(ws.slug, p as { limit: number; offset: number }, signal),
@@ -25,6 +29,7 @@ export function MeetingsPage() {
   const [text, setText] = useUrlSearch(list.f("q"), (v) => list.setFilter("q", v, true));
   const [viewing, setViewing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<DocumentOut | null>(null);
+  const reload = () => { all.reload(); list.reload(); };
   const columns: Column<DocumentOut>[] = [
     { key: "meeting_date", header: "Date", sortable: true, cell: (d) => formatDate(d.meeting_date) },
     { key: "title", header: "Title", sortable: true, cell: (d) => <>{d.title}{d.deal_id && <> <Tag kind="mute">deal</Tag></>}</> },
@@ -40,17 +45,33 @@ export function MeetingsPage() {
   ];
   return (
     <section className="stack">
-      <h1>Meetings</h1>
-      <div className="row wrap filters">
-        <input type="search" placeholder="Search title" aria-label="Search" value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="page-head">
+        <div>
+          <h1>Meetings</h1>
+          <p className="muted">{all.data ? exactCount(all.data.total, "meeting") : "…"}. Upload transcripts from an account or a company page.</p>
+        </div>
+        <div className="seg" role="group" aria-label="View">
+          <button aria-pressed={mode === "calendar"} onClick={() => setMode("calendar")}>Calendar</button>
+          <button aria-pressed={mode === "list"} onClick={() => setMode("list")}>List</button>
+        </div>
       </div>
-      <ErrorNote error={list.error} />
-      <DataTable columns={columns} rows={list.data?.items ?? []} rowKey={(d) => d.id} sort={list.sort} onSort={list.setSort}
-        loading={list.loading} caption="Meetings" empty="No transcript yet. Upload one from an account or company page." />
-      {list.data && <Pager offset={list.data.offset} limit={list.data.limit} shown={list.data.items.length} total={list.data.total} onOffset={list.setOffset} />}
+      <ErrorNote error={mode === "calendar" ? all.error : list.error} />
+      {mode === "calendar" && (all.loading && !all.data ? <Loading /> : all.data && (
+        <MeetingsCalendar docs={all.data.items} onView={setViewing} />
+      ))}
+      {mode === "list" && (
+        <>
+          <div className="row wrap filters">
+            <input type="search" placeholder="Search title" aria-label="Search" value={text} onChange={(e) => setText(e.target.value)} />
+          </div>
+          <DataTable columns={columns} rows={list.data?.items ?? []} rowKey={(d) => d.id} sort={list.sort} onSort={list.setSort}
+            loading={list.loading} caption="Meetings" empty="No transcript yet. Upload one from an account or company page." />
+          {list.data && <Pager offset={list.data.offset} limit={list.data.limit} shown={list.data.items.length} total={list.data.total} onOffset={list.setOffset} />}
+        </>
+      )}
       {viewing && <TranscriptDialog id={viewing} onClose={() => setViewing(null)} />}
-      {deleting && <DeleteMeeting doc={deleting} onClose={() => setDeleting(null)} onDone={list.reload} />}
-      <ThemesSection onChanged={list.reload} />
+      {deleting && <DeleteMeeting doc={deleting} onClose={() => setDeleting(null)} onDone={reload} />}
+      <ThemesSection onChanged={reload} />
     </section>
   );
 }
@@ -75,7 +96,7 @@ function ThemesSection({ onChanged }: { onChanged: () => void }) {
           <Field label="Number of themes (2 to 30)">
             <input type="number" min={2} max={30} value={k} onChange={(ev) => setK(Number(ev.target.value))} />
           </Field>
-          <label className="row"><input type="checkbox" checked={useAi} onChange={(ev) => setUseAi(ev.target.checked)} /> Use AI to name themes</label>
+          <label className="check"><input type="checkbox" checked={useAi} onChange={(ev) => setUseAi(ev.target.checked)} /> Use AI to name themes</label>
           <button className="primary" disabled={a.busy} onClick={run}>{a.busy ? "Finding…" : "Find themes"}</button>
         </div>
         <p className="muted small">

@@ -1,16 +1,18 @@
 /* Shell: assistant drawer, rail, detail header, 3-column summary. Tokens only. */
 .body.has-rail { padding-right: 44px; }
-.body.drawer-open { padding-right: calc(44px + 380px); }
-.rail { position: fixed; right: 0; top: 0; bottom: 0; height: 100vh; height: 100dvh; width: 44px; z-index: 19; padding-top: calc(var(--topbar-h) + .5rem); display: flex; flex-direction: column; align-items: center; background: var(--surface); border-left: 1px solid var(--hairline); }
+.body.drawer-open { padding-right: calc(44px + 420px); }
+.rail { position: fixed; right: 0; top: 0; bottom: 0; height: 100vh; height: 100dvh; width: 44px; z-index: 19; padding-top: calc(var(--topbar-h) + .6rem); display: flex; flex-direction: column; align-items: center; background: var(--surface); border-left: 1px solid var(--hairline); }
 .rail-btn { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-md); border-color: transparent; background: transparent; color: var(--ink-soft); }
-.rail-btn[aria-expanded="true"] { background: var(--primary-soft); color: var(--primary); }
-.drawer { position: fixed; top: var(--topbar-h); bottom: 0; right: 44px; width: 380px; z-index: 18; display: flex; flex-direction: column; background: var(--glass); -webkit-backdrop-filter: saturate(180%) blur(14px); backdrop-filter: saturate(180%) blur(14px); border: 1px solid var(--hairline); border-radius: var(--r-lg) 0 0 var(--r-lg); box-shadow: var(--shadow-2); transform: translateX(calc(100% + 44px)); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; }
+.rail-btn[aria-expanded="true"] { background: var(--primary); color: var(--primary-ink); }
+.drawer { position: fixed; top: var(--topbar-h); bottom: 0; right: 44px; width: 420px; z-index: 18; display: flex; flex-direction: column; background: var(--glass); -webkit-backdrop-filter: saturate(180%) blur(14px); backdrop-filter: saturate(180%) blur(14px); border: 1px solid var(--hairline); border-radius: var(--r-lg) 0 0 var(--r-lg); box-shadow: var(--shadow-2); transform: translateX(calc(100% + 44px)); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; }
 .drawer:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .drawer { background: var(--surface); } }
 .drawer.open { transform: none; visibility: visible; transition: transform .2s ease, visibility 0s; }
 .drawer-head { flex: none; display: flex; justify-content: space-between; align-items: center; padding: .8rem 1rem; border-bottom: 1px solid var(--hairline); }
 .drawer-head h2 { margin: 0; }
-.drawer-body { flex: 1; min-height: 0; overflow-y: auto; padding: 1rem; }
+.drawer-body { flex: 1; min-height: 0; overflow-y: auto; padding: .8rem 1rem 1rem; display: flex; flex-direction: column; }
+.drawer-sub { margin: 0; font-size: .8rem; color: var(--ink-soft); }
+.drawer-empty { margin: auto 0; display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
 @media (prefers-reduced-motion: reduce) { .drawer, .drawer.open { transition: none; } }
 
 .detail-head { display: flex; flex-direction: column; gap: .5rem; }

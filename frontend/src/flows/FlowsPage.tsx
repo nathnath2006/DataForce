@@ -7,6 +7,7 @@ import { flowApi } from "./flowApi";
 import { TEMPLATES, emptyGraph } from "./graph";
 import type { FlowSummary } from "./types";
 import "./flows.css";
+import { Icon } from "../icons";
 
 export function FlowsPage() {
   const { ws } = useWs();
@@ -18,33 +19,50 @@ export function FlowsPage() {
   return (
     <section className="stack">
       <AnalysisTabs />
-      <div className="row between wrap">
-        <h1>Analysis flows</h1>
-        <div className="row">
-          <Link to={`/w/${ws.slug}/analysis/scan`}>Quick scan</Link>
-          <button className="primary" onClick={() => setCreating(true)}>New flow</button>
+      <div className="page-head">
+        <div>
+          <h1>Analysis</h1>
+          <p className="muted">Flows wire blocks together on a canvas. Every comparison and model says whether it is verified.</p>
         </div>
+        <button className="primary" onClick={() => setCreating(true)}><Icon name="plus" size={18} />New flow</button>
       </div>
       <ErrorNote error={list.error} />
       {list.loading && !list.data && <Loading />}
-      {list.data && list.data.length === 0 && <Empty>No flow yet. Create one from a template or start empty.</Empty>}
-      {list.data && list.data.length > 0 && (
-        <div className="card tablewrap"><table>
-          <thead><tr><th>Name</th><th className="num">Blocks</th><th>Updated</th><th /></tr></thead>
-          <tbody>{list.data.map((f) => (
-            <tr key={f.id}>
-              <td><Link to={`/w/${ws.slug}/analysis/${f.id}`}>{f.name}</Link>
-                {f.description && <div className="muted small">{f.description}</div>}</td>
-              <td className="num">{f.n_nodes}</td>
-              <td>{new Date(f.updated_at).toLocaleString()}</td>
-              <td className="row end">
-                <button onClick={() => setRenaming(f)}>Rename</button>
-                <button className="danger" onClick={() => setDeleting(f)}>Delete</button>
-              </td>
-            </tr>
-          ))}</tbody>
-        </table></div>
-      )}
+      <div className="bento">
+        <Link to={`/w/${ws.slug}/analysis/scan`} className="tile w4">
+          <div className="tile-head"><span className="icon-badge"><Icon name="stats" /></span><Icon name="arrow" size={16} /></div>
+          <h2>Quick scan</h2>
+          <p className="muted small">Win rate, cycle and deal size across every segment, tested in one go.</p>
+        </Link>
+        <Link to={`/w/${ws.slug}/docs`} className="tile w4">
+          <div className="tile-head"><span className="icon-badge"><Icon name="docs" /></span><Icon name="arrow" size={16} /></div>
+          <h2>Reading the results</h2>
+          <p className="muted small">What “not verified” and each warning mean, and what to do about them.</p>
+        </Link>
+        <button type="button" className="tile w4 new-tile" onClick={() => setCreating(true)}>
+          <span className="icon-badge"><Icon name="plus" /></span>
+          <h2>New flow</h2>
+          <p className="muted small">Start empty or from a template.</p>
+        </button>
+        {list.data && list.data.length === 0 && <div className="tile"><Empty>No flow yet. Create one from a template or start empty.</Empty></div>}
+        {list.data?.map((f) => (
+          <article key={f.id} className="tile w4 flow-card">
+            <div className="tile-head">
+              <h2><Link to={`/w/${ws.slug}/analysis/${f.id}`}>{f.name}</Link></h2>
+            </div>
+            <p className="desc">{f.description || "No description."}</p>
+            <div className="meta-row">
+              <span><Icon name="analysis" size={14} /> {f.n_nodes} block{f.n_nodes === 1 ? "" : "s"}</span>
+              <span>Updated {new Date(f.updated_at).toLocaleDateString()}</span>
+            </div>
+            <div className="actions">
+              <Link className="btn quiet" to={`/w/${ws.slug}/analysis/${f.id}`}>Open</Link>
+              <button className="quiet" onClick={() => setRenaming(f)}><Icon name="edit" size={16} />Rename</button>
+              <button className="danger" onClick={() => setDeleting(f)}><Icon name="trash" size={16} />Delete</button>
+            </div>
+          </article>
+        ))}
+      </div>
       {creating && <NewFlow slug={ws.slug} onClose={() => setCreating(false)} onCreated={(id) => nav(`/w/${ws.slug}/analysis/${id}`)} />}
       {renaming && <Rename flow={renaming} slug={ws.slug} onClose={() => setRenaming(null)} onDone={() => { setRenaming(null); list.reload(); }} />}
       {deleting && (

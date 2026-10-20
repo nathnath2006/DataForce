@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router";
 import { useAuth } from "../auth";
+import { Icon as SharedIcon, type IconName } from "../icons";
 import { safeStorage } from "../ui";
 import "./shell.css";
 
@@ -14,6 +15,13 @@ function Icon({ children }: { children: ReactNode }) {
       strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
   );
 }
+
+/** Nav keys that have a drawn icon in icons.tsx (the PO redesign); the rest keep the small local glyphs below. */
+const SHARED: Record<string, IconName> = {
+  summary: "summary", companies: "companies", accounts: "accounts", contacts: "contacts", deals: "deals",
+  meetings: "meetings", flows: "analysis", workbooks: "chart", models: "model", insights: "sparkle",
+  settings: "settings", admin: "admin", me: "user", docs: "docs",
+};
 
 const ICONS: Record<string, ReactNode> = {
   home: <><path d="M4 11l8-7 8 7" /><path d="M6 10v10h12V10" /><path d="M10 20v-6h4v6" /></>,
@@ -40,6 +48,7 @@ interface Group { title: string; items: Item[]; adminOnly?: boolean }
 export const NAV_GROUPS: Group[] = [
   { title: "My work", items: [
     { key: "home", label: "Home", to: "home" },
+    { key: "summary", label: "Summary", to: "summary" },
     { key: "tasks", label: "Tasks", to: "tasks" },
     { key: "activities", label: "Activities", to: "activities" } ] },
   { title: "Customers", items: [
@@ -81,7 +90,7 @@ export function SideNav(props: { slug: string; collapsed: boolean; open: boolean
           {g.items.map((i) => (
             <NavLink key={i.key} to={`/w/${props.slug}/${i.to}`} title={i.label}
               className={() => (navActive(i.key, rest) ? "active" : "")} aria-current={navActive(i.key, rest) ? "page" : undefined}>
-              <Icon>{ICONS[i.key]}</Icon><span className="nav-label">{i.label}</span>
+              {SHARED[i.key] ? <SharedIcon name={SHARED[i.key]!} size={16} className="ico" /> : <Icon>{ICONS[i.key]}</Icon>}<span className="nav-label">{i.label}</span>
             </NavLink>
           ))}
         </div>

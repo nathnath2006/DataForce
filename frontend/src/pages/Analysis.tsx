@@ -1,3 +1,4 @@
+import { ReasonList } from "../docs/Reasons";
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { useWs } from "../context";
@@ -37,12 +38,12 @@ export function AnalysisPage() {
   return (
     <section className="stack">
       <AnalysisTabs />
-      <div className="row between wrap">
+      <div className="page-head">
         <h1>Insights</h1>
         <button className="primary" disabled={act.busy} onClick={() => void run()}>{act.busy ? "Running…" : "Run analysis"}</button>
       </div>
 
-      <div className="card">
+      <div className="tile">
         <h2>Pipeline <Tag kind="mute">exact count</Tag></h2>
         <ErrorNote error={pipe.error} />
         {pipe.data && (
@@ -78,7 +79,7 @@ function ScanView({ report }: { report: NonNullable<ScanOut["report"]> }) {
       <p className="muted">
         Scan of {formatDateTime(report.created_at)}: {report.n_deals} deals ({report.n_closed} closed, {report.n_open} open).
       </p>
-      <div className="card">
+      <div className="tile">
         <h2>Overall</h2>
         <div className="tablewrap"><table>
           <thead><tr><th>Metric</th><th>Value (CI)</th><th className="num">n</th><th>Method</th><th>Status</th></tr></thead>
@@ -86,13 +87,13 @@ function ScanView({ report }: { report: NonNullable<ScanOut["report"]> }) {
             <tr key={m} className={s.status === "verified" ? "" : "nv"}>
               <td>{METRIC_LABEL[m]}</td><td>{formatStat(s, conf)}</td><td className="num">{s.n}</td><td>{s.method}</td>
               <td>{s.status === "verified" ? <Tag kind="ok">verified</Tag> : <Tag kind="mute">not verified</Tag>}
-                {s.reasons.length > 0 && <ul className="reasons">{s.reasons.map((x, i) => <li key={i}>{x}</li>)}</ul>}</td>
+                {s.reasons.length > 0 && <ReasonList reasons={s.reasons} />}</td>
             </tr>
           ))}</tbody>
         </table></div>
       </div>
 
-      <div className="card">
+      <div className="tile">
         <h2>Verified findings ({verified.length})</h2>
         {verified.length === 0 ? <p className="muted">Nothing passed every gate. That is a valid outcome.</p> : (
           <div className="tablewrap"><table>
@@ -109,7 +110,7 @@ function ScanView({ report }: { report: NonNullable<ScanOut["report"]> }) {
         )}
       </div>
 
-      <div className="card nvcard">
+      <div className="tile nvcard">
         <button className="link" aria-expanded={showNV} onClick={() => setShowNV(!showNV)}>
           {showNV ? "▾" : "▸"} Not verified ({notVerified.length}) — not results, do not act on these
         </button>
@@ -130,9 +131,7 @@ function NotVerified({ f }: { f: EffectFinding }) {
   return (
     <li>
       <div>{label(f.dimension)}: {f.group} · {METRIC_LABEL[f.metric]} · n {f.n_group} / {f.n_rest}</div>
-      <ul className="reasons">
-        {f.reasons.length === 0 ? <li>No reason given.</li> : f.reasons.map((r, i) => <li key={i}>{r}</li>)}
-      </ul>
+      {f.reasons.length === 0 ? <ul className="reasons"><li>No reason given.</li></ul> : <ReasonList reasons={f.reasons} />}
     </li>
   );
 }

@@ -24,6 +24,7 @@ const AnalysisPage = lazy(() => import("./pages/Analysis").then((m) => ({ defaul
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 const AdminPage = lazy(() => import("./pages/Admin").then((m) => ({ default: m.AdminPage })));
 const MySettingsPage = lazy(() => import("./pages/MySettings").then((m) => ({ default: m.MySettingsPage })));
+const SummaryPage = lazy(() => import("./pages/Summary").then((m) => ({ default: m.SummaryPage })));
 const DocsPage = lazy(() => import("./docs/DocsPage").then((m) => ({ default: m.DocsPage })));
 const CompaniesPage = lazy(() => import("./companies/CompaniesPage").then((m) => ({ default: m.CompaniesPage })));
 const CompanyDetailPage = lazy(() => import("./companies/CompanyDetail").then((m) => ({ default: m.CompanyDetailPage })));
@@ -55,6 +56,7 @@ export function App() {
         <Route path="home" element={<HomePage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="activities" element={<ActivitiesPage />} />
+        <Route path="summary" element={<SummaryPage />} />
         <Route path="companies" element={<CompaniesPage />} />
         <Route path="companies/:id" element={<CompanyDetailPage />} />
         <Route path="accounts" element={<AccountsPage />} />
@@ -100,7 +102,7 @@ function Home() {
       )}
       {!data && !error && <Loading />}
       {creating && (
-        <NewWorkspace onClose={() => setCreating(false)} onCreated={(slug) => { reload(); nav(`/w/${slug}/accounts`); }} />
+        <NewWorkspace onClose={() => setCreating(false)} onCreated={(slug) => { reload(); nav(`/w/${slug}/home`); }} />
       )}
     </main>
   );
@@ -155,7 +157,7 @@ function Shell() {
       {creating && (
         <NewWorkspace
           onClose={() => setCreating(false)}
-          onCreated={(s) => { wss.reload(); nav(`/w/${s}/accounts`); }}
+          onCreated={(s) => { wss.reload(); nav(`/w/${s}/home`); }}
         />
       )}
     </WsContext.Provider>

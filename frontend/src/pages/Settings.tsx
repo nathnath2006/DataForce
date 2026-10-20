@@ -10,8 +10,49 @@ import { useWs } from "../context";
 import { formatDateTime, isSafeAuthorizeUrl, tamtamReason } from "../lib";
 import { meetingOrgNotice } from "../orgchart/model";
 import { Confirm, ErrorNote, Loading, Tag, useAction, useLoad } from "../ui";
+import { Icon, type IconName } from "../icons";
+import "./settings.css";
+
+type TabKey = "integrations" | "ai" | "data" | "assistants";
+const TABS: { key: TabKey; label: string; icon: IconName; hint: string }[] = [
+  { key: "integrations", label: "Mail & TamTam", icon: "plug", hint: "The workspace mailbox and contact lookups" },
+  { key: "ai", label: "AI model", icon: "sparkle", hint: "The model the assistant and AI features use" },
+  { key: "data", label: "Data connections", icon: "dataset", hint: "Read-only databases for analysis flows" },
+  { key: "assistants", label: "AI assistants", icon: "robot", hint: "Claude Desktop, Claude Code and other MCP clients" },
+];
 
 export function SettingsPage() {
+  const [sp, setSp] = useSearchParams();
+  // The TamTam sign-in comes back with ?tamtam=…: open its tab.
+  const raw = sp.get("tab") ?? "integrations";
+  const tab: TabKey = TABS.some((t) => t.key === raw) ? (raw as TabKey) : "integrations";
+  const current = TABS.find((t) => t.key === tab)!;
+  return (
+    <section className="stack">
+      <div className="page-head">
+        <div><h1>Settings</h1><p className="muted">{current.hint}.</p></div>
+      </div>
+      <div className="settings">
+        <nav className="settings-nav tile soft" aria-label="Settings sections">
+          {TABS.map((t) => (
+            <button key={t.key} type="button" aria-current={t.key === tab ? "page" : undefined}
+              className={t.key === tab ? "on" : ""} onClick={() => setSp({ tab: t.key })}>
+              <Icon name={t.icon} size={18} />{t.label}
+            </button>
+          ))}
+        </nav>
+        <div className="stack settings-body">
+                    {tab === "integrations" && <><section className="tile"><MailboxSection /></section><TamtamSection /></>}
+          {tab === "ai" && <AiSection />}
+          {tab === "data" && <ConnectionsPanel />}
+          {tab === "assistants" && <McpPanel />}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TamtamSection() {
   const { ws } = useWs();
   const [sp] = useSearchParams();
   const c = useLoad(() => api.getConnector(ws.slug), [ws.slug]);
@@ -32,9 +73,9 @@ export function SettingsPage() {
   const check = () => act.run(async () => { setChecked(await api.checkTamtam(ws.slug)); });
 
   return (
-    <section className="stack">
-      <h1>Settings</h1>
-      <h2>TamTam</h2>
+    <section className="tile">
+      <h2 className="tile-title"><Icon name="plug" />TamTam</h2>
+      <p className="muted small">Contact lookups (emails, mobiles) for this workspace. Paid lookups only happen when someone clicks Enrich and confirms the credits.</p>
       {result === "connected" && <div className="note ok" role="status">TamTam is connected.</div>}
       {result === "error" && <div className="note err" role="alert">TamTam connection failed. {tamtamReason(reason)}</div>}
       <ErrorNote error={c.error} /><ErrorNote error={act.error} />
@@ -93,10 +134,6 @@ export function SettingsPage() {
           )}
         </>
       )}
-      <MailboxSection />
-      <AiSection />
-      <ConnectionsPanel />
-      <McpPanel />
       {disc && (
         <Confirm title="Disconnect TamTam" confirmLabel="Disconnect" danger onClose={() => setDisc(false)}
           onConfirm={async () => { await api.disconnectTamtam(ws.slug); setChecked(null); c.reload(); }}>
@@ -134,11 +171,11 @@ function AiSection() {
     setKey(""); setReplace(false);
   });
   return (
-    <>
-      <h2>AI model</h2>
+    <section className="tile">
+      <h2 className="tile-title"><Icon name="sparkle" />AI model</h2>
       <ErrorNote error={act.error} />
       <div className="note" role="note">{d.data_notice}</div>
-      <div className="card stack">
+      <div className="stack">
         <div className="grid2">
           <label>Provider
             <select value={prov} onChange={(e) => { setProvider(e.target.value as AiProvider); setModel(""); setCustom(false); }}>
@@ -185,6 +222,6 @@ function AiSection() {
             ? <Tag kind="ok">worked</Tag> : <Tag kind="bad">failed</Tag>}{d.last_error ? <span className="pre"> {d.last_error}</span> : null}</p>
         )}
       </div>
-    </>
+    </section>
   );
 }

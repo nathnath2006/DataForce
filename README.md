@@ -12,7 +12,8 @@ Design and build contract: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (M1) a
 [`docs/UI-CONTRACT.md`](docs/UI-CONTRACT.md) (M1b: local UI, TamTam connect) and
 [`docs/M2A-CONTRACT.md`](docs/M2A-CONTRACT.md) (M2a: flows, Company 360, AI assistant) and
 [`docs/M2B-CONTRACT.md`](docs/M2B-CONTRACT.md) (M2b: titles, org-chart proposals, meetings). Decisions:
-[`docs/DECISIONS.md`](docs/DECISIONS.md). What was built and why, for non-developers:
+[`docs/DECISIONS.md`](docs/DECISIONS.md). Hosting plan (Supabase + a free host, not built yet):
+[`docs/HOSTING-PLAN.md`](docs/HOSTING-PLAN.md). What was built and why, for non-developers:
 [`docs/DataForce-build-report.pdf`](docs/DataForce-build-report.pdf).
 
 ## Use it in the browser (M1b)
@@ -131,6 +132,9 @@ builds the frontend when it changed, and starts the app on loopback only.
   - **AI marks:** anything the AI produced carries a yellow *AI* badge.
 - **Theme**: the *Theme* button in the header cycles System / Light / Dark.
 - `make ui-dev` runs the same app with the Vite dev server (hot reload) on 127.0.0.1:5173.
+- **Netlify preview**: `netlify.toml` builds `frontend/` and serves the interface only. The API
+  and the data stay on your computer (no login before M3b), so on Netlify every screen says the
+  API is local instead of showing data.
 
 ## Quickstart
 

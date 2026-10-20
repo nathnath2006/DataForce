@@ -1,29 +1,29 @@
-.oc-suggest { border-left: 2px dashed var(--muted); margin-left: .4rem; padding-left: .5rem; color: var(--muted); font-style: italic; }
-.oc-fact { border-left: 2px solid var(--line); }
+/* Top-down org tree (layout after daniel-hauser/react-organizational-chart, pure CSS: no dependency).
+   Connector lines are borders on each <li>; suggested links are dashed and never solid. */
 .oc-item { border: 1px solid var(--line); border-radius: var(--r-md); padding: .5rem .7rem; margin: .5rem 0; }
 .oc-item blockquote { margin: .3rem 0; padding-left: .6rem; border-left: 3px solid var(--line); white-space: pre-wrap; }
 .oc-pop { border: 1px solid var(--line); border-radius: var(--r-md); padding: .4rem .6rem; margin: .2rem 0; font-size: .85rem; }
 
 /* Visual org chart */
-.ocv { overflow-x: auto; padding: .5rem .25rem 1rem; border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--bg); }
+.ocv { overflow-x: auto; padding: .5rem .25rem 1rem; border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--surface); }
 .ocv ul { display: flex; justify-content: center; margin: 0; padding: 22px 0 0; list-style: none; position: relative; width: max-content; min-width: 100%; }
 .ocv ul ul { min-width: 0; }
 .ocv li { display: flex; flex-direction: column; align-items: center; position: relative; padding: 22px 8px 0; }
 .ocv ul.ocv-root { padding-top: 0; } .ocv ul.ocv-root > li { padding-top: 0; }
-.ocv li::before, .ocv li::after { content: ""; position: absolute; top: 0; width: 50%; height: 22px; border-top: 1px solid var(--ink-faint); }
-.ocv li::before { right: 50%; } .ocv li::after { left: 50%; border-left: 1px solid var(--ink-faint); }
-.ocv li:only-child::before, .ocv li:only-child::after { border-top: none; }
-.ocv li:only-child::after { border-left: 1px solid var(--ink-faint); }
+.ocv li::before, .ocv li::after { content: ""; position: absolute; top: 0; width: 50%; height: 22px; border-top: 1.5px solid var(--ink-soft); }
+.ocv li::before { right: 50%; } .ocv li::after { left: 50%; border-left: 1.5px solid var(--ink-soft); }
+.ocv li:only-child::before, .ocv li:only-child::after { display: none; }
 .ocv li:first-child::before, .ocv li:last-child::after { border-top: none; }
-.ocv li:last-child::before { border-right: 1px solid var(--ink-faint); border-radius: 0 6px 0 0; }
-.ocv li:first-child::after { border-radius: 6px 0 0 0; }
+.ocv li:last-child::before { border-right: 1.5px solid var(--ink-soft); border-radius: 0 var(--r-md) 0 0; }
+.ocv li:first-child::after { border-radius: var(--r-md) 0 0 0; }
 .ocv ul.ocv-root > li::before, .ocv ul.ocv-root > li::after { display: none; }
-.ocv ul ul::before { content: ""; position: absolute; top: 0; left: 50%; height: 22px; border-left: 1px solid var(--ink-faint); }
-.ocv-node { display: flex; flex-direction: column; gap: 2px; width: 168px; padding: .5rem .6rem; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md); box-shadow: var(--shadow-1); color: var(--ink); text-decoration: none; text-align: left; }
-.ocv-node:hover { border-color: var(--primary); }
+.ocv ul ul::before { content: ""; position: absolute; top: 0; left: 50%; height: 22px; border-left: 1.5px solid var(--ink-soft); }
+.ocv-node { display: flex; flex-direction: column; gap: 2px; width: 168px; padding: .5rem .6rem; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md); box-shadow: var(--shadow-1); color: var(--ink); text-decoration: none; text-align: left; margin: 0; }
+.ocv-node { transition: background-color .15s ease, box-shadow .15s ease; }
+.ocv-node:hover { background: var(--hover); color: var(--ink); }
 .ocv-node:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.ocv-node.current { border-color: var(--primary); background: var(--primary-soft); box-shadow: 0 0 0 2px var(--primary); }
-.ocv-node.suggested { border-style: dashed; background: transparent; color: var(--ink-soft); box-shadow: none; }
+.ocv-node.current, .ocv-node.current:hover { border-color: var(--primary); background: var(--tint); box-shadow: 0 0 0 2px var(--primary); }
+.ocv-node.suggested { border: 1.5px dashed var(--ink-soft); background: var(--mute-bg); color: var(--ink-soft); box-shadow: none; }
 .ocv-name { font-weight: 600; overflow-wrap: anywhere; }
 .ocv-title { font-size: 12px; color: var(--ink-soft); overflow-wrap: anywhere; }
 .ocv-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
