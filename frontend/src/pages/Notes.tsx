@@ -9,7 +9,7 @@ type Kind = "note" | "comment";
 
 /** Notes (on a contact) and comments (on an account): append-only threads. */
 export function NoteThread({ kind, parentId }: { kind: Kind; parentId: string }) {
-  const { ws, actingAs } = useWs();
+  const { ws } = useWs();
   const list = useLoad(
     () => (kind === "note" ? api.listNotes(ws.slug, parentId) : api.listComments(ws.slug, parentId)),
     [ws.slug, parentId, kind]);
@@ -24,14 +24,14 @@ export function NoteThread({ kind, parentId }: { kind: Kind; parentId: string })
       <form className="stack" onSubmit={(e) => {
         e.preventDefault();
         void add.run(async () => {
-          const b = { body: body.trim(), author_id: actingAs };
+          const b = { body: body.trim() };
           if (kind === "note") await api.addNote(ws.slug, parentId, b); else await api.addComment(ws.slug, parentId, b);
           setBody("");
           list.reload();
         });
       }}>
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={20000}
-          placeholder={`Add a ${noun}${actingAs ? "" : " (nobody selected under “Acting as”)"}`} aria-label={`New ${noun}`} />
+          placeholder={`Add a ${noun}`} aria-label={`New ${noun}`} />
         <ErrorNote error={add.error} />
         <div className="row end"><button className="primary" disabled={add.busy || body.trim() === ""}>Add {noun}</button></div>
       </form>
@@ -63,8 +63,8 @@ export function NoteThread({ kind, parentId }: { kind: Kind; parentId: string })
       {deleting && (
         <Confirm title={`Delete ${noun}`} confirmLabel="Delete" danger onClose={() => setDeleting(null)}
           onConfirm={async () => {
-            if (kind === "note") await api.deleteNote(ws.slug, deleting.id, actingAs);
-            else await api.deleteComment(ws.slug, deleting.id, actingAs);
+            if (kind === "note") await api.deleteNote(ws.slug, deleting.id);
+            else await api.deleteComment(ws.slug, deleting.id);
             list.reload();
           }}>
           <p>The {noun} is marked as deleted. It stays in the history; nothing is erased.</p>
@@ -76,7 +76,7 @@ export function NoteThread({ kind, parentId }: { kind: Kind; parentId: string })
 }
 
 function CorrectDialog(props: { kind: Kind; note: NoteOut; onClose: () => void; onDone: () => void }) {
-  const { ws, actingAs } = useWs();
+  const { ws } = useWs();
   const [body, setBody] = useState(props.note.body);
   const a = useAction();
   return (
@@ -84,7 +84,7 @@ function CorrectDialog(props: { kind: Kind; note: NoteOut; onClose: () => void; 
       <form className="stack" onSubmit={(e) => {
         e.preventDefault();
         void a.run(async () => {
-          const b = { body: body.trim(), author_id: actingAs };
+          const b = { body: body.trim() };
           if (props.kind === "note") await api.correctNote(ws.slug, props.note.id, b);
           else await api.correctComment(ws.slug, props.note.id, b);
           props.onDone();

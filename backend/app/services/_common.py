@@ -10,6 +10,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Account, AppUser, Contact, Deal, Workspace
 from app.services.errors import NotFoundError
 
@@ -53,20 +55,33 @@ def require_workspace(session: Session, ws_id: uuid.UUID) -> Workspace:
     return ws
 
 
-def require_account(session: Session, ws_id: uuid.UUID, account_id: uuid.UUID) -> Account:
-    return require(session, Account, ws_id, account_id)
+def require_account(
+    session: Session, ws_id: uuid.UUID, account_id: uuid.UUID, viewer: Viewer | None = None
+) -> Account:
+    """`viewer` given: an account the viewer may not see is "not found" (M5 visibility)."""
+    row = require(session, Account, ws_id, account_id)
+    visibility.check_account(session, viewer, account_id)
+    return row
 
 
-def require_contact(session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID) -> Contact:
-    return require(session, Contact, ws_id, contact_id)
+def require_contact(
+    session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID, viewer: Viewer | None = None
+) -> Contact:
+    row = require(session, Contact, ws_id, contact_id)
+    visibility.check_contact(session, viewer, contact_id)
+    return row
 
 
 def require_user(session: Session, ws_id: uuid.UUID, user_id: uuid.UUID) -> AppUser:
     return require(session, AppUser, ws_id, user_id)
 
 
-def require_deal(session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID) -> Deal:
-    return require(session, Deal, ws_id, deal_id)
+def require_deal(
+    session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID, viewer: Viewer | None = None
+) -> Deal:
+    row = require(session, Deal, ws_id, deal_id)
+    visibility.check_deal(session, viewer, deal_id)
+    return row
 
 
 def _set_erasure(session: Session, value: str) -> None:

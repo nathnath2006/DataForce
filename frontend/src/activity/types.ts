@@ -11,16 +11,16 @@ export interface ActivityOut {
 }
 export interface ActivityCreate {
   kind: ActivityKind; direction?: Direction | null; occurred_at: string; subject: string;
-  body?: string | null; deal_id?: string | null; participant_ids?: string[]; author_id?: string | null;
+  body?: string | null; deal_id?: string | null; participant_ids?: string[];
 }
 export interface TaskOut {
   id: string; deal_id: string | null; account_id: string | null; title: string; due_on: string | null;
   status: TaskStatus; owner_id: string | null; owner_name: string | null; source: string;
   evidence: Record<string, unknown>; done_at: string | null; created_at: string;
 }
-export interface TaskCreate { title: string; deal_id?: string | null; account_id?: string | null; due_on?: string | null; owner_id?: string | null }
+export interface TaskCreate { title: string; deal_id?: string | null; account_id?: string | null; due_on?: string | null }
 export interface TaskUpdate { title?: string; due_on?: string | null; status?: "open" | "done" | "dismissed"; owner_id?: string | null }
-export interface MoveStage { stage: string; changed_on?: string | null; lost_reason?: string | null; changed_by_id?: string | null }
+export interface MoveStage { stage: string; changed_on?: string | null; lost_reason?: string | null }
 
 export type TimelineKind = "stage" | "call" | "email" | "meeting" | "other" | "note" | "comment" | "task";
 export interface TimelineItem {

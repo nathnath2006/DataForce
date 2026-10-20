@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 from fastapi import APIRouter
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.routes.ai import Factory
 from app.api.schemas_orgchart import (
     AcceptIn,
@@ -61,7 +61,12 @@ def _out(db: Db, ws_id: uuid.UUID, rows: Sequence[OrgProposal]) -> list[Proposal
 
 @router.post("/w/{ws}/orgchart/propose", response_model=ProposeOut)
 def propose(
-    body: ProposeIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory
+    body: ProposeIn,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    factory: Factory,
+    viewer: CurrentViewer,
 ) -> ProposeOut:
     result = org_proposals.propose(
         db,
@@ -71,6 +76,7 @@ def propose(
         use_ai=body.use_ai,
         settings=settings,
         factory=factory,
+        viewer=viewer,
     )
     db.commit()
     return ProposeOut(**result)
@@ -78,18 +84,32 @@ def propose(
 
 @router.get("/w/{ws}/accounts/{account_id}/org-proposals", response_model=list[ProposalOut])
 def list_org_proposals(
-    account_id: uuid.UUID, db: Db, ws: CurrentWorkspace, status: ProposalStatus | None = None
+    account_id: uuid.UUID,
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
+    status: ProposalStatus | None = None,
 ) -> list[ProposalOut]:
-    return _out(db, ws.id, org_proposals.list_proposals(db, ws.id, account_id, status))
+    return _out(db, ws.id, org_proposals.list_proposals(db, ws.id, account_id, status, viewer))
 
 
 @router.post("/w/{ws}/org-proposals/{proposal_id}/accept", response_model=ProposalOut)
 def accept(
-    proposal_id: uuid.UUID, db: Db, ws: CurrentWorkspace, body: AcceptIn | None = None
+    proposal_id: uuid.UUID,
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
+    body: AcceptIn | None = None,
 ) -> ProposalOut:
     body = body or AcceptIn()
     row = org_proposals.accept(
-        db, ws.id, proposal_id, manager_id=body.manager_id, by_id=body.by_id, force=body.force
+        db,
+        ws.id,
+        proposal_id,
+        manager_id=body.manager_id,
+        by_id=viewer.app_user_id,
+        force=body.force,
+        viewer=viewer,
     )
     db.commit()
     return _out(db, ws.id, [row])[0]
@@ -97,9 +117,12 @@ def accept(
 
 @router.post("/w/{ws}/org-proposals/{proposal_id}/reject", response_model=ProposalOut)
 def reject(
-    proposal_id: uuid.UUID, db: Db, ws: CurrentWorkspace, body: RejectIn | None = None
+    proposal_id: uuid.UUID,
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
+    body: RejectIn | None = None,
 ) -> ProposalOut:
-    body = body or RejectIn()
-    row = org_proposals.reject(db, ws.id, proposal_id, by_id=body.by_id)
+    row = org_proposals.reject(db, ws.id, proposal_id, by_id=viewer.app_user_id, viewer=viewer)
     db.commit()
     return _out(db, ws.id, [row])[0]

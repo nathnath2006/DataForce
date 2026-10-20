@@ -9,6 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas_viz import WorkbookSpec
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Workbook
 from app.services._common import get_scoped
 from app.services.errors import NotFoundError
@@ -42,8 +44,14 @@ def require(db: Session, ws_id: uuid.UUID, wb_id: uuid.UUID) -> Workbook:
     return row
 
 
-def create(db: Session, ws_id: uuid.UUID, name: str, spec: WorkbookSpec) -> Workbook:
-    row = Workbook(workspace_id=ws_id, name=name, spec=dump_spec(spec))
+def create(
+    db: Session,
+    ws_id: uuid.UUID,
+    name: str,
+    spec: WorkbookSpec,
+    created_by_id: uuid.UUID | None = None,
+) -> Workbook:
+    row = Workbook(workspace_id=ws_id, name=name, spec=dump_spec(spec), created_by_id=created_by_id)
     db.add(row)
     db.flush()
     db.refresh(row)
@@ -63,12 +71,19 @@ def update(
     return row
 
 
-def duplicate(db: Session, ws_id: uuid.UUID, wb_id: uuid.UUID) -> Workbook:
+def duplicate(
+    db: Session, ws_id: uuid.UUID, wb_id: uuid.UUID, created_by_id: uuid.UUID | None = None
+) -> Workbook:
     src = require(db, ws_id, wb_id)
     suffix = " (copy)"
-    return create(db, ws_id, src.name[: 200 - len(suffix)] + suffix, parse_stored(src.spec))
+    return create(
+        db, ws_id, src.name[: 200 - len(suffix)] + suffix, parse_stored(src.spec), created_by_id
+    )
 
 
-def delete(db: Session, ws_id: uuid.UUID, wb_id: uuid.UUID) -> None:
-    db.delete(require(db, ws_id, wb_id))
+def delete(db: Session, ws_id: uuid.UUID, wb_id: uuid.UUID, viewer: Viewer | None = None) -> None:
+    row = require(db, ws_id, wb_id)
+    if viewer is not None:
+        visibility.require_delete(viewer, row.created_by_id)
+    db.delete(row)
     db.flush()

@@ -12,6 +12,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 
 from app.api.schemas_viz import CrmRef, FlowRef
+from app.auth.viewer import Viewer
 from app.config import Settings
 from app.flows.ports import FlowLimits, SourceError
 from app.flows.schemas import CrmSource, FileSource, PostgresSource
@@ -82,8 +83,9 @@ def load(
     source: CrmRef | FlowRef,
     settings: Settings,
     sessions: Callable[[], Session],
+    viewer: Viewer | None = None,
 ) -> Loaded:
-    loader = _Tracking(DbSourceLoader(sessions, ws_id, settings))
+    loader = _Tracking(DbSourceLoader(sessions, ws_id, settings, viewer))
     max_rows = settings.flow_max_rows
     slot = flows._semaphore(settings.flow_max_concurrent_runs)  # noqa: SLF001
     if isinstance(source, CrmRef):

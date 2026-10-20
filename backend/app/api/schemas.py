@@ -84,6 +84,7 @@ class AccountOut(AccountRead):
     n_deals: int
     n_open_deals: int
     company_name: str | None = None  # M2a
+    owner_id: UUID | None = None  # M5: the rep who owns the account
 
 
 class AccountCreate(_In):
@@ -94,6 +95,7 @@ class AccountCreate(_In):
     employee_count: int | None = Field(default=None, ge=0, le=10_000_000)
     region: str | None = Field(default=None, max_length=100)
     country: str | None = Field(default=None, min_length=2, max_length=2)
+    owner_id: UUID | None = None  # defaults to the signed-in member; only an admin names another
 
 
 class AccountUpdate(_In):
@@ -106,6 +108,7 @@ class AccountUpdate(_In):
     employee_count: int | None = Field(default=None, ge=0, le=10_000_000)
     region: str | None = Field(default=None, max_length=100)
     country: str | None = Field(default=None, min_length=2, max_length=2)
+    owner_id: UUID | None = None  # admin only
 
 
 # --- contacts and org chart -----------------------------------------------------------------------
@@ -200,13 +203,11 @@ class NoteOut(NoteRead):
 
 
 class NoteCreate(_In):
-    body: str = Field(min_length=1, max_length=BODY_MAX_CHARS)
-    author_id: UUID | None = None  # the "acting as" user picked in the UI (no login before M3)
+    body: str = Field(min_length=1, max_length=BODY_MAX_CHARS)  # the author is the signed-in member
 
 
 class NoteCorrect(_In):
     body: str = Field(min_length=1, max_length=BODY_MAX_CHARS)
-    author_id: UUID | None = None
 
 
 # --- stats ----------------------------------------------------------------------------------------

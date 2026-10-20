@@ -16,6 +16,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas_viz import CrmRef, FlowRef
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.config import Settings
 from app.db.models import SavedModel
 from app.flows.blocks._common import jsonable
@@ -50,6 +52,7 @@ def _node_result(
     node_id: str,
     settings: Settings,
     sessions: Callable[[], Session],
+    viewer: Viewer | None = None,
 ) -> tuple[Any, NodeResult]:
     """Re-run the flow up to `node_id` in the flows slot. Returns (node config, its result)."""
     from app.flows.engine import run_graph
@@ -66,7 +69,7 @@ def _node_result(
     if not slot.acquire(timeout=viz_source.SLOT_WAIT_S):
         raise InvalidInputError("another analysis is still running, try again in a moment")
     limits = FlowLimits(max_rows=settings.flow_max_rows, timeout_s=settings.flow_run_timeout_s)
-    loader = DbSourceLoader(sessions, ws_id, settings)
+    loader = DbSourceLoader(sessions, ws_id, settings, viewer)
     gates = gate_config_from_settings(settings)
     models = flows.resolve_models(db, ws_id, graph)
     try:
@@ -92,13 +95,14 @@ def save_model(
     name: str,
     settings: Settings,
     sessions: Callable[[], Session],
+    viewer: Viewer | None = None,
 ) -> SavedModel:
     n = db.scalar(
         select(func.count()).select_from(SavedModel).where(SavedModel.workspace_id == ws_id)
     )
     if (n or 0) >= MAX_MODELS_PER_WORKSPACE:
         raise InvalidInputError(f"at most {MAX_MODELS_PER_WORKSPACE} saved models per workspace")
-    cfg, res = _node_result(db, ws_id, flow_id, node_id, settings, sessions)
+    cfg, res = _node_result(db, ws_id, flow_id, node_id, settings, sessions, viewer)
     params = res.model_params
     view = res.view
     if params is None or view is None:
@@ -143,6 +147,7 @@ def save_model(
         features=features,
         metrics=metrics,
         status=status,
+        created_by_id=viewer.app_user_id if viewer is not None else None,
     )
     db.add(row)
     db.flush()
@@ -175,8 +180,13 @@ def rename_model(db: Session, ws_id: uuid.UUID, model_id: uuid.UUID, name: str) 
     return row
 
 
-def delete_model(db: Session, ws_id: uuid.UUID, model_id: uuid.UUID) -> None:
-    db.delete(require_model(db, ws_id, model_id))
+def delete_model(
+    db: Session, ws_id: uuid.UUID, model_id: uuid.UUID, viewer: Viewer | None = None
+) -> None:
+    row = require_model(db, ws_id, model_id)
+    if viewer is not None:
+        visibility.require_delete(viewer, row.created_by_id)
+    db.delete(row)
     db.flush()
 
 
@@ -187,6 +197,7 @@ def score_source(
     source: CrmRef | FlowRef,
     settings: Settings,
     sessions: Callable[[], Session],
+    viewer: Viewer | None = None,
 ) -> dict[str, Any]:
     row = require_model(db, ws_id, model_id)
     snap = ModelSnapshot(
@@ -197,7 +208,7 @@ def score_source(
         features=[str(f) for f in row.features],
         status=row.status,
     )
-    loaded = viz_source.load(db, ws_id, source, settings, sessions)
+    loaded = viz_source.load(db, ws_id, source, settings, sessions, viewer)
     # scoring (an RBF model: rows x 2,000 support vectors) runs in an analysis slot and budget too
     slot = flows._semaphore(settings.flow_max_concurrent_runs)  # noqa: SLF001
     viz_source._take(slot)  # noqa: SLF001

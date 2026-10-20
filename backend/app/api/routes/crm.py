@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 
-from app.api.deps import CurrentWorkspace, Db
+from app.api.deps import CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas import (
     AccountCreate,
     AccountOut,
@@ -24,6 +24,8 @@ from app.api.schemas import (
     ReportsToUpdate,
     StageUpdate,
 )
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Account, Contact, Deal
 from app.domain.enums import CLOSED_STAGES, DealStage, LeadSource, Segment
 from app.domain.schemas import AccountIn, AccountRead, ContactIn, ContactRead, DealIn, DealRead
@@ -40,8 +42,10 @@ SearchQ = Annotated[str | None, Query(max_length=200, pattern=r"^[^\x00-\x1f\x7f
 
 
 # --- output builders (counts and names come from grouped queries, never per row) -------------
-def _accounts_out(db: Db, ws_id: uuid.UUID, rows: list[Account]) -> list[AccountOut]:
-    counts = accounts.account_counts(db, ws_id, [a.id for a in rows])
+def _accounts_out(
+    db: Db, ws_id: uuid.UUID, rows: list[Account], viewer: Viewer | None = None
+) -> list[AccountOut]:
+    counts = accounts.account_counts(db, ws_id, [a.id for a in rows], viewer)
     cnames = company_names(db, ws_id, list({a.company_id for a in rows if a.company_id}))
     out = []
     for a in rows:
@@ -53,6 +57,7 @@ def _accounts_out(db: Db, ws_id: uuid.UUID, rows: list[Account]) -> list[Account
                 n_deals=n_deals,
                 n_open_deals=n_open,
                 company_name=cnames.get(a.company_id) if a.company_id else None,
+                owner_id=a.owner_id,
             )
         )
     return out
@@ -86,49 +91,69 @@ def _deals_out(db: Db, ws_id: uuid.UUID, rows: list[Deal]) -> list[DealOut]:
 def list_accounts(
     db: Db,
     ws: CurrentWorkspace,
+    viewer: CurrentViewer,
     q: SearchQ = None,
     segment: Segment | None = None,
     limit: Limit = 200,
     offset: Offset = 0,
 ) -> Page[AccountOut]:
     rows, total = accounts.list_accounts_page(
-        db, ws.id, q=q, segment=segment.value if segment else None, limit=limit, offset=offset
+        db,
+        ws.id,
+        q=q,
+        segment=segment.value if segment else None,
+        limit=limit,
+        offset=offset,
+        viewer=viewer,
     )
-    return Page(items=_accounts_out(db, ws.id, rows), total=total)
+    return Page(items=_accounts_out(db, ws.id, rows, viewer), total=total)
 
 
 @router.post("/w/{ws}/accounts", response_model=AccountOut, status_code=201)
-def create_account(body: AccountCreate, db: Db, ws: CurrentWorkspace) -> AccountOut:
-    account = accounts.create_account(db, ws.id, AccountIn(**body.model_dump()))
+def create_account(
+    body: AccountCreate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> AccountOut:
+    data = body.model_dump()
+    owner = visibility.owner_for_create(viewer, data.pop("owner_id", None))
+    account = accounts.create_account(db, ws.id, AccountIn(**data), owner_id=owner)
     db.commit()
-    return _accounts_out(db, ws.id, [account])[0]
+    return _accounts_out(db, ws.id, [account], viewer)[0]
 
 
 @router.get("/w/{ws}/accounts/{account_id}", response_model=AccountOut)
-def get_account(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> AccountOut:
-    return _accounts_out(db, ws.id, [require_account(db, ws.id, account_id)])[0]
+def get_account(
+    account_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> AccountOut:
+    return _accounts_out(db, ws.id, [require_account(db, ws.id, account_id, viewer)], viewer)[0]
 
 
 @router.patch("/w/{ws}/accounts/{account_id}", response_model=AccountOut)
 def update_account(
-    account_id: uuid.UUID, body: AccountUpdate, db: Db, ws: CurrentWorkspace
+    account_id: uuid.UUID, body: AccountUpdate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
 ) -> AccountOut:
     changes = body.model_dump(exclude_unset=True)
-    account = accounts.update_account(db, ws.id, account_id, changes)
+    current = require_account(db, ws.id, account_id, viewer)
+    visibility.check_owner_change(viewer, changes, current.owner_id)
+    account = accounts.update_account(db, ws.id, account_id, changes, viewer)
     db.commit()
-    return _accounts_out(db, ws.id, [account])[0]
+    return _accounts_out(db, ws.id, [account], viewer)[0]
 
 
 @router.delete("/w/{ws}/accounts/{account_id}", status_code=204)
-def erase_account(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
-    accounts.erase_account(db, ws.id, account_id)
+def erase_account(
+    account_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    visibility.require_admin(viewer)  # GDPR erasure
+    accounts.erase_account(db, ws.id, account_id, viewer)
     db.commit()
     return Response(status_code=204)
 
 
 @router.get("/w/{ws}/accounts/{account_id}/org-chart", response_model=OrgChartOut)
-def org_chart(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> OrgChartOut:
-    account = require_account(db, ws.id, account_id)
+def org_chart(
+    account_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> OrgChartOut:
+    account = require_account(db, ws.id, account_id, viewer)
     origins, signals = org_proposals.chart_annotations(db, ws.id, account_id)
     nodes = [
         OrgChartNode(
@@ -143,7 +168,7 @@ def org_chart(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> OrgChartOu
             link_proposal_id=origins[c.id][1] if c.id in origins and boss else None,
             signals=signals.get(c.id, []),
         )
-        for c, boss in contacts.org_chart(db, ws.id, account_id)
+        for c, boss in contacts.org_chart(db, ws.id, account_id, viewer)
     ]
     return OrgChartOut(account_id=account.id, account_name=account.name, nodes=nodes)
 
@@ -153,50 +178,64 @@ def org_chart(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> OrgChartOu
 def list_contacts(
     db: Db,
     ws: CurrentWorkspace,
+    viewer: CurrentViewer,
     account_id: uuid.UUID | None = None,
     q: SearchQ = None,
     limit: Limit = 200,
     offset: Offset = 0,
 ) -> Page[ContactOut]:
     rows, total = contacts.list_contacts_page(
-        db, ws.id, account_id=account_id, q=q, limit=limit, offset=offset
+        db, ws.id, account_id=account_id, q=q, limit=limit, offset=offset, viewer=viewer
     )
     return Page(items=_contacts_out(db, ws.id, rows), total=total)
 
 
 @router.post("/w/{ws}/contacts", response_model=ContactOut, status_code=201)
-def create_contact(body: ContactCreate, db: Db, ws: CurrentWorkspace) -> ContactOut:
-    contact = contacts.create_contact(db, ws.id, ContactIn(**body.model_dump()))
+def create_contact(
+    body: ContactCreate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> ContactOut:
+    contact = contacts.create_contact(db, ws.id, ContactIn(**body.model_dump()), viewer)
     db.commit()
     return _contacts_out(db, ws.id, [contact])[0]
 
 
 @router.get("/w/{ws}/contacts/{contact_id}", response_model=ContactOut)
-def get_contact(contact_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> ContactOut:
-    return _contacts_out(db, ws.id, [require_contact(db, ws.id, contact_id)])[0]
+def get_contact(
+    contact_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> ContactOut:
+    return _contacts_out(db, ws.id, [require_contact(db, ws.id, contact_id, viewer)])[0]
 
 
 @router.patch("/w/{ws}/contacts/{contact_id}", response_model=ContactOut)
 def update_contact(
-    contact_id: uuid.UUID, body: ContactUpdate, db: Db, ws: CurrentWorkspace
+    contact_id: uuid.UUID, body: ContactUpdate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
 ) -> ContactOut:
-    contact = contacts.update_contact(db, ws.id, contact_id, body.model_dump(exclude_unset=True))
+    contact = contacts.update_contact(
+        db, ws.id, contact_id, body.model_dump(exclude_unset=True), viewer
+    )
     db.commit()
     return _contacts_out(db, ws.id, [contact])[0]
 
 
 @router.put("/w/{ws}/contacts/{contact_id}/reports-to", response_model=ContactOut)
 def set_reports_to(
-    contact_id: uuid.UUID, body: ReportsToUpdate, db: Db, ws: CurrentWorkspace
+    contact_id: uuid.UUID,
+    body: ReportsToUpdate,
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
 ) -> ContactOut:
-    contact = contacts.set_reports_to(db, ws.id, contact_id, body.manager_id)
+    contact = contacts.set_reports_to(db, ws.id, contact_id, body.manager_id, viewer)
     db.commit()
     return _contacts_out(db, ws.id, [contact])[0]
 
 
 @router.delete("/w/{ws}/contacts/{contact_id}", status_code=204)
-def erase_contact(contact_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
-    contacts.erase_contact(db, ws.id, contact_id)
+def erase_contact(
+    contact_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    visibility.require_admin(viewer)  # GDPR erasure
+    contacts.erase_contact(db, ws.id, contact_id, viewer)
     db.commit()
     return Response(status_code=204)
 
@@ -206,6 +245,7 @@ def erase_contact(contact_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Respon
 def list_deals(
     db: Db,
     ws: CurrentWorkspace,
+    viewer: CurrentViewer,
     account_id: uuid.UUID | None = None,
     stage: DealStage | None = None,
     lead_source: LeadSource | None = None,
@@ -224,38 +264,58 @@ def list_deals(
         q=q,
         limit=limit,
         offset=offset,
+        viewer=viewer,
     )
     return Page(items=_deals_out(db, ws.id, rows), total=total)
 
 
 @router.post("/w/{ws}/deals", response_model=DealOut, status_code=201)
-def create_deal(body: DealCreate, db: Db, ws: CurrentWorkspace) -> DealOut:
-    deal = deals.create_deal(db, ws.id, DealIn(**body.model_dump()))
+def create_deal(body: DealCreate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> DealOut:
+    data = body.model_dump()
+    data["owner_id"] = visibility.owner_for_create(viewer, data["owner_id"])
+    deal = deals.create_deal(db, ws.id, DealIn(**data), viewer)
     db.commit()
     return _deals_out(db, ws.id, [deal])[0]
 
 
 @router.get("/w/{ws}/deals/{deal_id}", response_model=DealOut)
-def get_deal(deal_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> DealOut:
-    return _deals_out(db, ws.id, [require_deal(db, ws.id, deal_id)])[0]
+def get_deal(deal_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> DealOut:
+    return _deals_out(db, ws.id, [require_deal(db, ws.id, deal_id, viewer)])[0]
 
 
 @router.patch("/w/{ws}/deals/{deal_id}", response_model=DealOut)
-def update_deal(deal_id: uuid.UUID, body: DealUpdate, db: Db, ws: CurrentWorkspace) -> DealOut:
-    deal = deals.update_deal(db, ws.id, deal_id, body.model_dump(exclude_unset=True))
+def update_deal(
+    deal_id: uuid.UUID, body: DealUpdate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> DealOut:
+    changes = body.model_dump(exclude_unset=True)
+    current = require_deal(db, ws.id, deal_id, viewer)
+    visibility.check_owner_change(viewer, changes, current.owner_id)
+    deal = deals.update_deal(db, ws.id, deal_id, changes, viewer)
     db.commit()
     return _deals_out(db, ws.id, [deal])[0]
 
 
 @router.put("/w/{ws}/deals/{deal_id}/stage", response_model=DealOut)
-def set_stage(deal_id: uuid.UUID, body: StageUpdate, db: Db, ws: CurrentWorkspace) -> DealOut:
-    deal = deals.set_stage(db, ws.id, deal_id, body.stage, body.closed_on)
+def set_stage(
+    deal_id: uuid.UUID, body: StageUpdate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> DealOut:
+    deal = deals.set_stage(
+        db,
+        ws.id,
+        deal_id,
+        body.stage,
+        body.closed_on,
+        changed_by_id=viewer.app_user_id,
+        viewer=viewer,
+    )
     db.commit()
     return _deals_out(db, ws.id, [deal])[0]
 
 
 @router.delete("/w/{ws}/deals/{deal_id}", status_code=204)
-def delete_deal(deal_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
-    deals.delete_deal(db, ws.id, deal_id)
+def delete_deal(
+    deal_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    deals.delete_deal(db, ws.id, deal_id, viewer)
     db.commit()
     return Response(status_code=204)

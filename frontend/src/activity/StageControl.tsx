@@ -9,7 +9,7 @@ import "./activity.css";
 
 /** "Move to stage": where the deal is, with the date it got there. */
 export function StageControl({ deal, onMoved }: { deal: DealOut; onMoved: () => void }) {
-  const { ws, actingAs } = useWs();
+  const { ws } = useWs();
   const [stage, setStage] = useState<string>(deal.stage);
   const [date, setDate] = useState(todayIso());
   const [reason, setReason] = useState("");
@@ -19,7 +19,7 @@ export function StageControl({ deal, onMoved }: { deal: DealOut; onMoved: () => 
   const same = stage === deal.stage;
   const submit = async () => {
     const r = await act.run(() => activityApi.moveStage(ws.slug, deal.id, {
-      stage, changed_on: date || null, changed_by_id: actingAs,
+      stage, changed_on: date || null,
       lost_reason: stage === "closed_lost" ? emptyToNull(reason) : null,
     }));
     if (r) { setReason(""); onMoved(); }

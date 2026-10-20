@@ -11,6 +11,8 @@ from datetime import date
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.config import Settings
 from app.db.models import AppUser, Contact, Document, DocumentChunk, OrgProposal
 from app.domain.enums import ProposalStatus
@@ -39,11 +41,12 @@ def add_document(
     size_bytes: int | None = None,
     source: str = "manual",
     created_by_id: uuid.UUID | None = None,
+    viewer: Viewer | None = None,
 ) -> Document:
     """Clean, parse and chunk `text`, then store the document and its chunks."""
-    require_account(session, ws_id, account_id)
+    require_account(session, ws_id, account_id, viewer)
     if deal_id is not None:
-        deal = require_deal(session, ws_id, deal_id)
+        deal = require_deal(session, ws_id, deal_id, viewer)
         if deal.account_id != account_id:
             raise InvalidInputError("the deal does not belong to this account")
     if created_by_id is not None:
@@ -125,6 +128,8 @@ def import_file(
     title: str | None,
     meeting_date: date | None,
     deal_id: uuid.UUID | None,
+    created_by_id: uuid.UUID | None = None,
+    viewer: Viewer | None = None,
 ) -> Document:
     name = importer.sanitize_name(file_name)
     try:
@@ -149,18 +154,28 @@ def import_file(
         media_type=ex.media_type,
         size_bytes=len(data),
         source="upload",
+        created_by_id=created_by_id,
+        viewer=viewer,
     )
 
 
-def require_document(session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID) -> Document:
+def require_document(
+    session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID, viewer: Viewer | None = None
+) -> Document:
     doc = session.get(Document, doc_id)
     if doc is None or doc.workspace_id != ws_id:
+        raise NotFoundError("document not found")
+    if not visibility.can_see_account(session, viewer, doc.account_id):
         raise NotFoundError("document not found")
     return doc
 
 
-def delete_document(session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID) -> None:
-    doc = require_document(session, ws_id, doc_id)
+def delete_document(
+    session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID, viewer: Viewer | None = None
+) -> None:
+    doc = require_document(session, ws_id, doc_id, viewer)
+    if viewer is not None:
+        visibility.require_delete(viewer, doc.created_by_id)
     _forget_quotes(session, ws_id, doc_id)
     session.delete(doc)
     session.flush()
@@ -194,10 +209,15 @@ def _forget_quotes(session: Session, ws_id: uuid.UUID, doc_id: uuid.UUID) -> Non
             prop.evidence = {**ev, "document_deleted": True}
 
 
-def count_documents(session: Session, ws_id: uuid.UUID) -> int:
+def count_documents(session: Session, ws_id: uuid.UUID, viewer: Viewer | None = None) -> int:
     return (
         session.scalar(
-            select(func.count()).select_from(Document).where(Document.workspace_id == ws_id)
+            select(func.count())
+            .select_from(Document)
+            .where(
+                Document.workspace_id == ws_id,
+                *visibility.conds(visibility.in_accounts(viewer, Document.account_id)),
+            )
         )
         or 0
     )

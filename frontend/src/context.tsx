@@ -4,7 +4,6 @@ import type { UserOut, WorkspaceOut } from "./types";
 export interface Ctx {
   ws: WorkspaceOut;
   users: UserOut[];
-  actingAs: string | null;
   refreshUsers: () => void;
   refreshWorkspaces: () => void;
 }

@@ -28,14 +28,12 @@ def test_append_only_lifecycle(client, setup, kind):
     ws, account_id, contact_id, user_id = setup
     parent = f"contacts/{contact_id}/notes" if kind == "note" else f"accounts/{account_id}/comments"
     item = f"{kind}s"
-    created = client.post(f"{ws}/{parent}", json={"body": "first", "author_id": user_id})
+    created = client.post(f"{ws}/{parent}", json={"body": "first"})
     assert created.status_code == 201
     first = created.json()
-    assert first["author_name"] == "Ann" and first["corrects_id"] is None
+    assert first["author_name"] is None and first["corrects_id"] is None  # local admin
     # correct: a NEW row, the original stays
-    fixed = client.post(
-        f"{ws}/{item}/{first['id']}/correct", json={"body": "second", "author_id": user_id}
-    )
+    fixed = client.post(f"{ws}/{item}/{first['id']}/correct", json={"body": "second"})
     assert fixed.status_code == 201
     second = fixed.json()
     assert second["id"] != first["id"] and second["corrects_id"] == first["id"]
@@ -51,9 +49,11 @@ def test_append_only_lifecycle(client, setup, kind):
     assert client.patch(f"{ws}/{item}/{first['id']}", json={"body": "x"}).status_code == 405
     assert client.put(f"{ws}/{item}/{first['id']}", json={"body": "x"}).status_code == 405
     # soft delete returns the row, history survives
-    deleted = client.delete(f"{ws}/{item}/{second['id']}", params={"by_id": user_id})
+    deleted = client.delete(
+        f"{ws}/{item}/{second['id']}", params={"by_id": user_id}
+    )  # ignored: the server uses the viewer
     assert deleted.status_code == 200
-    assert deleted.json()["deleted_at"] is not None and deleted.json()["deleted_by_name"] == "Ann"
+    assert deleted.json()["deleted_at"] is not None
     assert client.get(f"{ws}/{parent}").json() == []
     hist = client.get(f"{ws}/{item}/{second['id']}/history").json()
     assert len(hist) == 2 and all(h["deleted_at"] for h in hist)
@@ -68,11 +68,12 @@ def test_validation_and_foreign_ids(client, setup, kind):
     item = f"{kind}s"
     assert client.post(f"{ws}/{parent}", json={"body": ""}).status_code == 422
     assert client.post(f"{ws}/{parent}", json={"body": "x" * 20_001}).status_code == 422
+    # an author cannot be named by the client any more
     assert (
         client.post(
             f"{ws}/{parent}", json={"body": "x", "author_id": str(uuid.uuid4())}
         ).status_code
-        == 404
+        == 422
     )
     made = client.post(f"{ws}/{parent}", json={"body": "mine"}).json()
     assert made["author_name"] is None

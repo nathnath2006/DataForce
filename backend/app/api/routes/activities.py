@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 
-from app.api.deps import CurrentWorkspace, Db
+from app.api.deps import CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas_activity import (
     ActivityCreate,
     ActivityOut,
@@ -19,7 +19,6 @@ from app.api.schemas_activity import (
 )
 from app.db.models import Activity, Task
 from app.services import activities, tasks, users
-from app.services._common import require_account, require_deal
 
 router = APIRouter(tags=["activities"])
 
@@ -77,21 +76,29 @@ def list_account_activities(
     account_id: uuid.UUID,
     db: Db,
     ws: CurrentWorkspace,
+    viewer: CurrentViewer,
     deal_id: uuid.UUID | None = None,
     limit: Limit = 100,
     offset: Offset = 0,
 ) -> list[ActivityOut]:
     rows = activities.list_activities(
-        db, ws.id, account_id=account_id, deal_id=deal_id, limit=limit, offset=offset
+        db, ws.id, account_id=account_id, deal_id=deal_id, limit=limit, offset=offset, viewer=viewer
     )
     return _activities_out(db, ws.id, rows)
 
 
 @router.get("/w/{ws}/deals/{deal_id}/activities", response_model=list[ActivityOut])
 def list_deal_activities(
-    deal_id: uuid.UUID, db: Db, ws: CurrentWorkspace, limit: Limit = 100, offset: Offset = 0
+    deal_id: uuid.UUID,
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
+    limit: Limit = 100,
+    offset: Offset = 0,
 ) -> list[ActivityOut]:
-    rows = activities.list_activities(db, ws.id, deal_id=deal_id, limit=limit, offset=offset)
+    rows = activities.list_activities(
+        db, ws.id, deal_id=deal_id, limit=limit, offset=offset, viewer=viewer
+    )
     return _activities_out(db, ws.id, rows)
 
 
@@ -99,7 +106,7 @@ def list_deal_activities(
     "/w/{ws}/accounts/{account_id}/activities", response_model=ActivityOut, status_code=201
 )
 def create_activity(
-    account_id: uuid.UUID, body: ActivityCreate, db: Db, ws: CurrentWorkspace
+    account_id: uuid.UUID, body: ActivityCreate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
 ) -> ActivityOut:
     row = activities.create_activity(
         db,
@@ -112,29 +119,42 @@ def create_activity(
         body=body.body,
         deal_id=body.deal_id,
         participant_ids=body.participant_ids,
-        author_user_id=body.author_id,
+        author_user_id=viewer.app_user_id,
+        viewer=viewer,
     )
     db.commit()
     return _activities_out(db, ws.id, [row])[0]
 
 
 @router.get("/w/{ws}/activities/{activity_id}", response_model=ActivityOut)
-def get_activity(activity_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> ActivityOut:
-    return _activities_out(db, ws.id, [activities.require_activity(db, ws.id, activity_id)])[0]
+def get_activity(
+    activity_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> ActivityOut:
+    return _activities_out(
+        db, ws.id, [activities.require_activity(db, ws.id, activity_id, viewer)]
+    )[0]
 
 
 @router.patch("/w/{ws}/activities/{activity_id}", response_model=ActivityOut)
 def update_activity(
-    activity_id: uuid.UUID, body: ActivityUpdate, db: Db, ws: CurrentWorkspace
+    activity_id: uuid.UUID,
+    body: ActivityUpdate,
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
 ) -> ActivityOut:
-    row = activities.update_activity(db, ws.id, activity_id, body.model_dump(exclude_unset=True))
+    row = activities.update_activity(
+        db, ws.id, activity_id, body.model_dump(exclude_unset=True), viewer
+    )
     db.commit()
     return _activities_out(db, ws.id, [row])[0]
 
 
 @router.delete("/w/{ws}/activities/{activity_id}", status_code=204)
-def delete_activity(activity_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
-    activities.delete_activity(db, ws.id, activity_id)
+def delete_activity(
+    activity_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    activities.delete_activity(db, ws.id, activity_id, viewer)
     db.commit()
     return Response(status_code=204)
 
@@ -144,6 +164,7 @@ def delete_activity(activity_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Res
 def list_tasks(
     db: Db,
     ws: CurrentWorkspace,
+    viewer: CurrentViewer,
     deal_id: uuid.UUID | None = None,
     account_id: uuid.UUID | None = None,
     owner_id: uuid.UUID | None = None,
@@ -160,24 +181,27 @@ def list_tasks(
         status=status,
         limit=limit,
         offset=offset,
+        viewer=viewer,
     )
     return _tasks_out(db, ws.id, rows)
 
 
 @router.get("/w/{ws}/deals/{deal_id}/tasks", response_model=list[TaskOut])
-def list_deal_tasks(deal_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> list[TaskOut]:
-    require_deal(db, ws.id, deal_id)
-    return _tasks_out(db, ws.id, tasks.list_tasks(db, ws.id, deal_id=deal_id))
+def list_deal_tasks(
+    deal_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> list[TaskOut]:
+    return _tasks_out(db, ws.id, tasks.list_tasks(db, ws.id, deal_id=deal_id, viewer=viewer))
 
 
 @router.get("/w/{ws}/accounts/{account_id}/tasks", response_model=list[TaskOut])
-def list_account_tasks(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> list[TaskOut]:
-    require_account(db, ws.id, account_id)
-    return _tasks_out(db, ws.id, tasks.list_tasks(db, ws.id, account_id=account_id))
+def list_account_tasks(
+    account_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> list[TaskOut]:
+    return _tasks_out(db, ws.id, tasks.list_tasks(db, ws.id, account_id=account_id, viewer=viewer))
 
 
 @router.post("/w/{ws}/tasks", response_model=TaskOut, status_code=201)
-def create_task(body: TaskCreate, db: Db, ws: CurrentWorkspace) -> TaskOut:
+def create_task(body: TaskCreate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> TaskOut:
     row = tasks.create_task(
         db,
         ws.id,
@@ -185,31 +209,36 @@ def create_task(body: TaskCreate, db: Db, ws: CurrentWorkspace) -> TaskOut:
         deal_id=body.deal_id,
         account_id=body.account_id,
         due_on=body.due_on,
-        owner_user_id=body.owner_id,
+        owner_user_id=viewer.app_user_id,
+        viewer=viewer,
     )
     db.commit()
     return _tasks_out(db, ws.id, [row])[0]
 
 
 @router.patch("/w/{ws}/tasks/{task_id}", response_model=TaskOut)
-def update_task(task_id: uuid.UUID, body: TaskUpdate, db: Db, ws: CurrentWorkspace) -> TaskOut:
+def update_task(
+    task_id: uuid.UUID, body: TaskUpdate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> TaskOut:
     changes = body.model_dump(exclude_unset=True)
     if "owner_id" in changes:
         changes["owner_user_id"] = changes.pop("owner_id")
-    row = tasks.update_task(db, ws.id, task_id, changes)
+    row = tasks.update_task(db, ws.id, task_id, changes, viewer)
     db.commit()
     return _tasks_out(db, ws.id, [row])[0]
 
 
 @router.post("/w/{ws}/tasks/{task_id}/accept", response_model=TaskOut)
-def accept_task(task_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> TaskOut:
-    row = tasks.accept_task(db, ws.id, task_id)
+def accept_task(task_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> TaskOut:
+    row = tasks.accept_task(db, ws.id, task_id, viewer)
     db.commit()
     return _tasks_out(db, ws.id, [row])[0]
 
 
 @router.delete("/w/{ws}/tasks/{task_id}", status_code=204)
-def delete_task(task_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
-    tasks.delete_task(db, ws.id, task_id)
+def delete_task(
+    task_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    tasks.delete_task(db, ws.id, task_id, viewer)
     db.commit()
     return Response(status_code=204)

@@ -9,7 +9,7 @@ import "./activity.css";
 
 /** "Log a call / email / meeting": a compact form. */
 export function ActivityPanel({ deal, contacts, onLogged }: { deal: DealOut; contacts: ContactOut[]; onLogged: () => void }) {
-  const { ws, actingAs } = useWs();
+  const { ws } = useWs();
   const [kind, setKind] = useState<ActivityKind>("call");
   const [direction, setDirection] = useState<Direction | "">("outbound");
   const [when, setWhen] = useState(() => toLocalInput(new Date()));
@@ -23,7 +23,7 @@ export function ActivityPanel({ deal, contacts, onLogged }: { deal: DealOut; con
     const r = await act.run(() => activityApi.createActivity(ws.slug, deal.account_id, {
       kind, direction: direction || null, occurred_at: new Date(when).toISOString(),
       subject: subject.trim(), body: emptyToNull(body), deal_id: deal.id,
-      participant_ids: people, author_id: actingAs,
+      participant_ids: people,
     }));
     if (r) { setSubject(""); setBody(""); setPeople([]); setWhen(toLocalInput(new Date())); onLogged(); }
   };

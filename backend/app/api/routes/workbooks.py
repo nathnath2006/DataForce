@@ -6,7 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Response
 
-from app.api.deps import CurrentWorkspace, Db
+from app.api.deps import CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas_viz import (
     WorkbookCreate,
     WorkbookOut,
@@ -40,8 +40,10 @@ def list_workbooks(db: Db, ws: CurrentWorkspace) -> list[WorkbookSummary]:
 
 
 @router.post("/w/{ws}/workbooks", response_model=WorkbookOut, status_code=201)
-def create_workbook(body: WorkbookCreate, db: Db, ws: CurrentWorkspace) -> WorkbookOut:
-    row = workbooks.create(db, ws.id, body.name, body.spec)
+def create_workbook(
+    body: WorkbookCreate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> WorkbookOut:
+    row = workbooks.create(db, ws.id, body.name, body.spec, viewer.app_user_id)
     db.commit()
     return _out(row)
 
@@ -61,14 +63,18 @@ def update_workbook(
 
 
 @router.post("/w/{ws}/workbooks/{wb_id}/duplicate", response_model=WorkbookOut, status_code=201)
-def duplicate_workbook(wb_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> WorkbookOut:
-    row = workbooks.duplicate(db, ws.id, wb_id)
+def duplicate_workbook(
+    wb_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> WorkbookOut:
+    row = workbooks.duplicate(db, ws.id, wb_id, viewer.app_user_id)
     db.commit()
     return _out(row)
 
 
 @router.delete("/w/{ws}/workbooks/{wb_id}", status_code=204)
-def delete_workbook(wb_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
-    workbooks.delete(db, ws.id, wb_id)
+def delete_workbook(
+    wb_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    workbooks.delete(db, ws.id, wb_id, viewer)
     db.commit()
     return Response(status_code=204)

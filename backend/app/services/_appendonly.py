@@ -102,7 +102,7 @@ def add(
     return row
 
 
-def _require_row(session: Session, model: Any, ws_id: uuid.UUID, row_id: uuid.UUID) -> Any:
+def require_row(session: Session, model: Any, ws_id: uuid.UUID, row_id: uuid.UUID) -> Any:
     row = session.get(model, row_id)
     if row is None or row.workspace_id != ws_id:
         raise NotFoundError(f"{model.__tablename__} {row_id} not found in this workspace")
@@ -118,7 +118,7 @@ def history(
     *,
     lock: bool = False,
 ) -> list[Any]:
-    row = _require_row(session, model, ws_id, row_id)
+    row = require_row(session, model, ws_id, row_id)
     rows = _siblings(session, model, parent_col, ws_id, getattr(row, parent_col), lock=lock)
     for chain in _chains(rows):
         if any(r.id == row_id for r in chain):

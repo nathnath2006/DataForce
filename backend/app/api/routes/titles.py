@@ -8,7 +8,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas_titles import (
     NormalizeIn,
     NormalizeOut,
@@ -49,10 +49,15 @@ def _item(contact: Contact, account_name: str) -> ReviewItem:
 
 @router.post("/w/{ws}/titles/normalize", response_model=NormalizeOut)
 def normalize(
-    body: NormalizeIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory
+    body: NormalizeIn,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    factory: Factory,
+    viewer: CurrentViewer,
 ) -> NormalizeOut:
     summary = titles.normalize_workspace(
-        db, ws.id, use_ai=body.use_ai, settings=settings, factory=factory
+        db, ws.id, use_ai=body.use_ai, settings=settings, factory=factory, viewer=viewer
     )
     db.commit()
     return NormalizeOut(**summary)
@@ -60,9 +65,12 @@ def normalize(
 
 @router.get("/w/{ws}/titles/review", response_model=list[ReviewItem])
 def review(
-    db: Db, ws: CurrentWorkspace, limit: Annotated[int, Query(ge=1, le=1000)] = 200
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
+    limit: Annotated[int, Query(ge=1, le=1000)] = 200,
 ) -> list[ReviewItem]:
-    return [_item(c, name) for c, name in titles.review_items(db, ws.id, limit)]
+    return [_item(c, name) for c, name in titles.review_items(db, ws.id, limit, viewer)]
 
 
 @router.get("/w/{ws}/titles/preview", response_model=PreviewOut)
@@ -83,9 +91,9 @@ def preview(
 
 @router.put("/w/{ws}/contacts/{contact_id}/title-class", response_model=ReviewItem)
 def put_title_class(
-    contact_id: uuid.UUID, body: TitleClassIn, db: Db, ws: CurrentWorkspace
+    contact_id: uuid.UUID, body: TitleClassIn, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
 ) -> ReviewItem:
-    contact = titles.set_manual_class(db, ws.id, contact_id, body.function, body.seniority)
+    contact = titles.set_manual_class(db, ws.id, contact_id, body.function, body.seniority, viewer)
     account = require(db, Account, ws.id, contact.account_id)
     db.commit()
     return _item(contact, account.name)

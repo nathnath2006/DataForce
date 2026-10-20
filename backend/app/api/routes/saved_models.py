@@ -6,7 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Response
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.routes.flows import LoaderSessions
 from app.api.schemas_models import (
     ModelOut,
@@ -32,9 +32,16 @@ def list_models(db: Db, ws: CurrentWorkspace) -> list[ModelOut]:
 
 @router.post("/w/{ws}/models", response_model=ModelOut, status_code=201)
 def save_model(
-    body: ModelSave, db: Db, ws: CurrentWorkspace, settings: AppSettings, sessions: LoaderSessions
+    body: ModelSave,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    sessions: LoaderSessions,
+    viewer: CurrentViewer,
 ) -> ModelOut:
-    row = svc.save_model(db, ws.id, body.flow_id, body.node_id, body.name, settings, sessions)
+    row = svc.save_model(
+        db, ws.id, body.flow_id, body.node_id, body.name, settings, sessions, viewer
+    )
     db.commit()
     return _out(row)
 
@@ -52,8 +59,10 @@ def rename_model(model_id: uuid.UUID, body: ModelRename, db: Db, ws: CurrentWork
 
 
 @router.delete("/w/{ws}/models/{model_id}", status_code=204)
-def delete_model(model_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
-    svc.delete_model(db, ws.id, model_id)
+def delete_model(
+    model_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    svc.delete_model(db, ws.id, model_id, viewer)
     db.commit()
     return Response(status_code=204)
 
@@ -66,5 +75,8 @@ def score(
     ws: CurrentWorkspace,
     settings: AppSettings,
     sessions: LoaderSessions,
+    viewer: CurrentViewer,
 ) -> ScoreResponse:
-    return ScoreResponse(**svc.score_source(db, ws.id, model_id, body.source, settings, sessions))
+    return ScoreResponse(
+        **svc.score_source(db, ws.id, model_id, body.source, settings, sessions, viewer)
+    )

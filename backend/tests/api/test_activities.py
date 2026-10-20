@@ -60,13 +60,12 @@ def test_activity_crud(client, setup):
         client,
         s,
         participant_ids=[s["jo"]["id"]],
-        author_id=s["user"]["id"],
         direction="outbound",
         body="notes",
     )
     assert r.status_code == 201, r.text
     a = r.json()
-    assert a["source"] == "manual" and a["author_name"] == "Ann"
+    assert a["source"] == "manual" and a["author_name"] is None
     assert [p["full_name"] for p in a["participants"]] == ["Jo Doe"]
     got = client.get(f"{s['ws']}/activities/{a['id']}").json()
     assert got["subject"] == "Hello"
@@ -137,10 +136,9 @@ def test_tasks(client, setup):
             "title": "Later",
             "deal_id": s["deal"]["id"],
             "due_on": "2030-01-01",
-            "owner_id": s["user"]["id"],
         },
     )
-    assert t1.status_code == 201 and t1.json()["owner_name"] == "Ann"
+    assert t1.status_code == 201
     t1 = t1.json()
     t2 = client.post(
         f"{ws}/tasks", json={"title": "Sooner", "deal_id": s["deal"]["id"], "due_on": "2029-01-01"}
@@ -186,7 +184,7 @@ def test_move_stage_and_events(client, setup):
     on = (NOW - timedelta(days=20)).date().isoformat()
     r = client.post(
         f"{ws}/deals/{d}/move",
-        json={"stage": "qualification", "changed_on": on, "changed_by_id": s["user"]["id"]},
+        json={"stage": "qualification", "changed_on": on},
     )
     assert r.status_code == 200 and r.json()["stage"] == "qualification"
     r = client.post(f"{ws}/deals/{d}/move", json={"stage": "closed_lost", "lost_reason": "Price"})
@@ -195,7 +193,7 @@ def test_move_stage_and_events(client, setup):
     assert body["lost_reason"] == "Price"
     ev = client.get(f"{ws}/deals/{d}/stage-events").json()
     assert [e["to_stage"] for e in ev] == ["qualification", "closed_lost"]
-    assert ev[0]["changed_by_name"] == "Ann" and ev[1]["changed_by_name"] is None
+    assert ev[0]["changed_by_name"] is None and ev[1]["changed_by_name"] is None
     bad = client.post(
         f"{ws}/deals/{d}/move",
         json={"stage": "proposal", "changed_on": (NOW + timedelta(days=2)).date().isoformat()},
@@ -226,8 +224,8 @@ def test_timeline_order_paging_and_kinds(client, setup):
         json={"stage": "qualification", "changed_on": (NOW - timedelta(days=7)).date().isoformat()},
     )
     client.post(f"{ws}/tasks", json={"title": "Do it", "deal_id": d})
-    client.post(f"{ws}/contacts/{s['jo']['id']}/notes", json={"body": "a note", "author_id": None})
-    client.post(f"{ws}/accounts/{s['acc']['id']}/comments", json={"body": "hi", "author_id": None})
+    client.post(f"{ws}/contacts/{s['jo']['id']}/notes", json={"body": "a note"})
+    client.post(f"{ws}/accounts/{s['acc']['id']}/comments", json={"body": "hi"})
     full = client.get(f"{ws}/deals/{d}/timeline", params={"limit": 200}).json()
     ats = [i["at"] for i in full["items"]]
     assert ats == sorted(ats, reverse=True)

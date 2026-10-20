@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.routes.flows import LoaderSessions
 from app.api.schemas_viz import (
     ExplainRequest,
@@ -31,8 +31,9 @@ def fields(
     ws: CurrentWorkspace,
     settings: AppSettings,
     sessions: LoaderSessions,
+    viewer: CurrentViewer,
 ) -> FieldsResponse:
-    loaded = src.load(db, ws.id, body.source, settings, sessions)
+    loaded = src.load(db, ws.id, body.source, settings, sessions, viewer)
     df = loaded.df
     cols = [
         ColumnInfo(name=str(c), dtype=dtype_of(df.iloc[:, i]))  # type: ignore[arg-type]
@@ -51,8 +52,9 @@ def query(
     ws: CurrentWorkspace,
     settings: AppSettings,
     sessions: LoaderSessions,
+    viewer: CurrentViewer,
 ) -> QueryResponse:
-    loaded = src.load(db, ws.id, body.source, settings, sessions)
+    loaded = src.load(db, ws.id, body.source, settings, sessions, viewer)
     result, n_filtered, n_groups, notes = engine.run(loaded.df, body)
     if loaded.truncated:
         notes = [src.truncation_note(len(loaded.df)), *notes]
@@ -75,8 +77,9 @@ def explain_route(
     ws: CurrentWorkspace,
     settings: AppSettings,
     sessions: LoaderSessions,
+    viewer: CurrentViewer,
 ) -> ExplainResponse:
-    loaded = src.load(db, ws.id, body.source, settings, sessions)
+    loaded = src.load(db, ws.id, body.source, settings, sessions, viewer)
     df = engine.apply_filters(loaded.df, body.filters)
     limits = FlowLimits(max_rows=settings.flow_max_rows, timeout_s=src.TIME_BUDGET_S)
     findings, method, notes = explain.explain(df, body, gate_config_from_settings(settings), limits)

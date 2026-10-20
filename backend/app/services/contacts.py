@@ -8,6 +8,8 @@ from typing import Any
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Account, Contact, ContactChannel, Note, OrgProposal
 from app.domain.schemas import ContactIn
 from app.services import activities, documents
@@ -48,8 +50,10 @@ def _lock_org_chart(session: Session, account_id: uuid.UUID) -> None:
     )
 
 
-def create_contact(session: Session, ws_id: uuid.UUID, data: ContactIn) -> Contact:
-    require_account(session, ws_id, data.account_id)
+def create_contact(
+    session: Session, ws_id: uuid.UUID, data: ContactIn, viewer: Viewer | None = None
+) -> Contact:
+    require_account(session, ws_id, data.account_id, viewer)
     if data.reports_to_id is not None:
         _lock_org_chart(session, data.account_id)
         _check_manager(session, ws_id, data.account_id, data.reports_to_id)
@@ -73,10 +77,14 @@ def get_contact(session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID) -> Co
 
 
 def set_reports_to(
-    session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID, manager_id: uuid.UUID | None
+    session: Session,
+    ws_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    manager_id: uuid.UUID | None,
+    viewer: Viewer | None = None,
 ) -> Contact:
     """Set (or clear, with None) the manager. Refuses cross-account links and cycles."""
-    contact = require_contact(session, ws_id, contact_id)
+    contact = require_contact(session, ws_id, contact_id, viewer)
     if manager_id is not None:
         _lock_org_chart(session, contact.account_id)
         if manager_id == contact_id:
@@ -104,29 +112,37 @@ def set_reports_to(
 
 
 def list_contacts(
-    session: Session, ws_id: uuid.UUID, account_id: uuid.UUID | None = None
+    session: Session,
+    ws_id: uuid.UUID,
+    account_id: uuid.UUID | None = None,
+    viewer: Viewer | None = None,
 ) -> list[Contact]:
-    stmt = select(Contact).where(Contact.workspace_id == ws_id)
+    stmt = select(Contact).where(
+        Contact.workspace_id == ws_id,
+        *visibility.conds(visibility.in_accounts(viewer, Contact.account_id)),
+    )
     if account_id is not None:
         stmt = stmt.where(Contact.account_id == account_id)
     return list(session.scalars(stmt.order_by(Contact.full_name, Contact.id)))
 
 
 def org_chart(
-    session: Session, ws_id: uuid.UUID, account_id: uuid.UUID
+    session: Session, ws_id: uuid.UUID, account_id: uuid.UUID, viewer: Viewer | None = None
 ) -> list[tuple[Contact, uuid.UUID | None]]:
     """(contact, manager id or None) for every contact of the account."""
-    require_account(session, ws_id, account_id)
+    require_account(session, ws_id, account_id, viewer)
     return [(c, c.reports_to_id) for c in list_contacts(session, ws_id, account_id)]
 
 
-def erase_contact(session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID) -> None:
+def erase_contact(
+    session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID, viewer: Viewer | None = None
+) -> None:
     """The "1-click delete": the contact and, by cascade, their notes. People who reported to
     them lose their manager link (FK SET NULL). Never blocked: the proposals that involve them
     are deleted first and the `reports_to_proposal_id` pointers cleared (SR12-01: the FK SET NULL
     re-checked a pointer to a proposal the same cascade had just removed). Their turns and name
     are redacted from the transcripts in the same transaction (SR12-03)."""
-    contact = require_contact(session, ws_id, contact_id)
+    contact = require_contact(session, ws_id, contact_id, viewer)
     with erasure(session):
         involved = (
             select(OrgProposal.id)
@@ -166,10 +182,14 @@ def erase_contact(session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID) -> 
 
 
 def update_contact(
-    session: Session, ws_id: uuid.UUID, contact_id: uuid.UUID, changes: dict[str, Any]
+    session: Session,
+    ws_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    changes: dict[str, Any],
+    viewer: Viewer | None = None,
 ) -> Contact:
     """Partial update of the name and the title (the manager has its own function)."""
-    contact = require_contact(session, ws_id, contact_id)
+    contact = require_contact(session, ws_id, contact_id, viewer)
     unknown = set(changes) - {"full_name", "title"}
     if unknown:
         raise InvalidInputError(f"cannot update: {', '.join(sorted(unknown))}")
@@ -193,8 +213,12 @@ def list_contacts_page(
     q: str | None = None,
     limit: int = 200,
     offset: int = 0,
+    viewer: Viewer | None = None,
 ) -> tuple[list[Contact], int]:
-    cond = [Contact.workspace_id == ws_id]
+    cond = [
+        Contact.workspace_id == ws_id,
+        *visibility.conds(visibility.in_accounts(viewer, Contact.account_id)),
+    ]
     if account_id is not None:
         cond.append(Contact.account_id == account_id)
     if q:

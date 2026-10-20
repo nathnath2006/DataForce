@@ -10,7 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.routes.ai import Factory
 from app.api.schemas_genai import (
     ActionItemsOut,
@@ -57,8 +57,9 @@ def preview(
     ws: CurrentWorkspace,
     settings: AppSettings,
     factory: Factory,
+    viewer: CurrentViewer,
 ) -> AiPreview:
-    src = genai.collect(db, ws.id, settings, **_ids(scope, rid))
+    src = genai.collect(db, ws.id, settings, viewer=viewer, **_ids(scope, rid))
     return AiPreview(**_open(db, ws, settings, factory).preview(src))
 
 
@@ -70,9 +71,10 @@ def summary(
     ws: CurrentWorkspace,
     settings: AppSettings,
     factory: Factory,
+    viewer: CurrentViewer,
 ) -> SummaryOut:
     ai = _open(db, ws, settings, factory)
-    src = genai.collect(db, ws.id, settings, **_ids(scope, rid))
+    src = genai.collect(db, ws.id, settings, viewer=viewer, **_ids(scope, rid))
     out = SummaryOut(**ai.summarize(src))
     db.commit()
     return out
@@ -86,10 +88,11 @@ def suggest_tasks(
     ws: CurrentWorkspace,
     settings: AppSettings,
     factory: Factory,
+    viewer: CurrentViewer,
 ) -> ActionItemsOut:
     ai = _open(db, ws, settings, factory)
     ids = _ids(scope, rid)
-    src = genai.collect(db, ws.id, settings, **ids)
+    src = genai.collect(db, ws.id, settings, viewer=viewer, **ids)
     res = ai.extract_tasks(src, deal_id=ids.get("deal_id"), account_id=ids.get("account_id"))
     db.commit()
     return ActionItemsOut(

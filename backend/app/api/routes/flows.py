@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.errors import error_response
 from app.api.schemas_flows import (
     BlockPorts,
@@ -19,6 +19,7 @@ from app.api.schemas_flows import (
     FlowSummary,
     FlowUpdate,
 )
+from app.auth import visibility
 from app.db.models import Flow
 from app.db.session import SessionLocal
 from app.flows.schemas import PORTS, ColumnInfo, RunRequest, RunResponse
@@ -89,10 +90,11 @@ def run_flow(
     ws: CurrentWorkspace,
     settings: AppSettings,
     sessions: LoaderSessions,
+    viewer: CurrentViewer,
 ) -> Any:
     """Runs the graph the editor sends (saved or not). The engine runs in a worker thread that
     reads through its own short-lived sessions; this request's session only records the run."""
-    loader = DbSourceLoader(sessions, ws.id, settings)
+    loader = DbSourceLoader(sessions, ws.id, settings, viewer)
     try:
         run_id, started_at, results = flows.execute(
             db,
@@ -128,7 +130,10 @@ def _graph(body: FlowUpdate) -> dict[str, Any]:
 
 
 @router.delete("/w/{ws}/flows/{flow_id}", status_code=204)
-def delete_flow(flow_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
+def delete_flow(
+    flow_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    visibility.require_delete(viewer, None)  # a flow is shared: only the admin deletes it
     flows.delete_flow(db, ws.id, flow_id)
     db.commit()
     return Response(status_code=204)

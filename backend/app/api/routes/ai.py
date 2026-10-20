@@ -11,7 +11,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas_ai import (
     DATA_NOTICE,
     AiSettingsIn,
@@ -26,6 +26,7 @@ from app.api.schemas_ai import (
 from app.assistant.ask import run_turn
 from app.assistant.context import build_context, validate_scope
 from app.assistant.ratelimit import check_and_count
+from app.auth.visibility import require_admin
 from app.config import Settings
 from app.db.models import LlmCredential
 from app.domain.ports import ChatMessage, ChatProvider
@@ -99,14 +100,16 @@ async def _call(provider: ChatProvider, coro: Any, key: str) -> Any:
 
 
 @router.get("/w/{ws}/ai", response_model=AiSettingsOut)
-def get_ai(db: Db, ws: CurrentWorkspace) -> AiSettingsOut:
+def get_ai(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> AiSettingsOut:
+    require_admin(viewer)
     return _out(llm_settings.get_credential(db, ws.id))
 
 
 @router.put("/w/{ws}/ai", response_model=AiSettingsOut)
 def put_ai(
-    body: AiSettingsIn, db: Db, ws: CurrentWorkspace, settings: AppSettings
+    body: AiSettingsIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
 ) -> AiSettingsOut:
+    require_admin(viewer)
     cred = llm_settings.save_settings(
         db,
         ws.id,
@@ -120,22 +123,29 @@ def put_ai(
 
 
 @router.put("/w/{ws}/ai/meeting-org", response_model=AiSettingsOut)
-def put_meeting_org(body: MeetingOrgIn, db: Db, ws: CurrentWorkspace) -> AiSettingsOut:
+def put_meeting_org(
+    body: MeetingOrgIn, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> AiSettingsOut:
     """The opt-in switch of the AI pass over meeting sentences (409 without AI settings)."""
+    require_admin(viewer)
     cred = org_ai.set_allow(db, ws.id, body.enabled)
     db.commit()
     return _out(cred)
 
 
 @router.delete("/w/{ws}/ai", status_code=204)
-def delete_ai(db: Db, ws: CurrentWorkspace) -> Response:
+def delete_ai(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> Response:
+    require_admin(viewer)
     llm_settings.delete_settings(db, ws.id)
     db.commit()
     return Response(status_code=204)
 
 
 @router.post("/w/{ws}/ai/test", response_model=AiSettingsOut)
-def test_ai(db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory) -> AiSettingsOut:
+def test_ai(
+    db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory, viewer: CurrentViewer
+) -> AiSettingsOut:
+    require_admin(viewer)
     cred = llm_settings.require_credential(db, ws.id)
     check_and_count(ws.id, settings.assistant_max_asks_per_hour)
     provider, key = _provider(db, ws.id, cred, settings, factory)
@@ -161,18 +171,27 @@ def test_ai(db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factor
 
 @router.get("/w/{ws}/assistant/scope", response_model=AskScopeOut)
 def ask_scope(
-    db: Db, ws: CurrentWorkspace, kind: Literal["account", "company", "deal"], id: uuid.UUID
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
+    kind: Literal["account", "company", "deal"],
+    id: uuid.UUID,
 ) -> AskScopeOut:
     """Name of the scope and of its company, for the notice shown before asking."""
-    name, company = validate_scope(db, ws.id, kind, id)
+    name, company = validate_scope(db, ws.id, kind, id, viewer)
     return AskScopeOut(kind=kind, name=name, company_name=company)
 
 
 @router.post("/w/{ws}/assistant/ask", response_model=AskOut)
 def ask(
-    body: AskIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory
+    body: AskIn,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    factory: Factory,
+    viewer: CurrentViewer,
 ) -> AskOut:
-    validate_scope(db, ws.id, body.scope.kind, body.scope.id)  # 404 before the quota counts
+    validate_scope(db, ws.id, body.scope.kind, body.scope.id, viewer)  # 404 before the quota counts
     check_and_count(ws.id, settings.assistant_max_asks_per_hour)
     cred = llm_settings.require_credential(db, ws.id)
     ctx, _title = build_context(
@@ -181,6 +200,7 @@ def ask(
         body.scope.kind,
         body.scope.id,
         max_chars=settings.assistant_max_context_chars,
+        viewer=viewer,
     )
     provider, key = _provider(db, ws.id, cred, settings, factory)
     history = [ChatMessage(role=t.role, content=t.content) for t in body.history]

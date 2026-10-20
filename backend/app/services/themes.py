@@ -7,9 +7,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 
-from sqlalchemy import distinct, func, select
+from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import (
     Account,
     AppUser,
@@ -50,24 +52,31 @@ class ThemeRunResult:
     known_themes: list[str]
 
 
-def latest_run(db: Session, ws_id: uuid.UUID) -> Run | None:
+def latest_run(db: Session, ws_id: uuid.UUID, viewer: Viewer | None = None) -> Run | None:
+    """The latest run over the viewer's own rows (runs are scoped: one per rep, or "all")."""
+    key = visibility.scope_key(viewer)
+    scope = Run.params["scope"].astext
     return db.scalar(
         select(Run)
         .where(
             Run.workspace_id == ws_id,
             Run.kind == RunKind.THEME_ANALYSIS.value,
             Run.status == RunStatus.SUCCEEDED.value,
+            or_(scope.is_(None), scope == "all") if key == "all" else scope == key,
         )
         .order_by(Run.started_at.desc(), Run.id)
         .limit(1)
     )
 
 
-def _input_chunks(db: Session, ws_id: uuid.UUID, customer_only: bool):
+def _input_chunks(db: Session, ws_id: uuid.UUID, customer_only: bool, viewer: Viewer | None = None):
     stmt = (
         select(DocumentChunk, Document.account_id)
         .join(Document, Document.id == DocumentChunk.document_id)
-        .where(DocumentChunk.workspace_id == ws_id)
+        .where(
+            DocumentChunk.workspace_id == ws_id,
+            *visibility.conds(visibility.in_accounts(viewer, Document.account_id)),
+        )
         .order_by(Document.created_at, Document.id, DocumentChunk.seq)
         .limit(disc.MAX_CHUNKS)
     )
@@ -90,17 +99,26 @@ def run_themes(
     k: int,
     speakers: str = "customer",
     namer: Namer | None = None,
+    viewer: Viewer | None = None,
 ) -> ThemeRunResult:
     """Find themes in the workspace's chunks and store them as the latest run."""
     if not 2 <= k <= 30:
         raise InvalidInputError("k must be between 2 and 30")
     if speakers not in ("customer", "all"):
         raise InvalidInputError("speakers must be customer or all")
-    rows = _input_chunks(db, ws_id, speakers == "customer")
+    rows = _input_chunks(db, ws_id, speakers == "customer", viewer)
     if not rows and speakers == "customer":
-        rows = _input_chunks(db, ws_id, False)  # no matched customer speaker: use everyone
+        rows = _input_chunks(db, ws_id, False, viewer)  # no matched customer speaker: use everyone
     run = start_run(
-        db, RunKind.THEME_ANALYSIS, ws_id, params={"k": k, "speakers": speakers, "ai": bool(namer)}
+        db,
+        RunKind.THEME_ANALYSIS,
+        ws_id,
+        params={
+            "k": k,
+            "speakers": speakers,
+            "ai": bool(namer),
+            "scope": visibility.scope_key(viewer),
+        },
     )
     try:
         names = _person_names(db, ws_id)
@@ -301,10 +319,13 @@ def themes_of_run(db: Session, ws_id: uuid.UUID, run_id: uuid.UUID) -> list[Them
 
 
 def chunk_theme_labels(
-    db: Session, ws_id: uuid.UUID, document_ids: Sequence[uuid.UUID]
+    db: Session,
+    ws_id: uuid.UUID,
+    document_ids: Sequence[uuid.UUID],
+    viewer: Viewer | None = None,
 ) -> list[tuple[uuid.UUID, uuid.UUID, uuid.UUID, str]]:
     """(document_id, chunk_id, theme_id, label) from the latest run, for these documents."""
-    run = latest_run(db, ws_id)
+    run = latest_run(db, ws_id, viewer)
     if run is None or not document_ids:
         return []
     return [

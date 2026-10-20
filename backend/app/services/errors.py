@@ -18,3 +18,7 @@ class AlreadyExistsError(ServiceError, ValueError):
 class InvalidInputError(ServiceError, ValueError):
     """A value was refused at the service boundary (for example a non-http(s) URL). Subclasses
     ValueError so callers that already catch ValueError for bad rows keep working."""
+
+
+class ForbiddenError(ServiceError, PermissionError):
+    """The member may not do this (an admin-only action, or a delete without the right)."""

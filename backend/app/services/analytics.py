@@ -12,6 +12,8 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.config import get_settings
 from app.db.models import Account, AppUser, Deal
 from app.domain.enums import CLOSED_STAGES, OPEN_STAGES, DealStage, RunKind, RunStatus
@@ -21,8 +23,10 @@ from app.stats.engine import gate_config_from_settings, scan
 from app.stats.rows import DealRow, won_from_stage
 
 
-def load_deal_rows(session: Session, ws_id: uuid.UUID) -> list[DealRow]:
-    """All deals of a workspace flattened with account and owner (one SQL join)."""
+def load_deal_rows(
+    session: Session, ws_id: uuid.UUID, viewer: Viewer | None = None
+) -> list[DealRow]:
+    """The deals the viewer may see, flattened with account and owner (one SQL join)."""
     stmt = (
         select(
             Deal.id,
@@ -38,7 +42,7 @@ def load_deal_rows(session: Session, ws_id: uuid.UUID) -> list[DealRow]:
         )
         .join(Account, Account.id == Deal.account_id)
         .outerjoin(AppUser, AppUser.id == Deal.owner_id)
-        .where(Deal.workspace_id == ws_id)
+        .where(Deal.workspace_id == ws_id, *visibility.conds(visibility.deals_cond(viewer)))
         .order_by(Deal.created_on, Deal.id)
     )
     return [
@@ -59,7 +63,9 @@ def load_deal_rows(session: Session, ws_id: uuid.UUID) -> list[DealRow]:
     ]
 
 
-def pipeline_summary(session: Session, ws_id: uuid.UUID) -> dict[str, Any]:
+def pipeline_summary(
+    session: Session, ws_id: uuid.UUID, viewer: Viewer | None = None
+) -> dict[str, Any]:
     """Exact SQL aggregates by stage (counts, amount sums). Facts: no CI."""
     stmt = (
         select(
@@ -68,7 +74,7 @@ def pipeline_summary(session: Session, ws_id: uuid.UUID) -> dict[str, Any]:
             func.coalesce(func.sum(Deal.amount_eur), 0),
             func.count(Deal.amount_eur),
         )
-        .where(Deal.workspace_id == ws_id)
+        .where(Deal.workspace_id == ws_id, *visibility.conds(visibility.deals_cond(viewer)))
         .group_by(Deal.stage)
     )
     found = {s: (c, float(a), ca) for s, c, a, ca in session.execute(stmt)}
@@ -89,7 +95,12 @@ def pipeline_summary(session: Session, ws_id: uuid.UUID) -> dict[str, Any]:
     }
 
 
-def run_scan(session: Session, ws_id: uuid.UUID, cfg: GateConfig | None = None) -> ScanReport:
+def run_scan(
+    session: Session,
+    ws_id: uuid.UUID,
+    cfg: GateConfig | None = None,
+    viewer: Viewer | None = None,
+) -> ScanReport:
     """Scan the workspace and record a Run(kind=stats_scan) whose `result` is the report JSON."""
     cfg = cfg or gate_config_from_settings(get_settings())
     started = datetime.now(UTC)
@@ -97,10 +108,12 @@ def run_scan(session: Session, ws_id: uuid.UUID, cfg: GateConfig | None = None) 
         session,
         kind=RunKind.STATS_SCAN,
         workspace_id=ws_id,
-        params={"gates": cfg.model_dump(mode="json")},
+        params={"gates": cfg.model_dump(mode="json"), "scope": visibility.scope_key(viewer)},
     )
     try:
-        report = scan(load_deal_rows(session, ws_id), cfg, workspace_id=ws_id, created_at=started)
+        report = scan(
+            load_deal_rows(session, ws_id, viewer), cfg, workspace_id=ws_id, created_at=started
+        )
     except Exception as exc:
         runs.finish_run(session, run, RunStatus.FAILED, error=f"{type(exc).__name__}: {exc}")
         raise

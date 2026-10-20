@@ -9,9 +9,11 @@ from __future__ import annotations
 import uuid
 
 import pandas as pd
-from sqlalchemy import DateTime, Float, Select, Text, case, cast, exists, func, literal, select
+from sqlalchemy import DateTime, Float, Select, Text, case, cast, exists, func, literal, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import (
     Account,
     Activity,
@@ -185,7 +187,7 @@ def _text(col):
     return cast(col, Text)
 
 
-def _deals_query(ws_id: uuid.UUID) -> Select:
+def _deals_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
     closed = Deal.stage.in_(CLOSED)
     return (
         select(
@@ -215,12 +217,12 @@ def _deals_query(ws_id: uuid.UUID) -> Select:
         .join(Account, Account.id == Deal.account_id)
         .outerjoin(Company, Company.id == Account.company_id)
         .outerjoin(AppUser, AppUser.id == Deal.owner_id)
-        .where(Deal.workspace_id == ws_id)
+        .where(Deal.workspace_id == ws_id, *visibility.conds(visibility.deals_cond(viewer)))
         .order_by(Deal.created_on, Deal.id)
     )
 
 
-def _accounts_query(ws_id: uuid.UUID) -> Select:
+def _accounts_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
     n_contacts = (
         select(Contact.account_id, func.count().label("n"))
         .where(Contact.workspace_id == ws_id)
@@ -238,7 +240,7 @@ def _accounts_query(ws_id: uuid.UUID) -> Select:
             func.count().filter(lost).label("n_lost"),
             func.coalesce(func.sum(Deal.amount_eur).filter(won), 0).label("won_amount"),
         )
-        .where(Deal.workspace_id == ws_id)
+        .where(Deal.workspace_id == ws_id, *visibility.conds(visibility.deals_cond(viewer)))
         .group_by(Deal.account_id)
         .subquery()
     )
@@ -263,12 +265,15 @@ def _accounts_query(ws_id: uuid.UUID) -> Select:
         .outerjoin(Company, Company.id == Account.company_id)
         .outerjoin(n_contacts, n_contacts.c.account_id == Account.id)
         .outerjoin(deal_agg, deal_agg.c.account_id == Account.id)
-        .where(Account.workspace_id == ws_id)
+        .where(
+            Account.workspace_id == ws_id,
+            *visibility.conds(visibility.in_accounts(viewer, Account.id)),
+        )
         .order_by(Account.name, Account.id)
     )
 
 
-def _contacts_query(ws_id: uuid.UUID) -> Select:
+def _contacts_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
     boss = aliased(Contact)
     reports = (
         select(Contact.reports_to_id.label("boss_id"), func.count().label("n"))
@@ -305,15 +310,19 @@ def _contacts_query(ws_id: uuid.UUID) -> Select:
         .outerjoin(boss, boss.id == Contact.reports_to_id)
         .outerjoin(reports, reports.c.boss_id == Contact.id)
         .outerjoin(notes, notes.c.contact_id == Contact.id)
-        .where(Contact.workspace_id == ws_id)
+        .where(
+            Contact.workspace_id == ws_id,
+            *visibility.conds(visibility.in_accounts(viewer, Contact.account_id)),
+        )
         .order_by(Contact.full_name, Contact.id)
     )
 
 
-def _companies_query(ws_id: uuid.UUID) -> Select:
+def _companies_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
+    vis_acc = visibility.conds(visibility.in_accounts(viewer, Account.id))
     n_acc = (
         select(Account.company_id, func.count().label("n"))
-        .where(Account.workspace_id == ws_id, Account.company_id.is_not(None))
+        .where(Account.workspace_id == ws_id, Account.company_id.is_not(None), *vis_acc)
         .group_by(Account.company_id)
         .subquery()
     )
@@ -326,7 +335,12 @@ def _companies_query(ws_id: uuid.UUID) -> Select:
             ).label("last_deal"),
         )
         .join(Account, Account.id == Deal.account_id)
-        .where(Deal.workspace_id == ws_id, Account.company_id.is_not(None))
+        .where(
+            Deal.workspace_id == ws_id,
+            Account.company_id.is_not(None),
+            *vis_acc,
+            *visibility.conds(visibility.deals_cond(viewer)),
+        )
         .group_by(Account.company_id)
         .subquery()
     )
@@ -335,7 +349,7 @@ def _companies_query(ws_id: uuid.UUID) -> Select:
         .select_from(Note)
         .join(Contact, Contact.id == Note.contact_id)
         .join(Account, Account.id == Contact.account_id)
-        .where(Note.workspace_id == ws_id, Account.company_id.is_not(None))
+        .where(Note.workspace_id == ws_id, Account.company_id.is_not(None), *vis_acc)
         .group_by(Account.company_id)
         .subquery()
     )
@@ -343,7 +357,7 @@ def _companies_query(ws_id: uuid.UUID) -> Select:
         select(Account.company_id, func.max(Comment.created_at).label("last_comment"))
         .select_from(Comment)
         .join(Account, Account.id == Comment.account_id)
-        .where(Comment.workspace_id == ws_id, Account.company_id.is_not(None))
+        .where(Comment.workspace_id == ws_id, Account.company_id.is_not(None), *vis_acc)
         .group_by(Account.company_id)
         .subquery()
     )
@@ -367,18 +381,25 @@ def _companies_query(ws_id: uuid.UUID) -> Select:
         .outerjoin(deal_agg, deal_agg.c.company_id == Company.id)
         .outerjoin(note_agg, note_agg.c.company_id == Company.id)
         .outerjoin(comment_agg, comment_agg.c.company_id == Company.id)
-        .where(Company.workspace_id == ws_id)
+        .where(
+            Company.workspace_id == ws_id,
+            *visibility.conds(visibility.in_companies(viewer, Company.id)),
+        )
         .order_by(Company.name, Company.id)
     )
 
 
-def _latest_run_id(ws_id: uuid.UUID):
+def _latest_run_id(ws_id: uuid.UUID, viewer: Viewer | None = None):
+    """The latest theme run over the viewer's own rows (see services.themes.latest_run)."""
+    key = visibility.scope_key(viewer)
+    scope = Run.params["scope"].astext
     return (
         select(Run.id)
         .where(
             Run.workspace_id == ws_id,
             Run.kind == RunKind.THEME_ANALYSIS.value,
             Run.status == RunStatus.SUCCEEDED.value,
+            or_(scope.is_(None), scope == "all") if key == "all" else scope == key,
         )
         .order_by(Run.started_at.desc(), Run.id)
         .limit(1)
@@ -386,7 +407,7 @@ def _latest_run_id(ws_id: uuid.UUID):
     )
 
 
-def _meetings_query(ws_id: uuid.UUID) -> Select:
+def _meetings_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
     n_chunks = (
         select(DocumentChunk.document_id, func.count().label("n"))
         .where(DocumentChunk.workspace_id == ws_id)
@@ -408,12 +429,15 @@ def _meetings_query(ws_id: uuid.UUID) -> Select:
         .join(Account, Account.id == Document.account_id)
         .outerjoin(Company, Company.id == Account.company_id)
         .outerjoin(n_chunks, n_chunks.c.document_id == Document.id)
-        .where(Document.workspace_id == ws_id)
+        .where(
+            Document.workspace_id == ws_id,
+            *visibility.conds(visibility.in_accounts(viewer, Document.account_id)),
+        )
         .order_by(Document.meeting_date, Document.title, Document.id)
     )
 
 
-def _meeting_themes_query(ws_id: uuid.UUID) -> Select:
+def _meeting_themes_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
     return (
         select(
             _text(Document.id).label("document_id"),
@@ -432,13 +456,17 @@ def _meeting_themes_query(ws_id: uuid.UUID) -> Select:
         .join(Document, Document.id == DocumentChunk.document_id)
         .join(Account, Account.id == Document.account_id)
         .outerjoin(Company, Company.id == Account.company_id)
-        .where(Theme.workspace_id == ws_id, Theme.run_id == _latest_run_id(ws_id))
+        .where(
+            Theme.workspace_id == ws_id,
+            Theme.run_id == _latest_run_id(ws_id, viewer),
+            *visibility.conds(visibility.in_accounts(viewer, Document.account_id)),
+        )
         .group_by(Document.id, Account.id, Company.id, Theme.id)
         .order_by(Document.meeting_date, Document.id, Theme.seq)
     )
 
 
-def _deal_theme_flags_query(ws_id: uuid.UUID) -> Select:
+def _deal_theme_flags_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
     has_meeting = exists().where(Document.deal_id == Deal.id, Document.workspace_id == ws_id)
     assigned = exists().where(
         ThemeAssignment.theme_id == Theme.id,
@@ -469,13 +497,17 @@ def _deal_theme_flags_query(ws_id: uuid.UUID) -> Select:
         )
         .select_from(Deal)
         .join(Account, Account.id == Deal.account_id)
-        .join(Theme, Theme.run_id == _latest_run_id(ws_id))
-        .where(Deal.workspace_id == ws_id, Theme.workspace_id == ws_id)
+        .join(Theme, Theme.run_id == _latest_run_id(ws_id, viewer))
+        .where(
+            Deal.workspace_id == ws_id,
+            Theme.workspace_id == ws_id,
+            *visibility.conds(visibility.deals_cond(viewer)),
+        )
         .order_by(Deal.created_on, Deal.id, Theme.seq)
     )
 
 
-def _activities_query(ws_id: uuid.UUID) -> Select:
+def _activities_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
     people = (
         select(ActivityParticipant.activity_id, func.count().label("n"))
         .group_by(ActivityParticipant.activity_id)
@@ -498,12 +530,15 @@ def _activities_query(ws_id: uuid.UUID) -> Select:
         .join(Account, Account.id == Activity.account_id)
         .outerjoin(people, people.c.activity_id == Activity.id)
         .outerjoin(AppUser, AppUser.id == Activity.author_user_id)
-        .where(Activity.workspace_id == ws_id)
+        .where(
+            Activity.workspace_id == ws_id,
+            *visibility.conds(visibility.in_accounts(viewer, Activity.account_id)),
+        )
         .order_by(Activity.occurred_at, Activity.id)
     )
 
 
-def _stage_events_query(ws_id: uuid.UUID) -> Select:
+def _stage_events_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
     return (
         select(
             _text(DealStageEvent.id).label("event_id"),
@@ -518,12 +553,15 @@ def _stage_events_query(ws_id: uuid.UUID) -> Select:
         )
         .join(Deal, Deal.id == DealStageEvent.deal_id)
         .outerjoin(AppUser, AppUser.id == DealStageEvent.changed_by_id)
-        .where(DealStageEvent.workspace_id == ws_id)
+        .where(
+            DealStageEvent.workspace_id == ws_id,
+            *visibility.conds(visibility.in_deals(viewer, DealStageEvent.deal_id)),
+        )
         .order_by(DealStageEvent.changed_at, DealStageEvent.id)
     )
 
 
-def _tasks_query(ws_id: uuid.UUID) -> Select:
+def _tasks_query(ws_id: uuid.UUID, viewer: Viewer | None = None) -> Select:
     return (
         select(
             _text(Task.id).label("task_id"),
@@ -540,7 +578,10 @@ def _tasks_query(ws_id: uuid.UUID) -> Select:
         )
         .outerjoin(Account, Account.id == Task.account_id)
         .outerjoin(AppUser, AppUser.id == Task.owner_user_id)
-        .where(Task.workspace_id == ws_id)
+        .where(
+            Task.workspace_id == ws_id,
+            *visibility.conds(visibility.account_or_deal(viewer, Task.account_id, Task.deal_id)),
+        )
         .order_by(Task.created_at, Task.id)
     )
 
@@ -559,9 +600,16 @@ _QUERIES = {
 }
 
 
-def load_crm_table(session: Session, ws_id: uuid.UUID, table: str, max_rows: int) -> pd.DataFrame:
-    """At most `max_rows` rows; `attrs["capped"]` is set when rows were cut."""
-    stmt = _QUERIES[table](ws_id).limit(max_rows + 1)
+def load_crm_table(
+    session: Session,
+    ws_id: uuid.UUID,
+    table: str,
+    max_rows: int,
+    viewer: Viewer | None = None,
+) -> pd.DataFrame:
+    """At most `max_rows` rows of the rows the viewer may see (`None`: all of them);
+    `attrs["capped"]` is set when rows were cut."""
+    stmt = _QUERIES[table](ws_id, viewer).limit(max_rows + 1)
     names = [name for name, _ in CRM_COLUMNS[table]]
     rows = [tuple(r) for r in session.execute(stmt)]
     capped = len(rows) > max_rows

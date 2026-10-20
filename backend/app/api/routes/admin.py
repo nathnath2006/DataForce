@@ -9,7 +9,7 @@ from alembic.runtime.migration import MigrationContext
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
-from app.api.deps import CurrentWorkspace, Db
+from app.api.deps import CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas_admin import (
     AdminAiUsage,
     AdminLimit,
@@ -17,6 +17,7 @@ from app.api.schemas_admin import (
     AdminRun,
     AdminRuns,
 )
+from app.auth.visibility import require_admin
 from app.config import get_settings
 from app.db.models import LlmCall
 from app.domain.enums import RunKind, RunStatus
@@ -58,7 +59,8 @@ def _limits() -> list[AdminLimit]:
 
 
 @router.get("/w/{ws}/admin/overview", response_model=AdminOverview)
-def overview(db: Db, ws: CurrentWorkspace) -> AdminOverview:
+def overview(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> AdminOverview:
+    require_admin(viewer)
     # M3b: admin role only (the database section is global, not workspace data)
     settings = get_settings()
     current = MigrationContext.configure(db.connection()).get_current_revision()
@@ -84,10 +86,12 @@ def _summary(kind: str, params: dict) -> str:
 def runs(
     db: Db,
     ws: CurrentWorkspace,
+    viewer: CurrentViewer,
     kind: RunKind | None = None,
     status: RunStatus | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> AdminRuns:
+    require_admin(viewer)
     now = datetime.now(UTC)
     out = []
     for r in list_runs(db, ws.id, kind=kind, status=status, limit=limit):
@@ -109,8 +113,12 @@ def runs(
 
 @router.get("/w/{ws}/admin/ai-usage", response_model=AdminAiUsage)
 def ai_usage(
-    db: Db, ws: CurrentWorkspace, days: Annotated[int, Query(ge=1, le=365)] = 30
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
 ) -> AdminAiUsage:
+    require_admin(viewer)
     settings = get_settings()
     now = datetime.now(UTC)
     rows = usage_summary(db, ws.id, since=now - timedelta(days=days))

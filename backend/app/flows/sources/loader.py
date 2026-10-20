@@ -11,6 +11,7 @@ import pandas as pd
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.auth.viewer import Viewer
 from app.config import Settings
 from app.db.models import DataConnection, UploadedFile
 from app.flows.ports import SourceError
@@ -24,8 +25,13 @@ log = logging.getLogger(__name__)
 
 class DbSourceLoader:
     def __init__(
-        self, session_factory: Callable[[], Session], ws_id: uuid.UUID, settings: Settings
+        self,
+        session_factory: Callable[[], Session],
+        ws_id: uuid.UUID,
+        settings: Settings,
+        viewer: Viewer | None = None,
     ) -> None:
+        self._viewer = viewer
         self._factory = session_factory
         self._ws_id = ws_id
         self._settings = settings
@@ -34,6 +40,9 @@ class DbSourceLoader:
         try:
             if isinstance(source, CrmSource):
                 return self._crm(source, max_rows)
+            if self._viewer is not None and not self._viewer.is_admin:
+                # uploaded files and PostgreSQL connections bypass row visibility
+                raise SourceError("only the administrator can read files and database connections")
             if isinstance(source, FileSource):
                 return self._file(source, max_rows)
             return self._postgres(source, max_rows)
@@ -46,7 +55,7 @@ class DbSourceLoader:
     def _crm(self, source: CrmSource, max_rows: int) -> pd.DataFrame:
         session = self._factory()
         try:
-            return load_crm_table(session, self._ws_id, source.table, max_rows)
+            return load_crm_table(session, self._ws_id, source.table, max_rows, self._viewer)
         finally:
             session.close()
 

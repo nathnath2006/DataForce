@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Response, UploadFile
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas_flows import (
     ConnectionIn,
     ConnectionOut,
@@ -15,6 +15,7 @@ from app.api.schemas_flows import (
     FileOut,
     TableRef,
 )
+from app.auth.visibility import require_admin
 from app.db.models import DataConnection
 from app.flows.ports import SourceError
 from app.services import data_connections as conns
@@ -30,9 +31,11 @@ def upload_file(
     db: Db,
     ws: CurrentWorkspace,
     settings: AppSettings,
+    viewer: CurrentViewer,
     file: Annotated[UploadFile, File()],
     sheet: Annotated[str | None, Form(max_length=200)] = None,
 ) -> FileOut:
+    require_admin(viewer)
     data = file.file.read(settings.upload_max_bytes + 1)
     row = file_service.create_file(db, ws.id, file.filename, data, sheet or None, settings)
     db.commit()
@@ -40,12 +43,16 @@ def upload_file(
 
 
 @router.get("/w/{ws}/files", response_model=list[FileOut])
-def list_files(db: Db, ws: CurrentWorkspace) -> list[FileOut]:
+def list_files(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> list[FileOut]:
+    require_admin(viewer)
     return [FileOut.model_validate(f) for f in file_service.list_files(db, ws.id)]
 
 
 @router.delete("/w/{ws}/files/{file_id}", status_code=204)
-def delete_file(file_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
+def delete_file(
+    file_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    require_admin(viewer)
     file_service.delete_file(db, ws.id, file_id)
     db.commit()
     return Response(status_code=204)
@@ -82,14 +89,16 @@ def _plain(body: ConnectionIn | ConnectionPatch, *, partial: bool) -> dict:
 
 
 @router.get("/w/{ws}/connections", response_model=list[ConnectionOut])
-def list_connections(db: Db, ws: CurrentWorkspace) -> list[ConnectionOut]:
+def list_connections(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> list[ConnectionOut]:
+    require_admin(viewer)
     return [_conn_out(c) for c in conns.list_connections(db, ws.id)]
 
 
 @router.post("/w/{ws}/connections", response_model=ConnectionOut, status_code=201)
 def create_connection(
-    body: ConnectionIn, db: Db, ws: CurrentWorkspace, settings: AppSettings
+    body: ConnectionIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
 ) -> ConnectionOut:
+    require_admin(viewer)
     row = conns.create_connection(db, ws.id, _plain(body, partial=False), settings)
     db.commit()
     return _conn_out(row)
@@ -102,14 +111,19 @@ def update_connection(
     db: Db,
     ws: CurrentWorkspace,
     settings: AppSettings,
+    viewer: CurrentViewer,
 ) -> ConnectionOut:
+    require_admin(viewer)
     row = conns.update_connection(db, ws.id, connection_id, _plain(body, partial=True), settings)
     db.commit()
     return _conn_out(row)
 
 
 @router.delete("/w/{ws}/connections/{connection_id}", status_code=204)
-def delete_connection(connection_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
+def delete_connection(
+    connection_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    require_admin(viewer)
     conns.delete_connection(db, ws.id, connection_id)
     db.commit()
     return Response(status_code=204)
@@ -117,8 +131,13 @@ def delete_connection(connection_id: uuid.UUID, db: Db, ws: CurrentWorkspace) ->
 
 @router.post("/w/{ws}/connections/{connection_id}/test", response_model=ConnectionOut)
 def test_connection(
-    connection_id: uuid.UUID, db: Db, ws: CurrentWorkspace, settings: AppSettings
+    connection_id: uuid.UUID,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    viewer: CurrentViewer,
 ) -> ConnectionOut:
+    require_admin(viewer)
     row = conns.test_connection(db, ws.id, connection_id, settings)
     db.commit()
     return _conn_out(row)
@@ -126,8 +145,13 @@ def test_connection(
 
 @router.get("/w/{ws}/connections/{connection_id}/tables", response_model=list[TableRef])
 def connection_tables(
-    connection_id: uuid.UUID, db: Db, ws: CurrentWorkspace, settings: AppSettings
+    connection_id: uuid.UUID,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    viewer: CurrentViewer,
 ) -> list[dict[str, str]]:
+    require_admin(viewer)
     try:
         return conns.tables_of(db, ws.id, connection_id, settings)
     except SourceError as exc:

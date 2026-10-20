@@ -9,6 +9,8 @@ from sqlalchemy import Select, and_, case, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas_quality import QualityCheck, QualityOut, QualitySegment
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Account, Contact, Deal, OrgProposal
 from app.domain.enums import OPEN_STAGES, ProposalKind, ProposalStatus, TitleSource
 
@@ -29,7 +31,7 @@ def _run(db: Session, stmt: Select, spec: list[tuple[str, str]], cid: str, label
     return QualityCheck(id=cid, label=label, total=total, segments=segs)  # type: ignore[arg-type]
 
 
-def _managers(db: Session, ws: uuid.UUID) -> QualityCheck:
+def _managers(db: Session, ws: uuid.UUID, viewer: Viewer | None) -> QualityCheck:
     has_sug = exists().where(
         OrgProposal.contact_id == Contact.id,
         OrgProposal.workspace_id == ws,
@@ -42,7 +44,10 @@ def _managers(db: Session, ws: uuid.UUID) -> QualityCheck:
         _count(linked),
         _count(and_(~linked, has_sug)),
         _count(and_(~linked, ~has_sug)),
-    ).where(Contact.workspace_id == ws)
+    ).where(
+        Contact.workspace_id == ws,
+        *visibility.conds(visibility.in_accounts(viewer, Contact.account_id)),
+    )
     spec = [
         ("ok", "Has a manager"),
         ("warn", "No manager, suggestion open"),
@@ -51,7 +56,7 @@ def _managers(db: Session, ws: uuid.UUID) -> QualityCheck:
     return _run(db, stmt, spec, "managers", "Contacts linked to a manager")
 
 
-def _titles(db: Session, ws: uuid.UUID) -> QualityCheck:
+def _titles(db: Session, ws: uuid.UUID, viewer: Viewer | None) -> QualityCheck:
     warn = or_(
         func.coalesce(Contact.title_source, "") == TitleSource.LLM.value,
         Contact.title_flag.is_not(None),
@@ -65,7 +70,8 @@ def _titles(db: Session, ws: uuid.UUID) -> QualityCheck:
         ),
     )
     stmt = select(func.count(), _count(~warn & ~unknown), _count(warn), _count(unknown)).where(
-        Contact.workspace_id == ws
+        Contact.workspace_id == ws,
+        *visibility.conds(visibility.in_accounts(viewer, Contact.account_id)),
     )
     spec = [
         ("ok", "Dictionary or manual"),
@@ -75,7 +81,7 @@ def _titles(db: Session, ws: uuid.UUID) -> QualityCheck:
     return _run(db, stmt, spec, "titles", "Job titles classified")
 
 
-def _amounts(db: Session, ws: uuid.UUID) -> QualityCheck:
+def _amounts(db: Session, ws: uuid.UUID, viewer: Viewer | None) -> QualityCheck:
     missing = Deal.amount_eur.is_(None)
     is_open = Deal.stage.in_(_OPEN)
     stmt = select(
@@ -83,7 +89,7 @@ def _amounts(db: Session, ws: uuid.UUID) -> QualityCheck:
         _count(~missing),
         _count(and_(missing, is_open)),
         _count(and_(missing, ~is_open)),
-    ).where(Deal.workspace_id == ws)
+    ).where(Deal.workspace_id == ws, *visibility.conds(visibility.deals_cond(viewer)))
     spec = [
         ("ok", "Amount set"),
         ("bad", "Missing on an open deal"),
@@ -92,14 +98,22 @@ def _amounts(db: Session, ws: uuid.UUID) -> QualityCheck:
     return _run(db, stmt, spec, "amounts", "Deals with an amount")
 
 
-def _companies(db: Session, ws: uuid.UUID) -> QualityCheck:
+def _companies(db: Session, ws: uuid.UUID, viewer: Viewer | None) -> QualityCheck:
     linked = Account.company_id.is_not(None)
-    stmt = select(func.count(), _count(linked), _count(~linked)).where(Account.workspace_id == ws)
+    stmt = select(func.count(), _count(linked), _count(~linked)).where(
+        Account.workspace_id == ws,
+        *visibility.conds(visibility.in_accounts(viewer, Account.id)),
+    )
     spec = [("ok", "Linked"), ("unknown", "Not linked")]
     return _run(db, stmt, spec, "companies", "Accounts linked to a company")
 
 
-def quality_report(db: Session, ws: uuid.UUID) -> QualityOut:
+def quality_report(db: Session, ws: uuid.UUID, viewer: Viewer | None = None) -> QualityOut:
     return QualityOut(
-        checks=[_managers(db, ws), _titles(db, ws), _amounts(db, ws), _companies(db, ws)]
+        checks=[
+            _managers(db, ws, viewer),
+            _titles(db, ws, viewer),
+            _amounts(db, ws, viewer),
+            _companies(db, ws, viewer),
+        ]
     )

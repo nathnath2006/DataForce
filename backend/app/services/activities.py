@@ -11,6 +11,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Activity, ActivityParticipant, Contact
 from app.services._common import get_scoped, require, require_account, require_deal, require_user
 from app.services.errors import InvalidInputError
@@ -97,8 +99,9 @@ def create_activity(
     source: str = "manual",
     external_ref: str | None = None,
     check_future: bool = True,
+    viewer: Viewer | None = None,
 ) -> Activity:
-    require_account(session, ws_id, account_id)
+    require_account(session, ws_id, account_id, viewer)
     _check_kind(kind, direction)
     _check_deal(session, ws_id, account_id, deal_id)
     if author_user_id is not None:
@@ -126,8 +129,12 @@ def create_activity(
     return row
 
 
-def require_activity(session: Session, ws_id: uuid.UUID, activity_id: uuid.UUID) -> Activity:
-    return require(session, Activity, ws_id, activity_id)
+def require_activity(
+    session: Session, ws_id: uuid.UUID, activity_id: uuid.UUID, viewer: Viewer | None = None
+) -> Activity:
+    row = require(session, Activity, ws_id, activity_id)
+    visibility.check_account(session, viewer, row.account_id)
+    return row
 
 
 def get_activity(session: Session, ws_id: uuid.UUID, activity_id: uuid.UUID) -> Activity | None:
@@ -135,9 +142,13 @@ def get_activity(session: Session, ws_id: uuid.UUID, activity_id: uuid.UUID) -> 
 
 
 def update_activity(
-    session: Session, ws_id: uuid.UUID, activity_id: uuid.UUID, changes: dict[str, Any]
+    session: Session,
+    ws_id: uuid.UUID,
+    activity_id: uuid.UUID,
+    changes: dict[str, Any],
+    viewer: Viewer | None = None,
 ) -> Activity:
-    row = require_activity(session, ws_id, activity_id)
+    row = require_activity(session, ws_id, activity_id, viewer)
     unknown = set(changes) - _UPDATABLE
     if unknown:
         raise InvalidInputError(f"cannot update: {', '.join(sorted(unknown))}")
@@ -172,8 +183,13 @@ def update_activity(
     return row
 
 
-def delete_activity(session: Session, ws_id: uuid.UUID, activity_id: uuid.UUID) -> None:
-    session.delete(require_activity(session, ws_id, activity_id))
+def delete_activity(
+    session: Session, ws_id: uuid.UUID, activity_id: uuid.UUID, viewer: Viewer | None = None
+) -> None:
+    row = require_activity(session, ws_id, activity_id, viewer)
+    if viewer is not None:
+        visibility.require_delete(viewer, row.author_user_id)
+    session.delete(row)
     session.flush()
 
 
@@ -213,14 +229,18 @@ def list_activities(
     deal_id: uuid.UUID | None = None,
     limit: int = 100,
     offset: int = 0,
+    viewer: Viewer | None = None,
 ) -> list[Activity]:
     """Newest first."""
-    stmt = select(Activity).where(Activity.workspace_id == ws_id)
+    stmt = select(Activity).where(
+        Activity.workspace_id == ws_id,
+        *visibility.conds(visibility.in_accounts(viewer, Activity.account_id)),
+    )
     if account_id is not None:
-        require_account(session, ws_id, account_id)
+        require_account(session, ws_id, account_id, viewer)
         stmt = stmt.where(Activity.account_id == account_id)
     if deal_id is not None:
-        require_deal(session, ws_id, deal_id)
+        require_deal(session, ws_id, deal_id, viewer)
         stmt = stmt.where(Activity.deal_id == deal_id)
     stmt = stmt.order_by(Activity.occurred_at.desc(), Activity.id.desc())
     return list(session.scalars(stmt.limit(limit).offset(offset)))

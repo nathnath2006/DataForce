@@ -8,6 +8,7 @@ from datetime import UTC, date, datetime, time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.viewer import Viewer
 from app.db.models import Deal, DealStageEvent
 from app.domain.enums import CLOSED_STAGES, DealStage
 from app.services import deals
@@ -33,10 +34,11 @@ def move_stage(
     on: date | None = None,
     lost_reason: str | None = None,
     changed_by_id: uuid.UUID | None = None,
+    viewer: Viewer | None = None,
 ) -> Deal:
     """The rep's "Move to stage". `on` defaults to today; never in the future, never before the
     deal was created. Closing sets `closed_on` to that date; closed-lost keeps the reason."""
-    deal = require_deal(session, ws_id, deal_id)
+    deal = require_deal(session, ws_id, deal_id, viewer)
     today = datetime.now(UTC).date()
     when = on or today
     if when > today:
@@ -64,9 +66,11 @@ def move_stage(
     return deal
 
 
-def list_events(session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID) -> list[DealStageEvent]:
+def list_events(
+    session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID, viewer: Viewer | None = None
+) -> list[DealStageEvent]:
     """Oldest first."""
-    require_deal(session, ws_id, deal_id)
+    require_deal(session, ws_id, deal_id, viewer)
     stmt = (
         select(DealStageEvent)
         .where(DealStageEvent.workspace_id == ws_id, DealStageEvent.deal_id == deal_id)

@@ -10,9 +10,11 @@ from typing import Any
 from sqlalchemy import case, select
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Task
 from app.services._common import require, require_account, require_deal, require_user
-from app.services.errors import InvalidInputError
+from app.services.errors import ForbiddenError, InvalidInputError
 from app.services.textclean import scrub_text
 
 TITLE_MAX = 300
@@ -39,16 +41,17 @@ def create_task(
     due_on: date | None = None,
     owner_user_id: uuid.UUID | None = None,
     source: str = "manual",
+    viewer: Viewer | None = None,
 ) -> Task:
     if deal_id is None and account_id is None:
         raise InvalidInputError("a task needs a deal or an account")
     if deal_id is not None:
-        deal = require_deal(session, ws_id, deal_id)
+        deal = require_deal(session, ws_id, deal_id, viewer)
         if account_id is not None and account_id != deal.account_id:
             raise InvalidInputError("the deal belongs to another account")
         account_id = deal.account_id
     else:
-        require_account(session, ws_id, account_id)  # type: ignore[arg-type]
+        require_account(session, ws_id, account_id, viewer)  # type: ignore[arg-type]
     if owner_user_id is not None:
         require_user(session, ws_id, owner_user_id)
     row = Task(
@@ -67,14 +70,25 @@ def create_task(
     return row
 
 
-def require_task(session: Session, ws_id: uuid.UUID, task_id: uuid.UUID) -> Task:
-    return require(session, Task, ws_id, task_id)
+def require_task(
+    session: Session, ws_id: uuid.UUID, task_id: uuid.UUID, viewer: Viewer | None = None
+) -> Task:
+    row = require(session, Task, ws_id, task_id)
+    visibility.check_row_account(session, viewer, row.account_id, row.deal_id)
+    return row
 
 
 def update_task(
-    session: Session, ws_id: uuid.UUID, task_id: uuid.UUID, changes: dict[str, Any]
+    session: Session,
+    ws_id: uuid.UUID,
+    task_id: uuid.UUID,
+    changes: dict[str, Any],
+    viewer: Viewer | None = None,
 ) -> Task:
-    row = require_task(session, ws_id, task_id)
+    row = require_task(session, ws_id, task_id, viewer)
+    if viewer is not None and "owner_user_id" in changes:
+        if changes["owner_user_id"] != row.owner_user_id and not viewer.is_admin:
+            raise ForbiddenError("only the administrator can reassign a task")
     unknown = set(changes) - _UPDATABLE
     if unknown:
         raise InvalidInputError(f"cannot update: {', '.join(sorted(unknown))}")
@@ -100,8 +114,10 @@ def update_task(
     return row
 
 
-def accept_task(session: Session, ws_id: uuid.UUID, task_id: uuid.UUID) -> Task:
-    row = require_task(session, ws_id, task_id)
+def accept_task(
+    session: Session, ws_id: uuid.UUID, task_id: uuid.UUID, viewer: Viewer | None = None
+) -> Task:
+    row = require_task(session, ws_id, task_id, viewer)
     if row.status != "suggested":
         raise InvalidInputError("only a suggested task can be accepted")
     row.status = "open"
@@ -109,8 +125,13 @@ def accept_task(session: Session, ws_id: uuid.UUID, task_id: uuid.UUID) -> Task:
     return row
 
 
-def delete_task(session: Session, ws_id: uuid.UUID, task_id: uuid.UUID) -> None:
-    session.delete(require_task(session, ws_id, task_id))
+def delete_task(
+    session: Session, ws_id: uuid.UUID, task_id: uuid.UUID, viewer: Viewer | None = None
+) -> None:
+    row = require_task(session, ws_id, task_id, viewer)
+    if viewer is not None:
+        visibility.require_delete(viewer, row.owner_user_id)
+    session.delete(row)
     session.flush()
 
 
@@ -124,14 +145,18 @@ def list_tasks(
     status: str | None = None,
     limit: int = 200,
     offset: int = 0,
+    viewer: Viewer | None = None,
 ) -> list[Task]:
     """Open first (then suggested, done, dismissed), earliest due date first."""
-    stmt = select(Task).where(Task.workspace_id == ws_id)
+    stmt = select(Task).where(
+        Task.workspace_id == ws_id,
+        *visibility.conds(visibility.account_or_deal(viewer, Task.account_id, Task.deal_id)),
+    )
     if deal_id is not None:
-        require_deal(session, ws_id, deal_id)
+        require_deal(session, ws_id, deal_id, viewer)
         stmt = stmt.where(Task.deal_id == deal_id)
     if account_id is not None:
-        require_account(session, ws_id, account_id)
+        require_account(session, ws_id, account_id, viewer)
         stmt = stmt.where(Task.account_id == account_id)
     if owner_user_id is not None:
         stmt = stmt.where(Task.owner_user_id == owner_user_id)

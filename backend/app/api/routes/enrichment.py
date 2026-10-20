@@ -14,8 +14,9 @@ import uuid
 from fastapi import APIRouter, Response
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas import ChannelOut, EnrichRequest, EnrichResponse
+from app.auth import visibility
 from app.connectors import store, tamtam
 from app.db.models import ContactChannel
 from app.domain.enums import ChannelKind
@@ -45,8 +46,14 @@ def _channel_out(row: ContactChannel, value: str) -> ChannelOut:
     "/w/{ws}/contacts/{contact_id}/enrich", response_model=EnrichResponse, tags=["enrichment"]
 )
 async def enrich_contact(
-    contact_id: uuid.UUID, body: EnrichRequest, db: Db, ws: CurrentWorkspace, settings: AppSettings
+    contact_id: uuid.UUID,
+    body: EnrichRequest,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    viewer: CurrentViewer,
 ) -> EnrichResponse:
+    visibility.check_contact(db, viewer, contact_id)
     if ws.is_demo:  # the fake provider is free: no guard needed
         return await _enrich(contact_id, body, db, ws, settings)
     async with channels.lookup_guard(db, ws.id, contact_id):
@@ -148,8 +155,13 @@ async def _enrich(
     tags=["enrichment"],
 )
 def list_contact_channels(
-    contact_id: uuid.UUID, db: Db, ws: CurrentWorkspace, settings: AppSettings
+    contact_id: uuid.UUID,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    viewer: CurrentViewer,
 ) -> list[ChannelOut]:
+    visibility.check_contact(db, viewer, contact_id)
     rows = channels.list_channels(db, ws.id, contact_id)
     return [_channel_out(r, channels.channel_value(r, settings)) for r in rows]
 
@@ -158,8 +170,14 @@ def list_contact_channels(
     "/w/{ws}/contacts/{contact_id}/channels/{channel_id}", status_code=204, tags=["enrichment"]
 )
 def delete_contact_channel(
-    contact_id: uuid.UUID, channel_id: uuid.UUID, db: Db, ws: CurrentWorkspace
+    contact_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    db: Db,
+    ws: CurrentWorkspace,
+    viewer: CurrentViewer,
 ) -> Response:
+    visibility.check_contact(db, viewer, contact_id)
+    visibility.require_admin(viewer)  # stored emails and mobiles: erasure is admin only
     channels.delete_channel(db, ws.id, contact_id, channel_id)
     db.commit()
     return Response(status_code=204)

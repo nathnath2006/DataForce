@@ -29,6 +29,8 @@ from sqlalchemy import exists, select
 from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from app.api.schemas_genai import ActionItemsAnswer, SummaryAnswer
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.config import Settings
 from app.db.models import Activity, Comment, Contact, Deal, DealStageEvent, Document, Note, Task
 from app.enrichment.errors import EnrichmentError
@@ -144,19 +146,24 @@ def collect(
     *,
     deal_id: uuid.UUID | None = None,
     account_id: uuid.UUID | None = None,
+    viewer: Viewer | None = None,
 ) -> Source:
     """Newest first, capped at `genai_max_source_chars`. A deal reads its own activities and
     documents plus the account's comments and contact notes; an account reads everything."""
     if deal_id is not None:
-        deal = require_deal(session, ws_id, deal_id)
+        deal = require_deal(session, ws_id, deal_id, viewer)
         account_id = deal.account_id
         deals = [deal]
     else:
-        require_account(session, ws_id, account_id)  # type: ignore[arg-type]
+        require_account(session, ws_id, account_id, viewer)  # type: ignore[arg-type]
         deals = list(
             session.scalars(
                 select(Deal)
-                .where(Deal.workspace_id == ws_id, Deal.account_id == account_id)
+                .where(
+                    Deal.workspace_id == ws_id,
+                    Deal.account_id == account_id,
+                    *visibility.conds(visibility.deals_cond(viewer)),
+                )
                 .order_by(Deal.created_on.desc())
                 .limit(MAX_FACT_DEALS)
             )

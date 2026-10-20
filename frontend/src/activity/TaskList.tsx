@@ -7,7 +7,7 @@ import "./activity.css";
 
 /** Small task list with checkboxes (open tasks first). */
 export function TaskList({ dealId, onChanged, refreshKey = 0 }: { dealId: string; onChanged?: () => void; refreshKey?: number }) {
-  const { ws, actingAs } = useWs();
+  const { ws } = useWs();
   const list = useLoad(() => activityApi.listTasks(ws.slug, { deal_id: dealId }), [ws.slug, dealId, refreshKey]);
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
@@ -15,7 +15,7 @@ export function TaskList({ dealId, onChanged, refreshKey = 0 }: { dealId: string
   const done = () => { list.reload(); onChanged?.(); };
   const add = async () => {
     const r = await act.run(() => activityApi.createTask(ws.slug, {
-      title: title.trim(), deal_id: dealId, due_on: due || null, owner_id: actingAs,
+      title: title.trim(), deal_id: dealId, due_on: due || null,
     }));
     if (r) { setTitle(""); setDue(""); done(); }
   };

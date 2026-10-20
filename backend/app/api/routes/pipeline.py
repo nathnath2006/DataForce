@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from app.api.deps import CurrentWorkspace, Db
+from app.api.deps import CurrentViewer, CurrentWorkspace, Db
 from app.api.routes.crm import _deals_out
 from app.api.schemas import DealOut
 from app.api.schemas_activity import MoveStage, StageEventOut, TimelineItem, TimelinePage
@@ -17,7 +17,9 @@ router = APIRouter(tags=["pipeline"])
 
 
 @router.post("/w/{ws}/deals/{deal_id}/move", response_model=DealOut)
-def move_stage(deal_id: uuid.UUID, body: MoveStage, db: Db, ws: CurrentWorkspace) -> DealOut:
+def move_stage(
+    deal_id: uuid.UUID, body: MoveStage, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> DealOut:
     deal = stage_events.move_stage(
         db,
         ws.id,
@@ -25,15 +27,18 @@ def move_stage(deal_id: uuid.UUID, body: MoveStage, db: Db, ws: CurrentWorkspace
         body.stage,
         on=body.changed_on,
         lost_reason=body.lost_reason,
-        changed_by_id=body.changed_by_id,
+        changed_by_id=viewer.app_user_id,
+        viewer=viewer,
     )
     db.commit()
     return _deals_out(db, ws.id, [deal])[0]
 
 
 @router.get("/w/{ws}/deals/{deal_id}/stage-events", response_model=list[StageEventOut])
-def list_stage_events(deal_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> list[StageEventOut]:
-    rows = stage_events.list_events(db, ws.id, deal_id)
+def list_stage_events(
+    deal_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> list[StageEventOut]:
+    rows = stage_events.list_events(db, ws.id, deal_id, viewer)
     names = users.user_names(db, ws.id, [r.changed_by_id for r in rows if r.changed_by_id])
     return [
         StageEventOut(
@@ -84,12 +89,13 @@ def deal_timeline(
     deal_id: uuid.UUID,
     db: Db,
     ws: CurrentWorkspace,
+    viewer: CurrentViewer,
     limit: Limit = 50,
     before: Annotated[str | None, Query(max_length=200)] = None,
     kinds: Annotated[str | None, Query(max_length=200)] = None,
 ) -> TimelinePage:
     items, nxt = timeline.build_timeline(
-        db, ws.id, deal_id=deal_id, kinds=_kinds(kinds), limit=limit, before=before
+        db, ws.id, deal_id=deal_id, kinds=_kinds(kinds), limit=limit, before=before, viewer=viewer
     )
     return _page(items, nxt)
 
@@ -99,11 +105,18 @@ def account_timeline(
     account_id: uuid.UUID,
     db: Db,
     ws: CurrentWorkspace,
+    viewer: CurrentViewer,
     limit: Limit = 50,
     before: Annotated[str | None, Query(max_length=200)] = None,
     kinds: Annotated[str | None, Query(max_length=200)] = None,
 ) -> TimelinePage:
     items, nxt = timeline.build_timeline(
-        db, ws.id, account_id=account_id, kinds=_kinds(kinds), limit=limit, before=before
+        db,
+        ws.id,
+        account_id=account_id,
+        kinds=_kinds(kinds),
+        limit=limit,
+        before=before,
+        viewer=viewer,
     )
     return _page(items, nxt)

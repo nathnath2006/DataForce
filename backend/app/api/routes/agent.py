@@ -5,8 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from app.api.deps import CurrentWorkspace, Db
+from app.api.deps import CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas_agent import AgentCall, AgentConnect, AgentInfo, AgentTool
+from app.auth.visibility import require_admin
 from app.db.models import Run
 from app.domain.enums import RunKind, RunStatus
 from app.mcp_server.config import claude_code_command, claude_desktop_config
@@ -16,7 +17,8 @@ router = APIRouter(tags=["agent"])
 
 
 @router.get("/w/{ws}/agent", response_model=AgentInfo)
-def agent_info(ws: CurrentWorkspace, db: Db) -> AgentInfo:
+def agent_info(ws: CurrentWorkspace, db: Db, viewer: CurrentViewer) -> AgentInfo:
+    require_admin(viewer)
     rows = db.scalars(
         select(Run)
         .where(Run.workspace_id == ws.id, Run.kind == RunKind.AGENT_CALL.value)

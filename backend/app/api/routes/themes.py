@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.errors import error_response
 from app.api.routes.ai import ChatFactory, get_chat_factory
 from app.api.schemas_themes import DroppedOut, ExcerptOut, ThemeOut, ThemeRunIn, ThemeRunOut
@@ -94,11 +94,16 @@ def _run_out(db: Db, ws_id, run, k, n_used, n_unassigned, dropped, known=()) -> 
 
 @router.post("/w/{ws}/themes/run", response_model=ThemeRunOut)
 def run_themes(
-    body: ThemeRunIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory
+    body: ThemeRunIn,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    factory: Factory,
+    viewer: CurrentViewer,
 ) -> ThemeRunOut:
     k = body.k or settings.themes_default_k
     namer = _make_namer(db, ws.id, settings, factory) if body.use_ai else None
-    res = svc.run_themes(db, ws.id, k=k, speakers=body.speakers, namer=namer)
+    res = svc.run_themes(db, ws.id, k=k, speakers=body.speakers, namer=namer, viewer=viewer)
     db.commit()
     dropped = [{"top_terms": d.top_terms, "n_chunks": d.n_chunks} for d in res.dropped]
     return _run_out(
@@ -107,8 +112,8 @@ def run_themes(
 
 
 @router.get("/w/{ws}/themes/latest", response_model=ThemeRunOut)
-def latest(db: Db, ws: CurrentWorkspace):
-    run = svc.latest_run(db, ws.id)
+def latest(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer):
+    run = svc.latest_run(db, ws.id, viewer)
     if run is None:
         return error_response(404, "not_found", "no theme analysis yet")
     result = run.result or {}

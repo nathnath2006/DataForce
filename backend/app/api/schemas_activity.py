@@ -27,7 +27,6 @@ class ActivityCreate(_In):
     body: str | None = Field(default=None, max_length=10_000)
     deal_id: UUID | None = None
     participant_ids: list[UUID] = Field(default_factory=list, max_length=50)
-    author_id: UUID | None = None
 
 
 class ActivityUpdate(_In):
@@ -66,14 +65,13 @@ class TaskCreate(_In):
     deal_id: UUID | None = None
     account_id: UUID | None = None
     due_on: date | None = None
-    owner_id: UUID | None = None
 
 
 class TaskUpdate(_In):
     title: str | None = Field(default=None, min_length=1, max_length=300)
     due_on: date | None = None
     status: TaskStatusSettable | None = None
-    owner_id: UUID | None = None
+    owner_id: UUID | None = None  # reassigning: admin only
 
 
 class TaskOut(BaseModel):
@@ -95,7 +93,6 @@ class MoveStage(_In):
     stage: DealStage
     changed_on: date | None = None
     lost_reason: str | None = Field(default=None, max_length=500)
-    changed_by_id: UUID | None = None
 
 
 class StageEventOut(BaseModel):

@@ -21,6 +21,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.assistant.numbers import number_values
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import (
     Account,
     AppUser,
@@ -279,6 +281,7 @@ def validate_scope(
     ws_id: uuid.UUID,
     scope_kind: Literal["account", "company", "deal"],
     scope_id: uuid.UUID,
+    viewer: Viewer | None = None,
 ) -> tuple[str, str | None]:
     """(name of the scope, name of its company or None). Raises NotFoundError for an id of
     another workspace; cheap: run it before the rate limit counts the request (SR17-08)."""
@@ -286,17 +289,20 @@ def validate_scope(
         company = session.get(Company, scope_id)
         if company is None or company.workspace_id != ws_id:
             raise NotFoundError("company not found")
+        visibility.check_company(session, viewer, scope_id)
         return company.name, company.name
     deal: Deal | None = None
     if scope_kind == "deal":
         deal = session.get(Deal, scope_id)
         if deal is None or deal.workspace_id != ws_id:
             raise NotFoundError("deal not found")
+        visibility.check_deal(session, viewer, scope_id)
         acc = session.get(Account, deal.account_id)
     else:
         acc = session.get(Account, scope_id)
     if acc is None or acc.workspace_id != ws_id:
         raise NotFoundError("account not found")
+    visibility.check_account(session, viewer, acc.id)
     co = session.get(Company, acc.company_id) if acc.company_id else None
     if co is not None and co.workspace_id != ws_id:
         co = None
@@ -310,6 +316,7 @@ def build_context(
     scope_id: uuid.UUID,
     *,
     max_chars: int,
+    viewer: Viewer | None = None,
 ) -> tuple[AssistantContext, str]:
     """(context, title of the scope). Raises NotFoundError for an id of another workspace.
 
@@ -322,15 +329,18 @@ def build_context(
         focus_deal = session.get(Deal, scope_id)
         if focus_deal is None or focus_deal.workspace_id != ws_id:
             raise NotFoundError("deal not found")
+        visibility.check_deal(session, viewer, scope_id)
         focus_acc = session.get(Account, focus_deal.account_id)
     elif scope_kind == "account":
         focus_acc = session.get(Account, scope_id)
         if focus_acc is None or focus_acc.workspace_id != ws_id:
             raise NotFoundError("account not found")
+        visibility.check_account(session, viewer, scope_id)
     else:
         company = session.get(Company, scope_id)
         if company is None or company.workspace_id != ws_id:
             raise NotFoundError("company not found")
+        visibility.check_company(session, viewer, scope_id)
     facts: list[str] = []
     if focus_acc is not None:
         if focus_acc.workspace_id != ws_id:
@@ -343,7 +353,11 @@ def build_context(
         accounts = list(
             session.scalars(
                 select(Account)
-                .where(Account.workspace_id == ws_id, Account.company_id == company.id)
+                .where(
+                    Account.workspace_id == ws_id,
+                    Account.company_id == company.id,
+                    *visibility.conds(visibility.in_accounts(viewer, Account.id)),
+                )
                 .order_by(Account.name)
             )
         )
@@ -376,7 +390,11 @@ def build_context(
         list(
             session.scalars(
                 select(Deal)
-                .where(Deal.workspace_id == ws_id, Deal.account_id.in_(ids))
+                .where(
+                    Deal.workspace_id == ws_id,
+                    Deal.account_id.in_(ids),
+                    *visibility.conds(visibility.deals_cond(viewer)),
+                )
                 .order_by(Deal.created_on.desc(), Deal.id)
             )
         )

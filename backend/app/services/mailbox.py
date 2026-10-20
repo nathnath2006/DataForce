@@ -36,6 +36,8 @@ from app.api.schemas_mailbox import (
     MailboxStatusOut,
     MailboxSyncResultOut,
 )
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.config import Settings
 from app.connectors import oauth, store
 from app.connectors.crypto import key_configured, seal, unseal
@@ -793,6 +795,7 @@ def list_messages(
     q: str | None = None,
     unmatched: bool = False,
     limit: int = 50,
+    viewer: Viewer | None = None,
 ) -> list[MailboxMessageOut]:
     """Candidates, newest first. `deal_id` with no state: the emails suggested for that deal.
     `q` searches the subject (and the snippet); `unmatched` keeps those with no suggested deal."""
@@ -801,9 +804,13 @@ def list_messages(
     stmt = select(MailboxMessage, MailboxConnection.provider).join(
         MailboxConnection, MailboxConnection.id == MailboxMessage.connection_id
     )
-    stmt = stmt.where(MailboxMessage.workspace_id == ws_id)
+    # a rep sees only the emails suggested for or linked to a deal they own
+    stmt = stmt.where(
+        MailboxMessage.workspace_id == ws_id,
+        *visibility.conds(visibility.in_deals(viewer, MailboxMessage.suggested_deal_id)),
+    )
     if deal_id is not None:
-        require_deal(db, ws_id, deal_id)
+        require_deal(db, ws_id, deal_id, viewer)
         stmt = stmt.where(MailboxMessage.suggested_deal_id == deal_id)
         if state is None:
             stmt = stmt.where(MailboxMessage.state == "suggested")
@@ -825,12 +832,21 @@ def list_messages(
     return [message_out(db, m, p) for m, p in db.execute(stmt)]
 
 
-def _require_message(db: Session, ws_id: uuid.UUID, message_id: uuid.UUID) -> MailboxMessage:
-    return require(db, MailboxMessage, ws_id, message_id)
+def _require_message(
+    db: Session, ws_id: uuid.UUID, message_id: uuid.UUID, viewer: Viewer | None = None
+) -> MailboxMessage:
+    msg = require(db, MailboxMessage, ws_id, message_id)
+    if viewer is not None and not viewer.sees_everything:
+        if msg.suggested_deal_id is None:
+            raise NotFoundError("mailbox_message not found in this workspace")
+        visibility.check_deal(db, viewer, msg.suggested_deal_id)
+    return msg
 
 
-def ignore_message(db: Session, ws_id: uuid.UUID, message_id: uuid.UUID) -> MailboxMessageOut:
-    msg = _require_message(db, ws_id, message_id)
+def ignore_message(
+    db: Session, ws_id: uuid.UUID, message_id: uuid.UUID, viewer: Viewer | None = None
+) -> MailboxMessageOut:
+    msg = _require_message(db, ws_id, message_id, viewer)
     if msg.state == "linked":
         raise InvalidInputError("the email is linked: unlink it first")
     msg.state = "ignored"
@@ -838,10 +854,12 @@ def ignore_message(db: Session, ws_id: uuid.UUID, message_id: uuid.UUID) -> Mail
     return message_out(db, msg, db.get(MailboxConnection, msg.connection_id).provider)
 
 
-def unlink_message(db: Session, ws_id: uuid.UUID, message_id: uuid.UUID) -> MailboxMessageOut:
+def unlink_message(
+    db: Session, ws_id: uuid.UUID, message_id: uuid.UUID, viewer: Viewer | None = None
+) -> MailboxMessageOut:
     """A linked email: its activity is deleted and the email goes back to `suggested`. An
     ignored email is restored."""
-    msg = _require_message(db, ws_id, message_id)
+    msg = _require_message(db, ws_id, message_id, viewer)
     if msg.state == "linked" and msg.linked_activity_id is not None:
         act = activities.get_activity(db, ws_id, msg.linked_activity_id)
         if act is not None and act.source == "mailbox":
@@ -865,9 +883,15 @@ class _LinkPlan:
     existing: MailboxMessageOut | None = None
 
 
-def _plan_link(db: Session, ws_id: uuid.UUID, message_id: uuid.UUID, deal_id: uuid.UUID):
-    msg = _require_message(db, ws_id, message_id)
-    deal = require_deal(db, ws_id, deal_id)
+def _plan_link(
+    db: Session,
+    ws_id: uuid.UUID,
+    message_id: uuid.UUID,
+    deal_id: uuid.UUID,
+    viewer: Viewer | None = None,
+):
+    msg = _require_message(db, ws_id, message_id, viewer)
+    deal = require_deal(db, ws_id, deal_id, viewer)
     if deal.stage not in {s.value for s in OPEN_STAGES}:
         raise InvalidInputError("emails can only be linked to an open deal")
     provider = db.get(MailboxConnection, msg.connection_id).provider
@@ -890,9 +914,10 @@ def _finish_link(
     message_id: uuid.UUID,
     deal_id: uuid.UUID,
     body: str,
+    viewer: Viewer | None = None,
 ) -> MailboxMessageOut:
-    msg = _require_message(db, ws_id, message_id)
-    deal = require_deal(db, ws_id, deal_id)
+    msg = _require_message(db, ws_id, message_id, viewer)
+    deal = require_deal(db, ws_id, deal_id, viewer)
     conn = db.get(MailboxConnection, msg.connection_id)
     own = None
     if conn.account_email_enc:
@@ -978,9 +1003,10 @@ async def link_message(
     ws_id: uuid.UUID,
     message_id: uuid.UUID,
     deal_id: uuid.UUID,
+    viewer: Viewer | None = None,
 ) -> MailboxMessageOut:
     """Fetch the body now (the only time it is read) and log the email as an activity."""
-    plan = await run_in_threadpool(_plan_link, db, ws_id, message_id, deal_id)
+    plan = await run_in_threadpool(_plan_link, db, ws_id, message_id, deal_id, viewer)
     await run_in_threadpool(db.rollback)
     if plan.existing is not None:
         return plan.existing
@@ -996,7 +1022,7 @@ async def link_message(
         raise NeedsReconnect(msg) from None
 
     def save() -> MailboxMessageOut:
-        out = _finish_link(db, settings, ws_id, message_id, deal_id, body)
+        out = _finish_link(db, settings, ws_id, message_id, deal_id, body, viewer)
         db.commit()
         return out
 

@@ -11,6 +11,8 @@ from typing import Any
 from sqlalchemy import case, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.config import Settings
 from app.db.models import Account, Contact, TitleCache
 from app.domain.enums import JobFunction, RunKind, RunStatus, Seniority, TitleSource
@@ -102,15 +104,24 @@ def normalize_workspace(
     use_ai: bool,
     settings: Settings,
     factory: Callable[..., Any] | None = None,
+    viewer: Viewer | None = None,
 ) -> dict[str, Any]:
-    """Classify every non-manual contact. Returns the summary also stored on the run."""
+    """Classify every non-manual contact the viewer may see. Returns the summary also stored on
+    the run."""
     if factory is None:
         from app.llm.registry import get_chat_llm
 
         factory = get_chat_llm
     run = start_run(session, RunKind.TITLE_NORMALIZE, ws_id, {"use_ai": use_ai})
     contacts = list(
-        session.scalars(select(Contact).where(Contact.workspace_id == ws_id).order_by(Contact.id))
+        session.scalars(
+            select(Contact)
+            .where(
+                Contact.workspace_id == ws_id,
+                *visibility.conds(visibility.in_accounts(viewer, Contact.account_id)),
+            )
+            .order_by(Contact.id)
+        )
     )
     todo: list[tuple[Contact, TitleClass]] = []
     for c in contacts:
@@ -196,7 +207,9 @@ def normalize_workspace(
     return summary
 
 
-def review_items(session: Session, ws_id: uuid.UUID, limit: int) -> list[tuple[Contact, str]]:
+def review_items(
+    session: Session, ws_id: uuid.UUID, limit: int, viewer: Viewer | None = None
+) -> list[tuple[Contact, str]]:
     """(contact, account name): flagged or unknown first."""
     needs_look = case(
         (Contact.title_flag.is_not(None), 0), (Contact.title_function == "unknown", 0), else_=1
@@ -204,7 +217,10 @@ def review_items(session: Session, ws_id: uuid.UUID, limit: int) -> list[tuple[C
     stmt = (
         select(Contact, Account.name)
         .join(Account, Account.id == Contact.account_id)
-        .where(Contact.workspace_id == ws_id)
+        .where(
+            Contact.workspace_id == ws_id,
+            *visibility.conds(visibility.in_accounts(viewer, Contact.account_id)),
+        )
         .order_by(needs_look, Contact.full_name, Contact.id)
         .limit(limit)
     )
@@ -217,8 +233,9 @@ def set_manual_class(
     contact_id: uuid.UUID,
     function: JobFunction,
     seniority: Seniority,
+    viewer: Viewer | None = None,
 ) -> Contact:
-    contact = require_contact(session, ws_id, contact_id)
+    contact = require_contact(session, ws_id, contact_id, viewer)
     contact.title_function = function.value
     contact.title_seniority = seniority.value
     contact.title_source = TitleSource.MANUAL.value

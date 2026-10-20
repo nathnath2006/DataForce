@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Account, Contact, Document, DocumentChunk, OrgProposal
 from app.domain.enums import ProposalKind, ProposalOrigin, ProposalStatus, RunKind, RunStatus
 from app.orgchart import meetings as meeting_patterns
@@ -186,17 +188,23 @@ def propose(
     use_ai: bool = False,
     settings: Settings | None = None,
     factory: Callable[..., Any] | None = None,
+    viewer: Viewer | None = None,
 ) -> dict[str, Any]:
     """(Re)generate proposals for one account, or for every account of the workspace. A rerun
     replaces the proposed and ambiguous proposals of the requested origins; accepted and
     rejected ones are kept. Never touches an existing manager link."""
     if account_id is not None:
-        require_account(session, ws_id, account_id)
+        require_account(session, ws_id, account_id, viewer)
         account_ids = [account_id]
     else:
         account_ids = list(
             session.scalars(
-                select(Account.id).where(Account.workspace_id == ws_id).order_by(Account.id)
+                select(Account.id)
+                .where(
+                    Account.workspace_id == ws_id,
+                    *visibility.conds(visibility.in_accounts(viewer, Account.id)),
+                )
+                .order_by(Account.id)
             )
         )
     origin_values = sorted({o.value for o in origins})
@@ -307,8 +315,9 @@ def list_proposals(
     ws_id: uuid.UUID,
     account_id: uuid.UUID,
     status: ProposalStatus | None = None,
+    viewer: Viewer | None = None,
 ) -> list[OrgProposal]:
-    require_account(session, ws_id, account_id)
+    require_account(session, ws_id, account_id, viewer)
     stmt = select(OrgProposal).where(
         OrgProposal.workspace_id == ws_id, OrgProposal.account_id == account_id
     )
@@ -330,8 +339,12 @@ def contacts_by_id(
     }
 
 
-def get_proposal(session: Session, ws_id: uuid.UUID, proposal_id: uuid.UUID) -> OrgProposal:
-    return require(session, OrgProposal, ws_id, proposal_id)
+def get_proposal(
+    session: Session, ws_id: uuid.UUID, proposal_id: uuid.UUID, viewer: Viewer | None = None
+) -> OrgProposal:
+    row = require(session, OrgProposal, ws_id, proposal_id)
+    visibility.check_account(session, viewer, row.account_id)
+    return row
 
 
 def _decide_user(session: Session, ws_id: uuid.UUID, by_id: uuid.UUID | None) -> uuid.UUID | None:
@@ -340,10 +353,12 @@ def _decide_user(session: Session, ws_id: uuid.UUID, by_id: uuid.UUID | None) ->
     return by_id
 
 
-def _open_proposal(session: Session, ws_id: uuid.UUID, proposal_id: uuid.UUID) -> OrgProposal:
+def _open_proposal(
+    session: Session, ws_id: uuid.UUID, proposal_id: uuid.UUID, viewer: Viewer | None = None
+) -> OrgProposal:
     """The proposal, read again after the account's org-chart lock is held, so two concurrent
     decisions run one after the other and the second sees the first one's status."""
-    proposal = get_proposal(session, ws_id, proposal_id)
+    proposal = get_proposal(session, ws_id, proposal_id, viewer)
     contact_service._lock_org_chart(session, proposal.account_id)  # noqa: SLF001
     session.refresh(proposal)
     if proposal.status not in _OPEN:
@@ -374,9 +389,10 @@ def accept(
     manager_id: uuid.UUID | None = None,
     by_id: uuid.UUID | None = None,
     force: bool = False,
+    viewer: Viewer | None = None,
 ) -> OrgProposal:
     by = _decide_user(session, ws_id, by_id)
-    proposal = _open_proposal(session, ws_id, proposal_id)
+    proposal = _open_proposal(session, ws_id, proposal_id, viewer)
     if proposal.kind == ProposalKind.REPORTS_TO.value:
         _refuse_stale(session, ws_id, proposal, force)
         if proposal.manager_id is None:  # ambiguous: the user picks among the candidates
@@ -403,10 +419,15 @@ def accept(
 
 
 def reject(
-    session: Session, ws_id: uuid.UUID, proposal_id: uuid.UUID, *, by_id: uuid.UUID | None = None
+    session: Session,
+    ws_id: uuid.UUID,
+    proposal_id: uuid.UUID,
+    *,
+    by_id: uuid.UUID | None = None,
+    viewer: Viewer | None = None,
 ) -> OrgProposal:
     by = _decide_user(session, ws_id, by_id)
-    proposal = _open_proposal(session, ws_id, proposal_id)
+    proposal = _open_proposal(session, ws_id, proposal_id, viewer)
     proposal.status = ProposalStatus.REJECTED.value
     proposal.decided_at = datetime.now(UTC)
     proposal.decided_by_id = by

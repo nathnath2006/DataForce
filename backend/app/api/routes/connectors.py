@@ -13,8 +13,9 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import RedirectResponse
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas import ConnectorOut, ConnectStart
+from app.auth.visibility import require_admin
 from app.connectors import tamtam
 
 router = APIRouter()
@@ -25,14 +26,23 @@ COOKIE_MAX_AGE_S = 600
 
 
 @router.get("/w/{ws}/connectors/tamtam", response_model=ConnectorOut, tags=["connectors"])
-def get_tamtam(db: Db, ws: CurrentWorkspace, settings: AppSettings) -> ConnectorOut:
+def get_tamtam(
+    db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
+) -> ConnectorOut:
+    require_admin(viewer)
     return tamtam.status_view(db, settings, ws)
 
 
 @router.post("/w/{ws}/connectors/tamtam/connect", response_model=ConnectStart, tags=["connectors"])
 async def connect_tamtam(
-    request: Request, db: Db, ws: CurrentWorkspace, settings: AppSettings, response: Response
+    request: Request,
+    db: Db,
+    ws: CurrentWorkspace,
+    settings: AppSettings,
+    response: Response,
+    viewer: CurrentViewer,
 ) -> ConnectStart:
+    require_admin(viewer)
     url, browser_secret = await tamtam.start_connect(
         db, settings, ws.id, request.headers.get("host")
     )
@@ -69,12 +79,18 @@ async def tamtam_callback(request: Request, db: Db, settings: AppSettings) -> Re
 
 
 @router.post("/w/{ws}/connectors/tamtam/check", response_model=ConnectorOut, tags=["connectors"])
-async def check_tamtam(db: Db, ws: CurrentWorkspace, settings: AppSettings) -> ConnectorOut:
+async def check_tamtam(
+    db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
+) -> ConnectorOut:
+    require_admin(viewer)
     await tamtam.run_check(db, settings, ws.id)
     return await run_in_threadpool(tamtam.status_view, db, settings, ws)
 
 
 @router.delete("/w/{ws}/connectors/tamtam", status_code=204, tags=["connectors"])
-async def disconnect_tamtam(db: Db, ws: CurrentWorkspace, settings: AppSettings) -> Response:
+async def disconnect_tamtam(
+    db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
+) -> Response:
+    require_admin(viewer)
     await tamtam.disconnect(db, settings, ws.id)
     return Response(status_code=204)

@@ -9,6 +9,8 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Account, AppUser, Deal, DealStageEvent
 from app.domain.enums import CLOSED_STAGES, DealStage
 from app.domain.schemas import DealIn
@@ -29,8 +31,11 @@ def _check_dates(created_on: date, closed_on: date | None) -> None:
         raise InvalidInputError("closed_on is before created_on")
 
 
-def create_deal(session: Session, ws_id: uuid.UUID, data: DealIn) -> Deal:
-    require_account(session, ws_id, data.account_id)
+def create_deal(
+    session: Session, ws_id: uuid.UUID, data: DealIn, viewer: Viewer | None = None
+) -> Deal:
+    """With a `viewer`, the account must be visible to them."""
+    require_account(session, ws_id, data.account_id, viewer)
     if data.owner_id is not None:
         require_user(session, ws_id, data.owner_id)
     _check_dates(data.created_on, data.closed_on)
@@ -57,8 +62,12 @@ def get_deal(session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID) -> Deal | N
     return get_scoped(session, Deal, ws_id, deal_id)
 
 
-def list_deals(session: Session, ws_id: uuid.UUID) -> list[Deal]:
-    stmt = select(Deal).where(Deal.workspace_id == ws_id).order_by(Deal.created_on, Deal.id)
+def list_deals(session: Session, ws_id: uuid.UUID, viewer: Viewer | None = None) -> list[Deal]:
+    stmt = (
+        select(Deal)
+        .where(Deal.workspace_id == ws_id, *visibility.conds(visibility.deals_cond(viewer)))
+        .order_by(Deal.created_on, Deal.id)
+    )
     return list(session.scalars(stmt))
 
 
@@ -72,11 +81,12 @@ def set_stage(
     changed_at: datetime | None = None,
     changed_by_id: uuid.UUID | None = None,
     source: str = "manual",
+    viewer: Viewer | None = None,
 ) -> Deal:
     """Move a deal. Reopening clears closed_on; closing with closed_on=None keeps any existing
     date (and leaves it missing otherwise). Every real stage change is recorded as a
     DealStageEvent, whichever path called this (M4)."""
-    deal = require_deal(session, ws_id, deal_id)
+    deal = require_deal(session, ws_id, deal_id, viewer)
     previous = deal.stage
     if stage in CLOSED_STAGES:
         if closed_on is not None:
@@ -105,11 +115,15 @@ _UPDATABLE = ("owner_id", "name", "amount_eur", "lead_source", "created_on", "lo
 
 
 def update_deal(
-    session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID, changes: dict[str, Any]
+    session: Session,
+    ws_id: uuid.UUID,
+    deal_id: uuid.UUID,
+    changes: dict[str, Any],
+    viewer: Viewer | None = None,
 ) -> Deal:
     """Partial update (the stage has `set_stage`). The owner must belong to the workspace and
     the dates stay consistent."""
-    deal = require_deal(session, ws_id, deal_id)
+    deal = require_deal(session, ws_id, deal_id, viewer)
     unknown = set(changes) - set(_UPDATABLE)
     if unknown:
         raise InvalidInputError(f"cannot update: {', '.join(sorted(unknown))}")
@@ -134,8 +148,13 @@ def update_deal(
     return deal
 
 
-def delete_deal(session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID) -> None:
-    session.delete(require_deal(session, ws_id, deal_id))
+def delete_deal(
+    session: Session, ws_id: uuid.UUID, deal_id: uuid.UUID, viewer: Viewer | None = None
+) -> None:
+    deal = require_deal(session, ws_id, deal_id, viewer)
+    if viewer is not None:
+        visibility.require_delete(viewer, deal.owner_id)
+    session.delete(deal)
     session.flush()
 
 
@@ -150,9 +169,10 @@ def list_deals_page(
     q: str | None = None,
     limit: int = 200,
     offset: int = 0,
+    viewer: Viewer | None = None,
 ) -> tuple[list[Deal], int]:
     """Newest `created_on` first. `q` is a literal case-insensitive substring of the name."""
-    cond = [Deal.workspace_id == ws_id]
+    cond = [Deal.workspace_id == ws_id, *visibility.conds(visibility.deals_cond(viewer))]
     if account_id is not None:
         cond.append(Deal.account_id == account_id)
     if stage:

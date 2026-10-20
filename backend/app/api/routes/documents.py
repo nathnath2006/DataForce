@@ -11,7 +11,7 @@ from fastapi import APIRouter, File, Form, Query, Response, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import defer
 
-from app.api.deps import AppSettings, CurrentWorkspace, Db
+from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas import Page
 from app.api.schemas_documents import (
     ChunkOut,
@@ -20,15 +20,20 @@ from app.api.schemas_documents import (
     DocumentOut,
     SpeakerOut,
 )
-from app.db.models import Account, Company, Document, DocumentChunk
+from app.auth import visibility
+from app.auth.viewer import Viewer
+from app.db.models import Account, Document, DocumentChunk
+from app.services import companies as company_svc
 from app.services import documents as svc
 from app.services import themes as theme_svc
-from app.services._common import require, require_account
+from app.services._common import require_account
 
 router = APIRouter(tags=["documents"])
 
 
-def _outs(db: Db, ws_id: uuid.UUID, docs: list[Document]) -> list[DocumentOut]:
+def _outs(
+    db: Db, ws_id: uuid.UUID, docs: list[Document], viewer: Viewer | None = None
+) -> list[DocumentOut]:
     ids = [d.id for d in docs]
     if not ids:
         return []
@@ -57,7 +62,7 @@ def _outs(db: Db, ws_id: uuid.UUID, docs: list[Document]) -> list[DocumentOut]:
     ):
         speakers[doc_id].setdefault(sp, SpeakerOut(name=sp, contact_id=cid, user_id=uid))
     labels: dict[uuid.UUID, list[str]] = defaultdict(list)
-    for doc_id, _chunk, _tid, label in theme_svc.chunk_theme_labels(db, ws_id, ids):
+    for doc_id, _chunk, _tid, label in theme_svc.chunk_theme_labels(db, ws_id, ids, viewer):
         if label not in labels[doc_id]:
             labels[doc_id].append(label)
     return [
@@ -93,12 +98,13 @@ def upload_document(
     db: Db,
     ws: CurrentWorkspace,
     settings: AppSettings,
+    viewer: CurrentViewer,
     file: Annotated[UploadFile, File()],
     title: Annotated[str | None, Form(max_length=300)] = None,
     meeting_date: Annotated[date | None, Form()] = None,
     deal_id: Annotated[uuid.UUID | None, Form()] = None,
 ) -> DocumentOut:
-    require_account(db, ws.id, account_id)
+    require_account(db, ws.id, account_id, viewer)
     data = file.file.read(settings.transcript_max_bytes + 1)
     doc = svc.import_file(
         db,
@@ -110,47 +116,65 @@ def upload_document(
         title=title,
         meeting_date=meeting_date,
         deal_id=deal_id,
+        created_by_id=viewer.app_user_id,
+        viewer=viewer,
     )
     db.commit()
-    return _outs(db, ws.id, [doc])[0]
+    return _outs(db, ws.id, [doc], viewer)[0]
 
 
 @router.get("/w/{ws}/accounts/{account_id}/documents", response_model=list[DocumentOut])
-def account_documents(account_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> list[DocumentOut]:
-    require_account(db, ws.id, account_id)
+def account_documents(
+    account_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> list[DocumentOut]:
+    require_account(db, ws.id, account_id, viewer)
     stmt = _order(
         select(Document).where(Document.workspace_id == ws.id, Document.account_id == account_id)
     )
-    return _outs(db, ws.id, list(db.scalars(stmt)))
+    return _outs(db, ws.id, list(db.scalars(stmt)), viewer)
 
 
 @router.get("/w/{ws}/companies/{company_id}/documents", response_model=list[DocumentOut])
-def company_documents(company_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> list[DocumentOut]:
-    require(db, Company, ws.id, company_id)
+def company_documents(
+    company_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> list[DocumentOut]:
+    company_svc.require_company(db, ws.id, company_id, viewer)
     stmt = _order(
         select(Document)
         .join(Account, Account.id == Document.account_id)
-        .where(Document.workspace_id == ws.id, Account.company_id == company_id)
+        .where(
+            Document.workspace_id == ws.id,
+            Account.company_id == company_id,
+            *visibility.conds(visibility.in_accounts(viewer, Document.account_id)),
+        )
     )
-    return _outs(db, ws.id, list(db.scalars(stmt)))
+    return _outs(db, ws.id, list(db.scalars(stmt)), viewer)
 
 
 @router.get("/w/{ws}/documents", response_model=Page[DocumentOut])
 def list_documents(
     db: Db,
     ws: CurrentWorkspace,
+    viewer: CurrentViewer,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> Page[DocumentOut]:
-    stmt = _order(select(Document).where(Document.workspace_id == ws.id))
+    stmt = _order(
+        select(Document).where(
+            Document.workspace_id == ws.id,
+            *visibility.conds(visibility.in_accounts(viewer, Document.account_id)),
+        )
+    )
     rows = list(db.scalars(stmt.limit(limit).offset(offset)))
-    return Page(items=_outs(db, ws.id, rows), total=svc.count_documents(db, ws.id))
+    return Page(items=_outs(db, ws.id, rows, viewer), total=svc.count_documents(db, ws.id, viewer))
 
 
 @router.get("/w/{ws}/documents/{doc_id}", response_model=DocumentDetail)
-def get_document(doc_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> DocumentDetail:
-    doc = svc.require_document(db, ws.id, doc_id)
-    base = _outs(db, ws.id, [doc])[0]
+def get_document(
+    doc_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> DocumentDetail:
+    doc = svc.require_document(db, ws.id, doc_id, viewer)
+    base = _outs(db, ws.id, [doc], viewer)[0]
     chunks = list(
         db.scalars(
             select(DocumentChunk)
@@ -175,13 +199,15 @@ def get_document(doc_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> DocumentDet
         ],
         chunk_themes=[
             ChunkTheme(chunk_id=cid, theme_id=tid, label=label)
-            for _d, cid, tid, label in theme_svc.chunk_theme_labels(db, ws.id, [doc.id])
+            for _d, cid, tid, label in theme_svc.chunk_theme_labels(db, ws.id, [doc.id], viewer)
         ],
     )
 
 
 @router.delete("/w/{ws}/documents/{doc_id}", status_code=204)
-def delete_document(doc_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> Response:
-    svc.delete_document(db, ws.id, doc_id)
+def delete_document(
+    doc_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> Response:
+    svc.delete_document(db, ws.id, doc_id, viewer)
     db.commit()
     return Response(status_code=204)

@@ -13,6 +13,8 @@ from typing import Any
 from sqlalchemy import and_, exists, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import (
     Activity,
     Comment,
@@ -76,7 +78,7 @@ def _key(item: Item) -> tuple[datetime, str]:
     return (item.at, item.id)
 
 
-def _stage_items(session, ws_id, deal_ids, account_id, before, n) -> list[Item]:
+def _stage_items(session, ws_id, deal_ids, account_id, before, n, viewer=None) -> list[Item]:
     from app.db.models import Deal
 
     stmt = select(DealStageEvent, Deal.name).join(Deal, Deal.id == DealStageEvent.deal_id)
@@ -86,6 +88,7 @@ def _stage_items(session, ws_id, deal_ids, account_id, before, n) -> list[Item]:
         if deal_ids is not None
         else Deal.account_id == account_id
     )
+    stmt = stmt.where(*visibility.conds(visibility.in_deals(viewer, DealStageEvent.deal_id)))
     if before:
         stmt = stmt.where(DealStageEvent.changed_at <= before)
     rows = session.execute(stmt.order_by(DealStageEvent.changed_at.desc()).limit(n)).all()
@@ -281,6 +284,7 @@ def build_timeline(
     kinds: set[str] | None = None,
     limit: int = 50,
     before: str | None = None,
+    viewer: Viewer | None = None,
 ) -> tuple[list[Item], str | None]:
     """(items newest first, cursor for the next page or None). Exactly one of deal_id and
     account_id. A deal's timeline also carries its account's notes and comments."""
@@ -290,11 +294,11 @@ def build_timeline(
         raise InvalidInputError(f"unknown kind; use {', '.join(KINDS)}")
     limit = max(1, min(limit, MAX_LIMIT))
     if deal_id is not None:
-        deal = require_deal(session, ws_id, deal_id)
+        deal = require_deal(session, ws_id, deal_id, viewer)
         account = deal.account_id
         deal_ids: list[uuid.UUID] | None = [deal.id]
     else:
-        require_account(session, ws_id, account_id)  # type: ignore[arg-type]
+        require_account(session, ws_id, account_id, viewer)  # type: ignore[arg-type]
         account = account_id  # type: ignore[assignment]
         deal_ids = None
     cursor = decode_cursor(before) if before else None
@@ -306,7 +310,7 @@ def build_timeline(
 
     items: list[Item] = []
     if want("stage"):
-        items += _stage_items(session, ws_id, deal_ids, account, when, n)
+        items += _stage_items(session, ws_id, deal_ids, account, when, n, viewer)
     if want("call", "email", "meeting", "other"):
         items += _activity_items(session, ws_id, deal_id, account, when, n)
     if want("note"):

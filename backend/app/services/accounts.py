@@ -9,6 +9,8 @@ from typing import Any
 from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Account, Contact, Deal
 from app.domain.enums import CLOSED_STAGES
 from app.domain.schemas import AccountIn
@@ -19,14 +21,19 @@ from app.services._common import (
     like_contains,
     pairs,
     require_account,
+    require_user,
     require_workspace,
 )
 from app.services.errors import InvalidInputError
 from app.services.textclean import scrub_optional, scrub_text
 
 
-def create_account(session: Session, ws_id: uuid.UUID, data: AccountIn) -> Account:
+def create_account(
+    session: Session, ws_id: uuid.UUID, data: AccountIn, owner_id: uuid.UUID | None = None
+) -> Account:
     require_workspace(session, ws_id)
+    if owner_id is not None:
+        require_user(session, ws_id, owner_id)
     account = Account(
         workspace_id=ws_id,
         name=scrub_text(data.name),
@@ -38,6 +45,7 @@ def create_account(session: Session, ws_id: uuid.UUID, data: AccountIn) -> Accou
         country=scrub_optional(data.country.upper()) if data.country else None,
         source=data.source.value,
         external_ref=scrub_optional(data.external_ref),
+        owner_id=owner_id,
     )
     session.add(account)
     session.flush()
@@ -48,15 +56,26 @@ def get_account(session: Session, ws_id: uuid.UUID, account_id: uuid.UUID) -> Ac
     return get_scoped(session, Account, ws_id, account_id)
 
 
-def list_accounts(session: Session, ws_id: uuid.UUID) -> list[Account]:
-    stmt = select(Account).where(Account.workspace_id == ws_id).order_by(Account.name, Account.id)
+def list_accounts(
+    session: Session, ws_id: uuid.UUID, viewer: Viewer | None = None
+) -> list[Account]:
+    stmt = (
+        select(Account)
+        .where(
+            Account.workspace_id == ws_id,
+            *visibility.conds(visibility.in_accounts(viewer, Account.id)),
+        )
+        .order_by(Account.name, Account.id)
+    )
     return list(session.scalars(stmt))
 
 
-def erase_account(session: Session, ws_id: uuid.UUID, account_id: uuid.UUID) -> None:
+def erase_account(
+    session: Session, ws_id: uuid.UUID, account_id: uuid.UUID, viewer: Viewer | None = None
+) -> None:
     """GDPR erasure: the account, its contacts, deals, comments and the contacts' notes are
-    hard-deleted by the FK cascade."""
-    require_account(session, ws_id, account_id)
+    hard-deleted by the FK cascade. Admin only (the route checks)."""
+    require_account(session, ws_id, account_id, viewer)
     with erasure(session):
         session.execute(
             delete(Account)
@@ -65,15 +84,28 @@ def erase_account(session: Session, ws_id: uuid.UUID, account_id: uuid.UUID) -> 
         )
 
 
-_UPDATABLE = ("name", "domain", "industry", "segment", "employee_count", "region", "country")
+_UPDATABLE = (
+    "name",
+    "domain",
+    "industry",
+    "segment",
+    "employee_count",
+    "region",
+    "country",
+    "owner_id",
+)
 
 
 def update_account(
-    session: Session, ws_id: uuid.UUID, account_id: uuid.UUID, changes: dict[str, Any]
+    session: Session,
+    ws_id: uuid.UUID,
+    account_id: uuid.UUID,
+    changes: dict[str, Any],
+    viewer: Viewer | None = None,
 ) -> Account:
     """Partial update: only the keys of `changes` are touched, an explicit None clears a field
     (except `name`, which cannot be cleared)."""
-    account = require_account(session, ws_id, account_id)
+    account = require_account(session, ws_id, account_id, viewer)
     unknown = set(changes) - set(_UPDATABLE)
     if unknown:
         raise InvalidInputError(f"cannot update: {', '.join(sorted(unknown))}")
@@ -84,6 +116,9 @@ def update_account(
             value = scrub_text(value).strip() if value is not None else None
             if not value:
                 raise InvalidInputError("name cannot be empty")
+        elif key == "owner_id":
+            if value is not None:
+                require_user(session, ws_id, value)
         elif key == "country":
             value = scrub_optional(value.upper()) if value else None
         elif isinstance(value, str):
@@ -101,10 +136,14 @@ def list_accounts_page(
     segment: str | None = None,
     limit: int = 200,
     offset: int = 0,
+    viewer: Viewer | None = None,
 ) -> tuple[list[Account], int]:
     """A page of accounts (by name) and the total matching. `q` is a literal, case-insensitive
     substring of the name or the domain."""
-    cond = [Account.workspace_id == ws_id]
+    cond = [
+        Account.workspace_id == ws_id,
+        *visibility.conds(visibility.in_accounts(viewer, Account.id)),
+    ]
     if q:
         pattern = like_contains(q)
         cond.append(
@@ -121,7 +160,10 @@ def list_accounts_page(
 
 
 def account_counts(
-    session: Session, ws_id: uuid.UUID, account_ids: list[uuid.UUID]
+    session: Session,
+    ws_id: uuid.UUID,
+    account_ids: list[uuid.UUID],
+    viewer: Viewer | None = None,
 ) -> dict[uuid.UUID, tuple[int, int, int]]:
     """{account id: (n_contacts, n_deals, n_open_deals)} from two grouped queries."""
     if not account_ids:
@@ -142,7 +184,11 @@ def account_counts(
                 func.count(Deal.id),
                 func.coalesce(func.sum(case((Deal.stage.in_(closed), 0), else_=1)), 0),
             )
-            .where(Deal.workspace_id == ws_id, Deal.account_id.in_(account_ids))
+            .where(
+                Deal.workspace_id == ws_id,
+                Deal.account_id.in_(account_ids),
+                *visibility.conds(visibility.deals_cond(viewer)),
+            )
             .group_by(Deal.account_id)
         )
     }

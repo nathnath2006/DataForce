@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { api } from "../api";
+import { useCanDelete } from "../auth";
 import { useWs } from "../context";
 import { formatEur, label } from "../lib";
 import { DEAL_STAGES, LEAD_SOURCES, type DealOut, type DealStage, type LeadSource } from "../types";
@@ -10,6 +11,7 @@ const isClosed = (s: DealStage) => s === "closed_won" || s === "closed_lost";
 
 export function DealsPage() {
   const { ws, users } = useWs();
+  const mayDelete = useCanDelete();
   const [f, setF] = useState({ stage: "", lead_source: "", owner_id: "", q: "" });
   const dq = useDebounced(f.q);
   const { data, error, loading, reload } = useLoad(
@@ -60,7 +62,7 @@ export function DealsPage() {
               <td>{d.lead_source ? <Tag>{label(d.lead_source)}</Tag> : "—"}</td>
               <td>{d.owner_name ?? "—"}</td><td>{d.created_on}</td><td>{d.closed_on ?? "—"}</td>
               <td className="num">{d.cycle_days ?? "—"}</td>
-              <td className="row end"><button className="link" onClick={() => setEditing(d)}>Edit</button><button className="link" onClick={() => setDeleting(d)}>Delete</button></td>
+              <td className="row end"><button className="link" onClick={() => setEditing(d)}>Edit</button>{mayDelete(d.owner_id) && <button className="link" onClick={() => setDeleting(d)}>Delete</button>}</td>
             </tr>
           ))}</tbody>
         </table></div>
@@ -96,12 +98,12 @@ function CloseDialog(props: { deal: DealOut; stage: DealStage; onClose: () => vo
 }
 
 export function DealForm(props: { deal?: DealOut; onClose: () => void; onSaved: () => void }) {
-  const { ws, users, actingAs } = useWs();
+  const { ws, users } = useWs();
   const d0 = props.deal;
   const accounts = useLoad(() => api.listAccounts(ws.slug, { limit: 1000 }), [ws.slug]);
   const [f, setF] = useState({
     name: d0?.name ?? "", account_id: d0?.account_id ?? "", amount: d0?.amount_eur?.toString() ?? "",
-    lead_source: (d0?.lead_source ?? "") as LeadSource | "", owner_id: d0?.owner_id ?? actingAs ?? "",
+    lead_source: (d0?.lead_source ?? "") as LeadSource | "", owner_id: d0?.owner_id ?? "",
     created_on: d0?.created_on ?? todayIso(), stage: "prospecting" as DealStage, closed_on: todayIso(), lost_reason: d0?.lost_reason ?? "",
   });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
@@ -115,12 +117,13 @@ export function DealForm(props: { deal?: DealOut; onClose: () => void; onSaved: 
           if (d0) {
             await api.updateDeal(ws.slug, d0.id, {
               name: f.name.trim(), amount_eur: amount, lead_source: f.lead_source || null,
-              owner_id: f.owner_id || null, created_on: f.created_on, lost_reason: emptyToNull(f.lost_reason),
+              ...(f.owner_id !== (d0.owner_id ?? "") ? { owner_id: f.owner_id || null } : {}),
+              created_on: f.created_on, lost_reason: emptyToNull(f.lost_reason),
             });
           } else {
             await api.createDeal(ws.slug, {
               account_id: f.account_id, name: f.name.trim(), amount_eur: amount, stage: f.stage,
-              lead_source: f.lead_source || null, owner_id: f.owner_id || null, created_on: f.created_on,
+              lead_source: f.lead_source || null, ...(f.owner_id ? { owner_id: f.owner_id } : {}), created_on: f.created_on,
               closed_on: isClosed(f.stage) ? f.closed_on : null, lost_reason: emptyToNull(f.lost_reason),
             });
           }

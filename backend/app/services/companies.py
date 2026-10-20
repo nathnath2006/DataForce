@@ -11,6 +11,8 @@ from typing import Any
 from sqlalchemy import Date, case, cast, func, or_, select, union_all
 from sqlalchemy.orm import Session
 
+from app.auth import visibility
+from app.auth.viewer import Viewer
 from app.db.models import Account, Comment, Company, Contact, Deal, Note
 from app.domain.enums import CLOSED_STAGES, DealStage
 from app.registry.client import RegistryCompany
@@ -29,8 +31,13 @@ EXCERPT_CHARS = 200
 _UPDATABLE = ("name", "domain", "address_line", "postal_code", "city", "country")
 
 
-def require_company(session: Session, ws_id: uuid.UUID, company_id: uuid.UUID) -> Company:
-    return require(session, Company, ws_id, company_id)
+def require_company(
+    session: Session, ws_id: uuid.UUID, company_id: uuid.UUID, viewer: Viewer | None = None
+) -> Company:
+    """With a `viewer`, a company that groups none of their visible accounts is "not found"."""
+    row = require(session, Company, ws_id, company_id)
+    visibility.check_company(session, viewer, company_id)
+    return row
 
 
 def get_company(session: Session, ws_id: uuid.UUID, company_id: uuid.UUID) -> Company | None:
@@ -126,9 +133,13 @@ def apply_registry(session: Session, company: Company, record: RegistryCompany) 
 
 
 def update_company(
-    session: Session, ws_id: uuid.UUID, company_id: uuid.UUID, changes: dict[str, Any]
+    session: Session,
+    ws_id: uuid.UUID,
+    company_id: uuid.UUID,
+    changes: dict[str, Any],
+    viewer: Viewer | None = None,
 ) -> Company:
-    company = require_company(session, ws_id, company_id)
+    company = require_company(session, ws_id, company_id, viewer)
     unknown = set(changes) - set(_UPDATABLE)
     if unknown:
         raise InvalidInputError(f"cannot update: {', '.join(sorted(unknown))}")
@@ -146,18 +157,27 @@ def update_company(
     return company
 
 
-def delete_company(session: Session, ws_id: uuid.UUID, company_id: uuid.UUID) -> None:
-    """Deletes the company; its accounts are kept and unlinked (FK SET NULL)."""
-    company = require_company(session, ws_id, company_id)
+def delete_company(
+    session: Session, ws_id: uuid.UUID, company_id: uuid.UUID, viewer: Viewer | None = None
+) -> None:
+    """Deletes the company; its accounts are kept and unlinked (FK SET NULL). A company has no
+    owner: only the admin deletes it."""
+    company = require_company(session, ws_id, company_id, viewer)
+    if viewer is not None:
+        visibility.require_delete(viewer, None)
     session.delete(company)  # no ORM relationship: the database sets account.company_id to NULL
     session.flush()
     session.expire_all()
 
 
 def link_account(
-    session: Session, ws_id: uuid.UUID, account_id: uuid.UUID, company_id: uuid.UUID | None
+    session: Session,
+    ws_id: uuid.UUID,
+    account_id: uuid.UUID,
+    company_id: uuid.UUID | None,
+    viewer: Viewer | None = None,
 ) -> Account:
-    account = require_account(session, ws_id, account_id)
+    account = require_account(session, ws_id, account_id, viewer)
     if company_id is not None:
         require_company(session, ws_id, company_id)
     account.company_id = company_id
@@ -182,8 +202,12 @@ def list_companies_page(
     q: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    viewer: Viewer | None = None,
 ) -> tuple[list[Company], int]:
-    cond = [Company.workspace_id == ws_id]
+    cond = [
+        Company.workspace_id == ws_id,
+        *visibility.conds(visibility.in_companies(viewer, Company.id)),
+    ]
     if q:
         cond.append(_match(q))
     total = session.scalar(select(func.count()).select_from(Company).where(*cond)) or 0
@@ -203,7 +227,7 @@ def find_by_sirens(session: Session, ws_id: uuid.UUID, sirens: list[str]) -> dic
 
 
 def lookup_accounts_without_company(
-    session: Session, ws_id: uuid.UUID, q: str, limit: int = 20
+    session: Session, ws_id: uuid.UUID, q: str, limit: int = 20, viewer: Viewer | None = None
 ) -> list[Account]:
     pattern = like_contains(q)
     stmt = (
@@ -211,6 +235,7 @@ def lookup_accounts_without_company(
         .where(
             Account.workspace_id == ws_id,
             Account.company_id.is_(None),
+            *visibility.conds(visibility.in_accounts(viewer, Account.id)),
             or_(
                 Account.name.ilike(pattern, escape=LIKE_ESCAPE),
                 Account.domain.ilike(pattern, escape=LIKE_ESCAPE),
@@ -232,15 +257,17 @@ def company_names(session: Session, ws_id: uuid.UUID, ids: list[uuid.UUID]) -> d
 
 
 # --- aggregates -----------------------------------------------------------------------------
-def _interaction_union(ws_id: uuid.UUID):
+def _interaction_union(ws_id: uuid.UUID, viewer: Viewer | None = None):
     """(account_id, at) rows: deal created / closed, current notes of the account's contacts,
     comments. Dates are computed in SQL."""
     parts = [
         select(Deal.account_id.label("account_id"), Deal.created_on.label("at")).where(
-            Deal.workspace_id == ws_id
+            Deal.workspace_id == ws_id, *visibility.conds(visibility.deals_cond(viewer))
         ),
         select(Deal.account_id, Deal.closed_on).where(
-            Deal.workspace_id == ws_id, Deal.closed_on.is_not(None)
+            Deal.workspace_id == ws_id,
+            Deal.closed_on.is_not(None),
+            *visibility.conds(visibility.deals_cond(viewer)),
         ),
         select(Contact.account_id, cast(Note.created_at, Date))
         .join(Contact, Contact.id == Note.contact_id)
@@ -253,11 +280,14 @@ def _interaction_union(ws_id: uuid.UUID):
 
 
 def account_last_interaction(
-    session: Session, ws_id: uuid.UUID, account_ids: list[uuid.UUID]
+    session: Session,
+    ws_id: uuid.UUID,
+    account_ids: list[uuid.UUID],
+    viewer: Viewer | None = None,
 ) -> dict[uuid.UUID, date]:
     if not account_ids:
         return {}
-    u = _interaction_union(ws_id)
+    u = _interaction_union(ws_id, viewer)
     rows = session.execute(
         select(u.c.account_id, func.max(u.c.at))
         .where(u.c.account_id.in_(account_ids))
@@ -267,7 +297,10 @@ def account_last_interaction(
 
 
 def company_stats(
-    session: Session, ws_id: uuid.UUID, company_ids: list[uuid.UUID]
+    session: Session,
+    ws_id: uuid.UUID,
+    company_ids: list[uuid.UUID],
+    viewer: Viewer | None = None,
 ) -> dict[uuid.UUID, dict[str, Any]]:
     """Per company: n_accounts, n_contacts, n_deals, n_open_deals, won_amount_eur,
     last_interaction, interacted. Grouped SQL aggregates, no per-row query."""
@@ -285,16 +318,17 @@ def company_stats(
     }
     if not company_ids:
         return out
+    vis_acc = visibility.conds(visibility.in_accounts(viewer, Account.id))
     for cid, n in session.execute(
         select(Account.company_id, func.count(Account.id))
-        .where(Account.workspace_id == ws_id, Account.company_id.in_(company_ids))
+        .where(Account.workspace_id == ws_id, Account.company_id.in_(company_ids), *vis_acc)
         .group_by(Account.company_id)
     ):
         out[cid]["n_accounts"] = n
     for cid, n in session.execute(
         select(Account.company_id, func.count(Contact.id))
         .join(Contact, Contact.account_id == Account.id)
-        .where(Account.workspace_id == ws_id, Account.company_id.in_(company_ids))
+        .where(Account.workspace_id == ws_id, Account.company_id.in_(company_ids), *vis_acc)
         .group_by(Account.company_id)
     ):
         out[cid]["n_contacts"] = n
@@ -312,15 +346,20 @@ def company_stats(
             ),
         )
         .join(Deal, Deal.account_id == Account.id)
-        .where(Account.workspace_id == ws_id, Account.company_id.in_(company_ids))
+        .where(
+            Account.workspace_id == ws_id,
+            Account.company_id.in_(company_ids),
+            *vis_acc,
+            *visibility.conds(visibility.deals_cond(viewer)),
+        )
         .group_by(Account.company_id)
     ):
         out[cid].update(n_deals=n, n_open_deals=int(n_open), won_amount_eur=Decimal(won))
-    u = _interaction_union(ws_id)
+    u = _interaction_union(ws_id, viewer)
     for cid, last in session.execute(
         select(Account.company_id, func.max(u.c.at))
         .join(u, u.c.account_id == Account.id)
-        .where(Account.workspace_id == ws_id, Account.company_id.in_(company_ids))
+        .where(Account.workspace_id == ws_id, Account.company_id.in_(company_ids), *vis_acc)
         .group_by(Account.company_id)
     ):
         out[cid]["last_interaction"] = last
@@ -333,16 +372,23 @@ def _excerpt(text: str) -> str:
     return text if len(text) <= EXCERPT_CHARS else text[: EXCERPT_CHARS - 1] + "…"
 
 
-def company_360_parts(session: Session, ws_id: uuid.UUID, company_id: uuid.UUID) -> dict:
+def company_360_parts(
+    session: Session, ws_id: uuid.UUID, company_id: uuid.UUID, viewer: Viewer | None = None
+) -> dict:
     """Accounts, contacts (<= 200), deals (<= 500) and activity (<= 50, newest first)."""
     accts = list(
         session.scalars(
             select(Account)
-            .where(Account.workspace_id == ws_id, Account.company_id == company_id)
+            .where(
+                Account.workspace_id == ws_id,
+                Account.company_id == company_id,
+                *visibility.conds(visibility.in_accounts(viewer, Account.id)),
+            )
             .order_by(Account.name, Account.id)
         )
     )
     ids = [a.id for a in accts]
+    vdeal = visibility.conds(visibility.deals_cond(viewer))
     names = {a.id: a.name for a in accts}
     contacts_rows: list[Contact] = []
     deal_rows: list[Deal] = []
@@ -359,14 +405,14 @@ def company_360_parts(session: Session, ws_id: uuid.UUID, company_id: uuid.UUID)
         deal_rows = list(
             session.scalars(
                 select(Deal)
-                .where(Deal.workspace_id == ws_id, Deal.account_id.in_(ids))
+                .where(Deal.workspace_id == ws_id, Deal.account_id.in_(ids), *vdeal)
                 .order_by(Deal.created_on.desc(), Deal.id)
                 .limit(500)
             )
         )
         for d in session.scalars(
             select(Deal)
-            .where(Deal.workspace_id == ws_id, Deal.account_id.in_(ids))
+            .where(Deal.workspace_id == ws_id, Deal.account_id.in_(ids), *vdeal)
             .order_by(Deal.created_on.desc())
             .limit(50)
         ):
@@ -377,7 +423,10 @@ def company_360_parts(session: Session, ws_id: uuid.UUID, company_id: uuid.UUID)
         for d in session.scalars(
             select(Deal)
             .where(
-                Deal.workspace_id == ws_id, Deal.account_id.in_(ids), Deal.closed_on.is_not(None)
+                Deal.workspace_id == ws_id,
+                Deal.account_id.in_(ids),
+                Deal.closed_on.is_not(None),
+                *vdeal,
             )
             .order_by(Deal.closed_on.desc())
             .limit(50)
