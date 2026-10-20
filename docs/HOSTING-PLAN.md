@@ -1,156 +1,173 @@
-# Hosting plan: backend on Supabase + a free host
+# Hosting DataForce online: Supabase + Google Cloud Run (free tiers)
 
-Status: **recommendation, nothing below is built yet** (2026-10-20). For the PO to accept or change.
-It follows `docs/DECISIONS.md` §H and §K: the app runs locally, with no login, until M3b brings login
-**and then** hosting. Hosting without login would expose every workspace to anyone with the address.
+**Status (2026-10-20):**
+- **Database: done.** Supabase project `tiluyxvscirxgvwqlaqb` in **eu-west-1 (Ireland)**, schema migrated
+  with Alembic as the `dataforce_app` role, synthetic `test-data` loaded (16 MB), advisors checked (§3.1).
+  The app still runs on the PO's computer, pointed at Supabase.
+- **Login and own-data visibility exist** (M5). The admin-editable caps are being built (wave 3).
+- **What still blocks hosting:** the *hosted mode* in §2, a few days of work.
 
-Free-plan terms below were checked from memory on 2026-10-20 and change often: confirm them on each
-provider's pricing page before step 5.
+Free-plan terms change often. They were checked on 2026-10-20 from the sources in §6; confirm them
+on each provider's page before deploying.
 
-## 1. Recommendation in one table
+## 1. The shape
 
-| Piece | Recommended (free) | Free alternative | Why |
-|---|---|---|---|
-| Database | **Supabase**, EU region (Frankfurt), plain Postgres + `vector` | Neon (EU), also free Postgres with pgvector | Already planned (§F2, F5); the migrations already lock out Supabase's public API roles. |
-| Python API + UI | **Render**, free web service, Frankfurt, from a Dockerfile | **Koyeb** free instance (Frankfurt); **Google Cloud Run** (europe-west, free monthly quota) | FastAPI already serves the built frontend: one service, one origin, nothing to configure for CORS or cookies. |
-| Frontend | Served by the API service (same origin) | Netlify, proxying `/api/*` to the API | One origin keeps the strict CSP, the Origin checks and the session cookie simple. Netlify stays a static preview. |
-| Secrets | The host's environment variables | – | Never in git, never in Supabase. |
-
-Fly.io no longer has a free plan for new accounts; Vercel / Netlify functions cannot run this backend
-(long requests, pandas / scikit-learn, one process holding in-memory limits).
-
-## 2. What changes, and what does not
-
-Already fine for hosting:
-- **Database URL guards** (`backend/app/config.py`): a non-local host must use TLS; `ENVIRONMENT=demo`
-  refuses default or weak passwords.
-- **Supabase lockdown** (`0002_lockdown`): RLS on every table and no access for `anon` / `authenticated`.
-- **Files are stored in the database** (`LargeBinary`), not on disk: a free host's disk is wiped on each
-  restart, so this is what we want (but it counts against the 500 MB, see §6).
-- **Sealed secrets**: AI keys, TamTam tokens and enriched emails / mobiles are encrypted with
-  `DATAFORCE_SECRET_KEY` before they reach the database.
-
-Must change (in this order, see §3):
-1. **Login** (M3b) — nothing else can be hosted before it.
-2. **The server refuses to run hosted**: `dataforce ui` stops when `ENVIRONMENT=demo`, binds to
-   127.0.0.1 and only accepts loopback `Host` headers (`backend/app/api/security.py`).
-3. **TamTam sign-in** builds an `http://` callback URL (`backend/app/connectors/oauth.py`,
-   `redirect_uri_for`): it must become `https://<public origin>/api/connectors/tamtam/callback`.
-4. **In-memory limits** (assistant questions per hour, AI calls per day, flow slots) reset on every
-   restart and are per process. Fine with one instance; they move to the database with admin-editable caps.
-
-## 3. Action plan
-
-Each step is one pull request, reviewable on its own. Effort is for one developer.
-
-### Step 1 — Database on Supabase, app still local (½ day, can start now)
-Detailed steps were given in chat; in short:
-1. Create the project in the EU region; enable the `vector` extension (Database → Extensions).
-2. Create a dedicated role (SQL Editor): `create role dataforce_app login password '…';`
-   `grant usage, create on schema public to dataforce_app;`.
-3. Put the **session pooler** URL (port 5432, user `dataforce_app.<project-ref>`) in `backend/.env` with
-   `?sslmode=verify-full&sslrootcert=<Supabase CA>` (at least `sslmode=require`); `chmod 600 backend/.env`.
-4. `make migrate`, then optionally `make testdata`.
-5. Supabase → Advisors → Security: expect no finding on DataForce tables (re-tests SR3-01 / SR3-02,
-   never tested on a real instance).
-
-Done when: `make ui` works against Supabase and the advisor is clean.
-
-### Step 2 — Login, invite-only (M3b) (4–6 days)
-- **Users**: email + password, invite-only (an admin creates an invite link; no public sign-up).
-  Password hashing with `hashlib.scrypt` from the standard library (no new dependency), per-user salt.
-- **Sessions**: a `session` table (hashed token, user, expiry, last seen); cookie `HttpOnly`, `Secure`,
-  `SameSite=Lax`, host-only. Logout deletes the row. Idle and absolute expiry.
-- **Roles and membership**: `admin` / `user` (the enum exists) and a user ↔ workspace table. Every route
-  checks membership; admin routes check the role. "Acting as" goes away: the author is the signed-in user.
-- **Keep** the custom `X-DataForce` header and the Origin check on every change (CSRF), JSON-only bodies,
-  the CSP.
-- **Abuse**: login rate limit per email and per IP, constant-time comparison, same answer for an unknown
-  email and a wrong password.
-- **Settings > You**: change password (current password required; other sessions are signed out).
-- Migration `0008_auth`, tests for isolation (a user never sees a workspace they are not a member of).
-
-Done when: every API route returns 401 without a session and 404 for another workspace's ids.
-
-### Step 3 — Make the server hostable (1–2 days)
-- New settings: `PUBLIC_ORIGIN` (for example `https://dataforce.onrender.com`), `ALLOWED_HOSTS`,
-  `TRUST_PROXY` (read `X-Forwarded-Proto` / `-For` from the host's proxy only).
-- New command `dataforce serve`: binds `0.0.0.0:$PORT`, one worker, refuses to start unless login is
-  on, `ENVIRONMENT=demo`, a secret key is set and the database URL uses TLS. `dataforce ui` stays local.
-- Security headers: add `Strict-Transport-Security` when hosted; keep the rest.
-- `redirect_uri_for` uses `PUBLIC_ORIGIN` (https) when hosted.
-- `GET /api/health` (no data, no auth) for the host's health check.
-- A `Dockerfile` (Python 3.13 slim, `pip install --require-hashes`, frontend built in a first stage,
-  non-root user) and a `render.yaml` blueprint. Migrations run as a one-off job before each deploy,
-  never at startup.
-
-Done when: the Docker image runs locally with `ENVIRONMENT=demo` against Supabase, behind https.
-
-### Step 4 — Admin-controlled caps (1–2 days)
-- A `workspace_setting` table (name, value, updated by, updated at) holding overrides of the allow-listed
-  limits shown on the Admin page today (`_LIMITS` in `backend/app/api/routes/admin.py`).
-- Each limit has a **hard ceiling in code** that an override can never exceed (cost guard), and the
-  `.env` value stays the default.
-- The per-hour / per-day counters move to the database, so they survive restarts.
-- Admin page: the limits become editable for admins; every change is logged (who, when, old, new).
-
-### Step 5 — Deploy (½ day)
-1. Render → New → Blueprint from the repository (or a Web Service from the Dockerfile), region Frankfurt.
-2. Environment variables: `ENVIRONMENT=demo`, `DATABASE_URL` (Supabase, TLS), `DATAFORCE_SECRET_KEY`
-   (generate with `dataforce secrets init`, then copy; **keep a copy offline**: losing it means every
-   sealed value is unreadable), `PUBLIC_ORIGIN`, `ALLOWED_HOSTS`. AI keys stay per workspace in the UI.
-3. Run the migration job, create the first admin with a one-off command (`dataforce users create-admin`).
-4. Netlify: either retire it, or make it proxy `/api/*` to the Render URL (`[[redirects]] … status = 200`)
-   and set `PUBLIC_ORIGIN` to the Netlify origin. One origin only, never both.
-
-### Step 6 — Security review and checks (1 day)
-- A new report `docs/security/SR18-hosting.md`: login, sessions, membership isolation, proxy headers,
-  OAuth callback, the admin caps, and the deployed headers (securityheaders-style check).
-- Re-run the Supabase security advisor; confirm `anon` and `authenticated` cannot read any table with the
-  project's anon key.
-
-### Later — per-person mailbox
-Needs step 2. Each user connects their own Gmail / Outlook (read-only OAuth), only emails with CRM
-contact addresses are kept and filed under contact, account and deal, AI suggestions carry the AI badge
-and stay suggestions until accepted, and disconnecting deletes the token and the copied emails.
-
-## 4. Order and total
-
-| Step | Effort | Blocks hosting |
+| Piece | Where (free) | Notes |
 |---|---|---|
-| 1. Supabase database, local app | ½ day | no (do it now) |
-| 2. Login (M3b) | 4–6 days | **yes** |
-| 3. Hostable server | 1–2 days | **yes** |
-| 4. Admin caps | 1–2 days | no |
-| 5. Deploy | ½ day | – |
-| 6. Security review | 1 day | **yes** |
+| Database | **Supabase**, EU region **eu-west-1 (Ireland)**, plain Postgres + the `vector` extension | 500 MB; the project pauses after about a week without activity (§4) |
+| API, UI and the CLI jobs | **Google Cloud Run**, region `europe-west1` (Belgium, a tier-1 price region, close to Ireland) | One container serves the API **and** the built frontend: one origin, so the cookie, CSP and Origin checks stay simple |
+| Secrets | **Google Secret Manager** | `DATAFORCE_SECRET_KEY` and `DATABASE_URL`; never in git, never in the image |
+| One-off scripts (migrations, user creation, demo backfills) | Your computer, pointed at Supabase; or a **Cloud Run job** | Same image, a different command |
+| Frontend preview | Netlify (already set up) | Becomes optional: retire it, or make it proxy `/api/*` to Cloud Run (one origin only, §3.6) |
 
-About 8–12 working days in total; steps 1 and 4 can run in parallel with the others.
+Cloud Run gives 1 GiB of memory on the free allowance. That suits pandas and scikit-learn better
+than hosts capped at 512 MB.
 
-## 5. Running costs
+## 2. Before hosting: the code changes (*hosted mode*)
 
-€0 on the free plans, with these limits:
-- **Supabase free**: 500 MB database, 2 projects, the project **pauses after about a week without
-  activity** (resume from the dashboard), no downloadable backups on the free plan.
-- **Render free**: 512 MB memory, the service **sleeps after about 15 minutes idle** (the next visit waits
-  up to a minute), a monthly cap on running hours.
-- **Koyeb free**: one small instance (512 MB) that scales to zero when idle.
-- **Cloud Run**: a free monthly quota of requests and CPU time; needs a Google Cloud billing account.
+Today the app decides it is "on this computer" from its own `UI_HOST` setting. Behind Cloud Run's
+proxy that would be wrong:
+- empty demo passwords and the one-click demo accounts would be open to anyone;
+- cookies would lack `Secure`.
 
-## 6. Risks and how to handle them
+So hosting needs these changes, all in code, each with tests:
 
-| Risk | Handling |
+| # | Change | State |
+|---|---|---|
+| 1 | Login, sessions, roles, own-data visibility | **done** (M5) |
+| 2 | Settings `PUBLIC_ORIGIN` (e.g. `https://dataforce-xxxx.a.run.app`), `ALLOWED_HOSTS`, `TRUST_PROXY=1` (read `X-Forwarded-Proto/For` from Cloud Run only) | to build |
+| 3 | When `PUBLIC_ORIGIN` is https: cookies always `Secure`; **no empty passwords and no demo chips**, whatever `UI_HOST` says; HSTS header | to build |
+| 4 | Command `dataforce serve`: binds `0.0.0.0:$PORT`, one worker. It refuses to start unless the secret key is set, the database URL uses TLS and `PUBLIC_ORIGIN` is https. `dataforce ui` stays local | to build |
+| 5 | OAuth callbacks built from `PUBLIC_ORIGIN`: TamTam, Gmail, Outlook | to build |
+| 6 | `Dockerfile`: first stage builds `frontend/`, then Python 3.13 slim with `pip install --require-hashes`; non-root user; `dataforce serve` as the command | to build |
+| 6b | `GET /api/health` also runs `SELECT 1` against the database. Cloud Run's health check and the keep-awake job (§4) then count as database activity | to build |
+| 7 | Admin-editable caps (AI calls, assistant rate, flow limits…) | in progress (wave 3) |
+| 8 | Password reset links: today they go to the server log. On Cloud Run that is *Logs Explorer*, readable by the project owner only. Fine for a start; email comes later. The admin can always reset passwords in People and access | acceptable for now |
+| 9 | Rate limits and AI budgets live in memory, one copy per instance. Keep **one instance** (`--max-instances=1`); move them to the database before scaling | acceptable with one instance |
+
+## 3. Step by step
+
+### 3.1 Supabase (database) — done 2026-10-20
+What was done, in order, so it can be repeated on a new project:
+1. supabase.com → **New project** in an EU region (ours: **eu-west-1, Ireland**). Strong database
+   password in the password manager.
+2. **Database → Extensions** → enable `vector`, schema `extensions` (the default). The app role cannot
+   install extensions; migration `0001` then finds it and does nothing.
+3. **SQL Editor**, the app's own role (not the `postgres` superuser). Only the SCRAM verifier of the
+   password goes to Supabase; the password itself stays in `~/.config/dataforce/supabase-app.pw` (0600):
+   ```sql
+   create role dataforce_app login password 'SCRAM-SHA-256$4096:…';
+   grant usage, create on schema public to dataforce_app;
+   grant usage on schema extensions to dataforce_app;
+   alter role dataforce_app set search_path = "$user", public, extensions;
+   ```
+   The last line matters: Supabase sets that search path for `postgres` only, and without it migration
+   `0001` cannot find the `vector` type. Checked afterwards: login, no superuser, no `createrole`,
+   `createdb` or `bypassrls`, member of no Supabase role.
+4. **Connect → Session pooler**: host `aws-0-eu-west-1.pooler.supabase.com`, port **5432**, user
+   `dataforce_app.tiluyxvscirxgvwqlaqb`. DataForce's form:
+   `postgresql+psycopg://dataforce_app.<ref>:<url-encoded password>@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require`
+   (better later: `sslmode=verify-full` with Supabase's CA certificate, from the same panel).
+   - The **session** pooler, not the transaction pooler on 6543: DataForce uses prepared statements,
+     and Cloud Run reaches Supabase over IPv4, which the pooler provides.
+5. Commands run from the computer with `DATABASE_URL` set **for that one process only** (a small
+   wrapper reads the password file and URL-encodes it); `backend/.env` keeps pointing at local docker:
+   `alembic upgrade head`, `dataforce demo testdata`, `dataforce demo backfill-logins --workspace test-data`,
+   `dataforce demo backfill-activities --workspace test-data`, then `make ui`. The first admin was created
+   on the setup screen.
+6. Result, checked with SQL: 36 tables, all owned by `dataforce_app`, row-level security on all, none
+   readable by `anon` or `authenticated`. **Advisors → Security:** 36 × INFO "RLS enabled, no policy"
+   (expected: deny-all for the public API; per-user policies are an M3b item) and 2 × WARN "function
+   search path mutable" on `enforce_append_only` / `guard_truncate`, fixed by migration `0012_onboarding`.
+   **Performance:** unused indexes only (empty database).
+7. **Latency:** bulk loads from the computer are slow (test data 6 min, activities 9 min) because every
+   row is one round trip to Ireland. Normal pages are lighter; measure again from Cloud Run.
+
+### 3.2 Google Cloud (project, billing guard)
+1. console.cloud.google.com → **New project** (e.g. `dataforce`).
+2. **Billing**: Cloud Run's free allowance needs a billing account with a card. Immediately create a
+   **budget** of €1 with alerts at 50 %, 90 % and 100 %, so any spend is visible at once.
+3. Enable the APIs: Cloud Run, Artifact Registry, Cloud Build, Secret Manager.
+4. Install the `gcloud` CLI, then:
+   ```bash
+   gcloud auth login
+   gcloud config set project <project-id>
+   gcloud config set run/region europe-west1
+   ```
+
+### 3.3 Secrets
+```bash
+printf '%s' '<DATAFORCE_SECRET_KEY from your local backend/.env>' | gcloud secrets create dataforce-secret-key --data-file=-
+printf '%s' '<the Supabase URL from 3.1>' | gcloud secrets create dataforce-database-url --data-file=-
+```
+- **Use the same `DATAFORCE_SECRET_KEY` as locally** if you migrate existing data: it decrypts the
+  stored AI keys and tokens. Losing it means re-entering them. Keep a copy offline.
+- Give the Cloud Run service account the *Secret Manager Secret Accessor* role on both secrets.
+
+### 3.4 Build and deploy (after §2 is done)
+```bash
+gcloud artifacts repositories create dataforce --repository-format=docker --location=europe-west1
+gcloud builds submit --tag europe-west1-docker.pkg.dev/<project-id>/dataforce/app:$(git rev-parse --short HEAD)
+gcloud run deploy dataforce \
+  --image europe-west1-docker.pkg.dev/<project-id>/dataforce/app:<tag> \
+  --memory 1Gi --cpu 1 --min-instances 0 --max-instances 1 --concurrency 40 \
+  --allow-unauthenticated \
+  --set-secrets DATAFORCE_SECRET_KEY=dataforce-secret-key:latest,DATABASE_URL=dataforce-database-url:latest \
+  --set-env-vars ENVIRONMENT=demo,PUBLIC_ORIGIN=https://<service-url>,ALLOWED_HOSTS=<service-host>,TRUST_PROXY=1
+```
+- **Why `--allow-unauthenticated`:** DataForce has its own login. Cloud Run's IAM login would block
+  browsers.
+- **`--max-instances 1`:** keeps the in-memory limits correct (§2, row 9).
+- **First deploy:** it prints the service URL. Redeploy once with that URL in `PUBLIC_ORIGIN` and
+  `ALLOWED_HOSTS`, or map your own domain.
+- **Health check:** `GET /api/health` (no data, no login).
+
+### 3.5 Scripts as Cloud Run jobs (optional)
+For a migration or a backfill without your computer:
+```bash
+gcloud run jobs create dataforce-migrate --image <same image> \
+  --set-secrets DATABASE_URL=dataforce-database-url:latest,DATAFORCE_SECRET_KEY=dataforce-secret-key:latest \
+  --command alembic --args upgrade,head
+gcloud run jobs execute dataforce-migrate --wait
+```
+Run migrations **before** deploying a new version, never at container start.
+
+### 3.6 Sign-in callbacks and Netlify
+- **TamTam:** nothing to register; the callback becomes `https://<origin>/api/connectors/tamtam/callback`.
+- **Gmail:** in Google Cloud → *APIs & Services → Credentials*, create a client of type
+  **Web application** (not Desktop) with the authorised redirect URI
+  `https://<origin>/api/mailbox/callback`. Keep Testing mode with yourself and your reps as test users.
+- **Outlook:** in Entra, add the platform **Web** with the redirect URI
+  `https://<origin>/api/mailbox/callback`.
+- **Netlify:** either delete the site, or point it at Cloud Run: in `netlify.toml`, change the `/api/*`
+  redirect to `https://<cloud-run-url>/api/:splat` with `status = 200`, and set `PUBLIC_ORIGIN` to the
+  Netlify origin. **One origin only**, never both.
+
+## 4. Keeping it alive and safe on free plans
+
+| Topic | What to do |
 |---|---|
-| 512 MB is tight: pandas, scipy and scikit-learn load ~250–350 MB, a large flow can go past it | One worker; keep `FLOW_MAX_ROWS` low on the free plan; move to a 1–2 GB plan if runs get killed. |
-| Uploads count against the 500 MB database | Keep `UPLOAD_MAX_BYTES` small; the Admin page already shows usage against `DB_QUOTA_MB=500`. |
-| No backups on Supabase free | `pg_dump` from your computer before each migration and on a schedule; upgrade when real data arrives. |
-| Losing `DATAFORCE_SECRET_KEY` | Store it in a password manager; without it, AI keys, tokens and enriched values must be re-entered. |
-| Cold starts (free hosts sleep) | Acceptable for a demo; a paid instance or a keep-alive is not worth it before real users. |
-| Real customer data on free plans | Free plans are fine for synthetic data. Before real data: a paid Supabase plan (backups), a DPA with each provider, and EU regions only. |
+| Supabase pauses after about a week without activity | Normal use keeps it awake. For quiet weeks, a free **Cloud Scheduler** job (3 free jobs per account) calls `GET /api/health` daily. This works once §2 row 6b makes that route query the database; today it does not. Otherwise resume from the dashboard |
+| Cold starts (`min-instances 0`) | The first visit after a quiet spell waits a few seconds; acceptable for a demo |
+| No downloadable backups on Supabase free | Weekly `pg_dump` from your computer (`pg_dump "<session pooler URL>" -Fc -f dataforce-$(date +%F).dump`), plus one before every migration |
+| 500 MB database | The Admin page shows usage against `DB_QUOTA_MB` (set it to 500). Uploads are stored in the database: keep `UPLOAD_MAX_BYTES` small |
+| Real customer data | Start with synthetic data only. Before real data: a paid Supabase plan (backups), data-processing agreements with Google and Supabase, and EU regions only |
 
-## 7. Decisions needed from the PO
+## 5. Order and effort
 
-1. Accept Render (or pick Koyeb / Cloud Run) and Supabase EU.
-2. One origin served by the API (recommended), or Netlify proxying `/api/*`.
-3. Login scope: invite-only email + password as planned, or also Google / Microsoft sign-in.
-4. Whether synthetic data only is hosted first (recommended), real data after the review and a paid plan.
+| Step | Effort |
+|---|---|
+| §3.1 Supabase, app still local | **done 2026-10-20** |
+| §2 hosted mode, rows 2–6 | 2–3 days, then a security review (cookies, proxy headers, host checks, OAuth callbacks) |
+| §3.2–3.4 Google Cloud and the first deploy | half a day |
+| §3.6 callbacks, Netlify, Scheduler, backups | half a day |
+
+## 6. Sources (checked 2026-10-20)
+
+- Cloud Run pricing and free tier (tier-1 regions, request-based billing): 2 million requests,
+  180,000 vCPU-seconds and 360,000 GiB-seconds per month, per billing account —
+  https://cloud.google.com/run/pricing
+- Supabase free plan: 2 projects, 500 MB database, pause after about a week of inactivity —
+  https://automationatlas.io/answers/supabase-free-tier-limits-2026/ ,
+  https://www.jetadmin.io/blog/supabase-pricing-2026-guide-to-plans-limits-and-real-world-costs/
+- Earlier version of this plan (Render-based): git history of this file (commit 88dd783).
