@@ -1,7 +1,6 @@
-# Netlify: a static preview of the frontend only (docs/DECISIONS.md §H and §K: the API stays
-# local, without login, until M3b brings login and hosting). Netlify builds frontend/ and
-# serves frontend/dist. Without this file it serves the repository root, which has no
-# index.html, hence the 404.
+# Netlify: the app now runs on Google Cloud Run (docs/HOSTING-PLAN.md, decision S), API and
+# interface on one origin. This site only forwards: every path, permanently, to the same path on
+# Cloud Run. The build stays so Netlify has something to publish; nothing of it is served.
 [build]
   base = "frontend"
   command = "npm ci && npm run build"
@@ -10,30 +9,8 @@
 [build.environment]
   NODE_VERSION = "22"
 
-# No API here: /api answers with the backend's error shape so every screen shows a clear
-# message instead of trying to parse index.html as JSON. The rule must come before the SPA one.
-[[redirects]]
-  from = "/api/*"
-  to = "/api-unavailable.json"
-  status = 404
-  force = true
-
-# BrowserRouter: every app path (/accounts, /flows/…) loads index.html; real files win.
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200
-
-# Same security headers as the local server (backend/app/api/security.py).
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "no-referrer"
-    X-Frame-Options = "DENY"
-
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    Cache-Control = "no-store"
+  to = "https://dataforce-239133496698.europe-west1.run.app/:splat"
+  status = 301
+  force = true
