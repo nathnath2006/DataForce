@@ -11,14 +11,16 @@ A pure ASGI middleware, so it also sees the requests that never reach a route:
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import re
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.config import Settings
+from app.config import Settings, effective_origins, is_hosted
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +45,13 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
 )
 
 
+HSTS = (b"strict-transport-security", b"max-age=31536000; includeSubDomains")
+
+
 def allowed_hosts(settings: Settings) -> frozenset[str]:
+    if is_hosted(settings):
+        names = {urlsplit(settings.public_origin).netloc, *settings.allowed_hosts}
+        return frozenset(n.lower() for n in names)
     ports = {settings.ui_port, VITE_PORT}
     return frozenset(
         f"{name}:{port}" for port in ports for name in ("127.0.0.1", "localhost", "[::1]")
@@ -54,7 +62,10 @@ class SecurityMiddleware:
     def __init__(self, app: ASGIApp, settings: Settings) -> None:
         self.app = app
         self.hosts = allowed_hosts(settings)
-        self.origins = frozenset(o.lower() for o in settings.ui_allowed_origins)
+        self.origins = frozenset(o.lower() for o in effective_origins(settings))
+        self.security_headers = (
+            (*SECURITY_HEADERS, HSTS) if is_hosted(settings) else SECURITY_HEADERS
+        )
         self.upload_limit = settings.upload_max_bytes + MULTIPART_OVERHEAD
         self.transcript_limit = settings.transcript_max_bytes + MULTIPART_OVERHEAD
 
@@ -69,9 +80,9 @@ class SecurityMiddleware:
                 headers = [
                     (k, v)
                     for k, v in message.get("headers", [])
-                    if k.lower() not in {name for name, _ in SECURITY_HEADERS}
+                    if k.lower() not in {name for name, _ in self.security_headers}
                 ]
-                headers.extend(SECURITY_HEADERS)
+                headers.extend(self.security_headers)
                 if is_api:
                     headers = [(k, v) for k, v in headers if k.lower() != b"cache-control"]
                     headers.append((b"cache-control", b"no-store"))
@@ -180,8 +191,48 @@ class SecurityMiddleware:
         await send({"type": "http.response.body", "body": body})
 
 
+def forwarded_client(header: str, hops: int) -> str | None:
+    """The client address a trusted proxy appended to X-Forwarded-For: the `hops`-th entry from
+    the right. Entries further left are written by the client and never trusted."""
+    entries = [e.strip() for e in header.split(",") if e.strip()]
+    if len(entries) < hops:
+        return None
+    candidate = entries[-hops]
+    if candidate.startswith("[") and "]" in candidate:  # [v6]:port
+        candidate = candidate[1 : candidate.index("]")]
+    elif candidate.count(":") == 1:  # v4:port
+        candidate = candidate.split(":", 1)[0]
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return None
+
+
+class ForwardedClientMiddleware:
+    """Hosted mode behind the platform's HTTPS front end: set the client address (used by the
+    sign-in rate limits) from X-Forwarded-For, counted from the right, and the scheme to https.
+    Replaces uvicorn's proxy headers, whose `forwarded_allow_ips="*"` trusts the FIRST entry,
+    which the client controls."""
+
+    def __init__(self, app: ASGIApp, hops: int) -> None:
+        self.app = app
+        self.hops = hops
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] in ("http", "websocket"):
+            values = [v for k, v in scope.get("headers", []) if k == b"x-forwarded-for"]
+            header = ",".join(v.decode("latin-1") for v in values)
+            client = forwarded_client(header, self.hops) if header else None
+            scope = dict(scope)
+            scope["client"] = (client, 0) if client else None
+            scope["scheme"] = "https" if scope["type"] == "http" else "wss"
+        await self.app(scope, receive, send)
+
+
 def install_security(app: FastAPI, settings: Settings) -> None:
     from app.auth.middleware import SessionMiddleware
 
     app.add_middleware(SessionMiddleware)  # inside the guard: its 401 gets the security headers
     app.add_middleware(SecurityMiddleware, settings=settings)
+    if is_hosted(settings) and settings.trust_proxy:
+        app.add_middleware(ForwardedClientMiddleware, hops=settings.trust_proxy_hops)

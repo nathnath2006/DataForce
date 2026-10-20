@@ -985,6 +985,7 @@ export interface HTTPValidationError {
 }
 
 export interface Health {
+  database?: string;
   environment: string;
   ok: boolean;
   version: string;

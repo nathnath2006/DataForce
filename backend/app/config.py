@@ -276,6 +276,16 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://localhost:5173",
     ]
+    # Hosted mode (docs/HOSTED-MODE-CONTRACT.md): the one switch. Empty = local mode. Set to the
+    # public https origin (e.g. https://dataforce-abc123-ew.a.run.app) = hosted mode.
+    public_origin: str = ""
+    # Extra Host header values accepted in hosted mode (e.g. a custom domain).
+    allowed_hosts: list[str] = []
+    # Hosted only: take the client address from X-Forwarded-For as appended by the platform's
+    # front end. The LAST `trust_proxy_hops` entries are written by trusted proxies; anything
+    # before them is client-controlled and ignored (Cloud Run: 1).
+    trust_proxy: bool = False
+    trust_proxy_hops: int = Field(default=1, ge=1, le=5)
     # Built frontend served at / (empty or missing = API only).
     ui_dist_dir: Path = BACKEND_DIR.parent / "frontend" / "dist"
 
@@ -374,6 +384,37 @@ class Settings(BaseSettings):
             raise ValueError("UI_HOST must be a loopback address (127.0.0.1, ::1 or localhost)")
         return value
 
+    @field_validator("public_origin", mode="after")
+    @classmethod
+    def _check_public_origin(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            return ""
+        parts = urlsplit(value)
+        if parts.scheme != "https":
+            raise ValueError("PUBLIC_ORIGIN must be an https:// origin (even on localhost)")
+        if (
+            not parts.hostname
+            or parts.path not in ("", "/")
+            or parts.query
+            or parts.fragment
+            or parts.username is not None
+            or parts.password is not None
+        ):
+            raise ValueError("PUBLIC_ORIGIN must be a bare origin (https://host[:port])")
+        return f"https://{parts.netloc}".lower()
+
+    @field_validator("allowed_hosts", mode="after")
+    @classmethod
+    def _check_allowed_hosts(cls, value: list[str]) -> list[str]:
+        out = []
+        for host in value:
+            host = host.strip().lower()
+            if not host or any(c in host for c in "/?#@ "):
+                raise ValueError("ALLOWED_HOSTS: each entry must be a bare host[:port]")
+            out.append(host)
+        return out
+
     @field_validator("tamtam_oauth_allowed_issuers", "ui_allowed_origins", mode="after")
     @classmethod
     def _check_origins(cls, value: list[str], info: ValidationInfo) -> list[str]:
@@ -397,6 +438,16 @@ class Settings(BaseSettings):
     def database_target(self) -> str:
         """`host:port/db` of the configured database (no credentials), for banners and logs."""
         return describe_database_target(self.database_url.get_secret_value())
+
+
+def is_hosted(settings: Settings) -> bool:
+    """Hosted mode is on exactly when PUBLIC_ORIGIN is set, never inferred from anything else."""
+    return bool(settings.public_origin)
+
+
+def effective_origins(settings: Settings) -> list[str]:
+    """Origins allowed to send state-changing requests: only the public origin when hosted."""
+    return [settings.public_origin] if is_hosted(settings) else list(settings.ui_allowed_origins)
 
 
 def _env_file_is_open() -> bool:

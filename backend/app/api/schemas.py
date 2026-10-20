@@ -47,6 +47,7 @@ class Health(BaseModel):
     ok: bool
     version: str
     environment: str
+    database: str = "ok"
 
 
 # --- workspaces and users -------------------------------------------------------------------------

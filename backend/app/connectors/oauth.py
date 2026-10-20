@@ -224,7 +224,10 @@ _VITE_PORT = 5173
 def redirect_uri_for(settings: Settings, host: str | None = None) -> str:
     """The callback URL on the origin the browser is using (so the host-only `df_oauth` cookie
     comes back with it). `host` is the request's Host header; anything outside the loopback
-    names on the UI or Vite port falls back to 127.0.0.1 on the UI port."""
+    names on the UI or Vite port falls back to 127.0.0.1 on the UI port.
+    Hosted: the public origin."""
+    if settings.public_origin:
+        return f"{settings.public_origin}/api/connectors/tamtam/callback"
     netloc = f"127.0.0.1:{settings.ui_port}"
     match = _HOST_RE.match((host or "").strip().lower())
     if match and int(match.group(2)) in {settings.ui_port, _VITE_PORT}:

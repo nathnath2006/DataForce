@@ -675,3 +675,27 @@ migration `0012_onboarding` (`SET search_path = ''` on `enforce_append_only` and
 Security review: no high or medium left; the thread-start failure, a `BaseException` escape and a
 stale `failed` status were fixed. Orphan demo sign-ins after removing a test workspace are kept
 (they cannot sign in: no workspace). Branch `wip/m5-wave3`'s `0012_user_settings` becomes `0013`.
+
+## S. Hosted mode for Google Cloud Run (2026-10-20) [build]
+
+`docs/HOSTED-MODE-CONTRACT.md`, `docs/HOSTING-PLAN.md` §2. One switch, `PUBLIC_ORIGIN`: empty = local
+mode, unchanged; an https origin = hosted mode. Hosted mode means:
+- `Host` and `Origin` limited to that origin (plus `ALLOWED_HOSTS`), and HSTS;
+- every cookie `Secure`, no empty passwords and no demo sign-in buttons;
+- OAuth callbacks and reset links built from `PUBLIC_ORIGIN`.
+
+New command `dataforce serve` (0.0.0.0:$PORT, one worker, no migrations). It refuses to start without
+an https origin, the secret key, a TLS database URL and `ENVIRONMENT=demo`. `/api/health` probes the
+database, at most once every 5 s per process. `Dockerfile`: frontend built in a first stage, Python 3.13
+slim with hashed requirements, non-root user. Tested in a local container against Supabase.
+
+Security review: 1 high, fixed. uvicorn's `forwarded_allow_ips="*"` trusts the first
+`X-Forwarded-For` entry, which the client writes, so faking it per request bypassed the sign-in and
+reset rate limits. Our middleware now takes the entry Cloud Run's front end appends (`TRUST_PROXY_HOPS`
+from the right); confirm it on the first deploy. 1 medium, fixed: `ENVIRONMENT=test` was accepted by
+`serve`.
+
+Accepted for now:
+- `sslmode=require` without certificate checks (verify-full next);
+- reset links in Cloud Logging;
+- CPU only during requests on default Cloud Run billing.

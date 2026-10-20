@@ -16,6 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas import ConnectorOut, ConnectStart
 from app.auth.visibility import require_admin
+from app.config import is_hosted
 from app.connectors import tamtam
 
 router = APIRouter()
@@ -53,6 +54,7 @@ async def connect_tamtam(
         path=COOKIE_PATH,
         httponly=True,
         samesite="lax",
+        secure=is_hosted(settings),
     )
     return ConnectStart(authorize_url=url)
 

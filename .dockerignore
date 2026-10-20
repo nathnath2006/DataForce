@@ -1,0 +1,22 @@
+# Keep secrets, data and dev-only trees out of the build context (and so out of the image).
+.git
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.DS_Store
+frontend/dist
+backend/.env*
+!backend/.env.example
+.env
+.env.*
+**/*.pem
+**/*.key
+notebooks
+data
+backend/eval
+backend/tests
+docs
+*.dump

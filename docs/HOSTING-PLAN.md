@@ -5,7 +5,7 @@
   with Alembic as the `dataforce_app` role, synthetic `test-data` loaded (16 MB), advisors checked (§3.1).
   The app still runs on the PO's computer, pointed at Supabase.
 - **Login and own-data visibility exist** (M5). The admin-editable caps are being built (wave 3).
-- **What still blocks hosting:** the *hosted mode* in §2, a few days of work.
+- **Hosted mode: done** (§2, 2026-10-20), tested in a local container against Supabase. Next: the Google Cloud steps (§3.2–3.4).
 
 Free-plan terms change often. They were checked on 2026-10-20 from the sources in §6; confirm them
 on each provider's page before deploying.
@@ -35,15 +35,15 @@ So hosting needs these changes, all in code, each with tests:
 | # | Change | State |
 |---|---|---|
 | 1 | Login, sessions, roles, own-data visibility | **done** (M5) |
-| 2 | Settings `PUBLIC_ORIGIN` (e.g. `https://dataforce-xxxx.a.run.app`), `ALLOWED_HOSTS`, `TRUST_PROXY=1` (read `X-Forwarded-Proto/For` from Cloud Run only) | to build |
-| 3 | When `PUBLIC_ORIGIN` is https: cookies always `Secure`; **no empty passwords and no demo chips**, whatever `UI_HOST` says; HSTS header | to build |
-| 4 | Command `dataforce serve`: binds `0.0.0.0:$PORT`, one worker. It refuses to start unless the secret key is set, the database URL uses TLS and `PUBLIC_ORIGIN` is https. `dataforce ui` stays local | to build |
-| 5 | OAuth callbacks built from `PUBLIC_ORIGIN`: TamTam, Gmail, Outlook | to build |
-| 6 | `Dockerfile`: first stage builds `frontend/`, then Python 3.13 slim with `pip install --require-hashes`; non-root user; `dataforce serve` as the command | to build |
-| 6b | `GET /api/health` also runs `SELECT 1` against the database. Cloud Run's health check and the keep-awake job (§4) then count as database activity | to build |
+| 2 | Settings `PUBLIC_ORIGIN` (e.g. `https://dataforce-xxxx.a.run.app`; empty = local mode, the only switch), `ALLOWED_HOSTS`, `TRUST_PROXY=1`: the client address for the sign-in rate limits is the **last** `X-Forwarded-For` entry, the one Cloud Run's front end appends (`TRUST_PROXY_HOPS`, default 1); entries the client wrote are ignored | **done 2026-10-20** |
+| 3 | When `PUBLIC_ORIGIN` is https: cookies always `Secure`; **no empty passwords and no demo chips**, whatever `UI_HOST` says; HSTS header | **done 2026-10-20** |
+| 4 | Command `dataforce serve`: binds `0.0.0.0:$PORT`, one worker. It refuses to start unless the secret key is set, the database URL uses TLS, `PUBLIC_ORIGIN` is https and `ENVIRONMENT=demo`. `dataforce ui` stays local. Migrations never run at start | **done 2026-10-20** |
+| 5 | OAuth callbacks built from `PUBLIC_ORIGIN`: TamTam, Gmail, Outlook | **done 2026-10-20** |
+| 6 | `Dockerfile` and `.dockerignore`: first stage builds `frontend/`, then Python 3.13 slim with `pip install --require-hashes`; non-root user; `dataforce serve` as the command; Alembic included. `make image` builds it locally as `dataforce:local` | **done 2026-10-20** (tested in hosted mode against Supabase) |
+| 6b | `GET /api/health` also runs `SELECT 1` against the database. Cloud Run's health check and the keep-awake job (§4) then count as database activity; answers 503 when the database is down; one probe per 5 s per process, whatever the call rate | **done 2026-10-20** |
 | 7 | Admin-editable caps (AI calls, assistant rate, flow limits…) | in progress (wave 3) |
-| 8 | Password reset links: today they go to the server log. On Cloud Run that is *Logs Explorer*, readable by the project owner only. Fine for a start; email comes later. The admin can always reset passwords in People and access | acceptable for now |
-| 9 | Rate limits and AI budgets live in memory, one copy per instance. Keep **one instance** (`--max-instances=1`); move them to the database before scaling | acceptable with one instance |
+| 8 | Password reset links: today they go to the server log. On Cloud Run that is *Logs Explorer*, readable by the project owner only. Fine for a start; email comes later. The admin can always reset passwords in People and access. Anyone with log access can use a link within its 15 minutes: give *Logs Viewer* to nobody else and never export these logs | acceptable for now |
+| 9 | Rate limits, AI budgets and the test-workspace fill registry live in memory, one copy per instance. Keep **one instance** (`--max-instances 1`); move them to the database before scaling | acceptable with one instance |
 
 ## 3. Step by step
 
@@ -105,12 +105,15 @@ printf '%s' '<the Supabase URL from 3.1>' | gcloud secrets create dataforce-data
 - Give the Cloud Run service account the *Secret Manager Secret Accessor* role on both secrets.
 
 ### 3.4 Build and deploy (after §2 is done)
+The image runs `dataforce serve` (port 8080, one worker). It refuses to start without `PUBLIC_ORIGIN` (https), `DATAFORCE_SECRET_KEY`, a TLS database URL and `ENVIRONMENT=demo`.
+
 ```bash
 gcloud artifacts repositories create dataforce --repository-format=docker --location=europe-west1
+# `make image` builds the same image locally (dataforce:local) for a test run first.
 gcloud builds submit --tag europe-west1-docker.pkg.dev/<project-id>/dataforce/app:$(git rev-parse --short HEAD)
 gcloud run deploy dataforce \
   --image europe-west1-docker.pkg.dev/<project-id>/dataforce/app:<tag> \
-  --memory 1Gi --cpu 1 --min-instances 0 --max-instances 1 --concurrency 40 \
+  --port 8080 --memory 1Gi --cpu 1 --min-instances 0 --max-instances 1 --concurrency 40 \
   --allow-unauthenticated \
   --set-secrets DATAFORCE_SECRET_KEY=dataforce-secret-key:latest,DATABASE_URL=dataforce-database-url:latest \
   --set-env-vars ENVIRONMENT=demo,PUBLIC_ORIGIN=https://<service-url>,ALLOWED_HOSTS=<service-host>,TRUST_PROXY=1
@@ -120,17 +123,35 @@ gcloud run deploy dataforce \
 - **`--max-instances 1`:** keeps the in-memory limits correct (§2, row 9).
 - **First deploy:** it prints the service URL. Redeploy once with that URL in `PUBLIC_ORIGIN` and
   `ALLOWED_HOSTS`, or map your own domain.
-- **Health check:** `GET /api/health` (no data, no login).
+- **Secrets only through `--set-secrets`:** never put `DATABASE_URL` or the secret key in
+  `--set-env-vars` (they would show in the service description and its revisions).
+- **`ALLOWED_HOSTS`:** Cloud Run serves two addresses, `<service>-<hash>-ew.a.run.app` and
+  `<service>-<project-number>.europe-west1.run.app`. Requests to a host not in `PUBLIC_ORIGIN` or
+  `ALLOWED_HOSTS` get 400, so list the second one too if you use it.
+- **Rate limits behind the proxy:** after the first deploy, sign in once with a wrong password and
+  check in Logs Explorer that the logged client address is your own IP, not Google's. If not, adjust
+  `TRUST_PROXY_HOPS`.
+- **Database TLS:** `sslmode=require` encrypts but does not check Supabase's certificate. Next step:
+  `sslmode=verify-full&sslrootcert=/app/supabase-ca.crt` with Supabase's CA file copied into the image.
+- **Health check:** `GET /api/health` (no data, no login); it also queries the database and answers 503 when
+  that fails.
+- **Known limits:**
+  - Cloud Run's default billing gives the container CPU **only while a request is being served**.
+    Background work (the test-workspace fill thread, a flow run that outlives its request) can stall
+    between requests; the onboarding page polls every 700 ms, which keeps it going while it is open.
+    The fix is `--no-cpu-throttling` (instance-based billing); not used by default.
+  - One instance only: rate limits and the fill registry are per process.
 
-### 3.5 Scripts as Cloud Run jobs (optional)
-For a migration or a backfill without your computer:
+### 3.5 Migrations and scripts as Cloud Run jobs
+The image carries Alembic, so a migration runs from the **same image** as the service, without your computer:
 ```bash
 gcloud run jobs create dataforce-migrate --image <same image> \
   --set-secrets DATABASE_URL=dataforce-database-url:latest,DATAFORCE_SECRET_KEY=dataforce-secret-key:latest \
+  --set-env-vars ENVIRONMENT=demo \
   --command alembic --args upgrade,head
 gcloud run jobs execute dataforce-migrate --wait
 ```
-Run migrations **before** deploying a new version, never at container start.
+Run migrations **before** deploying a new version (update the job to the new image, execute it, then deploy the service), never at container start: `dataforce serve` does not migrate. Other one-off commands (a backfill) are the same job with a different `--command`.
 
 ### 3.6 Sign-in callbacks and Netlify
 - **TamTam:** nothing to register; the callback becomes `https://<origin>/api/connectors/tamtam/callback`.

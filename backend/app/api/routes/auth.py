@@ -22,7 +22,7 @@ from app.api.schemas_auth import (
 )
 from app.auth import passwords, ratelimit, reset, sessions
 from app.auth.access import empty_password_allowed, is_loopback
-from app.config import Settings
+from app.config import Settings, is_hosted
 from app.db.models import AppUser, Membership, UserAccount, Workspace
 from app.services import user_accounts
 
@@ -41,7 +41,7 @@ def set_cookie(response: Response, token: str, settings: Settings) -> None:
         httponly=True,
         samesite="lax",
         path="/",
-        secure=not is_loopback(settings),
+        secure=is_hosted(settings) or not is_loopback(settings),
     )
 
 
@@ -125,11 +125,11 @@ def forgot(body: ForgotIn, request: Request, db: Db, settings: AppSettings) -> d
     if user is not None and not user.disabled:
         token = reset.make_token(settings, user)
         if token is not None:
+            origin = settings.public_origin or f"http://{settings.ui_host}:{settings.ui_port}"
             log.warning(
-                "Password reset link for %s (valid 15 minutes): http://%s:%s/reset?token=%s",
+                "Password reset link for %s (valid 15 minutes): %s/reset?token=%s",
                 user.email,
-                settings.ui_host,
-                settings.ui_port,
+                origin,
                 token,
             )
     return {"accepted": True}

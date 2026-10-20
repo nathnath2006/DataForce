@@ -7,12 +7,13 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import Settings, is_loopback_host
+from app.config import Settings, is_hosted, is_loopback_host
 from app.db.models import Membership, UserAccount, Workspace
 
 
 def is_loopback(settings: Settings) -> bool:
-    return is_loopback_host(settings.ui_host)
+    """Never true when hosted: a loopback UI_HOST says nothing about who can reach the app."""
+    return not is_hosted(settings) and is_loopback_host(settings.ui_host)
 
 
 def empty_password_allowed(

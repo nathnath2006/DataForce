@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import typer
 
-from app.cli import crm, db, demo, mcp, secrets, stats, ui, users
+from app.cli import crm, db, demo, mcp, secrets, serve, stats, ui, users
 
 app = typer.Typer(
     name="dataforce",
@@ -27,5 +27,6 @@ app.add_typer(mcp.app, name="mcp")
 app.add_typer(users.app, name="users")
 demo.app.command("backfill-logins")(users.backfill_logins_cmd)
 app.command("ui")(ui.ui)
+app.command("serve")(serve.serve)
 
 __all__ = ["app"]

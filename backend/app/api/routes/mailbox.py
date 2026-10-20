@@ -27,6 +27,7 @@ from app.api.schemas_mailbox import (
     Provider,
 )
 from app.auth.visibility import require_admin
+from app.config import is_hosted
 from app.services import mailbox as svc
 
 router = APIRouter(tags=["mailbox"])
@@ -80,6 +81,7 @@ async def connect(
         path=COOKIE_PATH,
         httponly=True,
         samesite="lax",
+        secure=is_hosted(settings),
     )
     return MailboxConnectOut(authorize_url=url)
 

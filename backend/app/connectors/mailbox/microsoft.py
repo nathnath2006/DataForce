@@ -28,6 +28,8 @@ def _authority(settings: Any) -> str:
 
 
 def redirect_uri(settings: Any, host: str | None = None) -> str:
+    if settings.public_origin:
+        return f"{settings.public_origin}/api/mailbox/callback"
     # Entra accepts `http://localhost` for desktop clients but not the literal 127.0.0.1.
     return f"http://localhost:{settings.ui_port}/api/mailbox/callback"
 
