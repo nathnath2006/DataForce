@@ -10,6 +10,12 @@
   project `gen-lang-client-0115533966`, europe-west1, revision `dataforce-00001`, image `app:6c2169c`).
   Runs as service account `dataforce-run`, which can read only the two secrets. The Netlify site
   redirects every path there. Still to confirm live: the client address used by the sign-in rate limits.
+- **Updated 2026-10-20 evening:** revision `dataforce-00002` (image `app:4b61f2b`, M6 and the public demo),
+  Supabase at `0015_demo`. Email through Gmail SMTP (`SMTP_USERNAME`, `MAIL_FROM`, secret
+  `dataforce-smtp-password`). Cloud Run jobs: `dataforce-demo-reset` (`dataforce demo reset`, about 5 min) and
+  `dataforce-migrate` (`alembic upgrade head`, run before a deploy that needs a migration). Cloud Scheduler:
+  `dataforce-demo-nightly` at 04:00 Europe/Paris (service account `dataforce-scheduler`, allowed to run that job
+  only) and `dataforce-keep-awake` at 09:00. Artifact Registry keeps the last 2 images.
 
 Free-plan terms change often. They were checked on 2026-10-20 from the sources in §6; confirm them
 on each provider's page before deploying.
