@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, HTTPException, Request, Response
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.api.deps import AppSettings, Db, SessionUser
 from app.api.schemas_auth import AuthStatus, AuthUserOut, LoginIn, MembershipOut, MeOut, SetupIn
@@ -17,6 +17,7 @@ from app.services import user_accounts
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+SETUP_LOCK_KEY = 7_204_001  # pg_advisory_xact_lock key for the first-run setup
 _BAD_LOGIN = "wrong email or password"
 
 
@@ -50,6 +51,8 @@ def status(
 def setup(
     body: SetupIn, request: Request, response: Response, db: Db, settings: AppSettings
 ) -> MeOut:
+    # One setup at a time: the lock is held until this transaction ends.
+    db.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": SETUP_LOCK_KEY})
     if user_accounts.admin_exists(db):
         raise HTTPException(status_code=403, detail="setup is already done")
     # The superadmin always needs a real password, even on a demo-only install.

@@ -5,11 +5,13 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, HTTPException
+from sqlalchemy import func, select
 
 from app.api.deps import AdminViewer, AppSettings, CurrentWorkspace, Db
 from app.api.schemas_auth import MemberCreate, MemberOut, MemberUpdate, PasswordReset
 from app.auth import passwords, sessions
 from app.auth.access import empty_password_allowed
+from app.auth.viewer import Viewer
 from app.db.models import Membership, UserAccount
 from app.services import user_accounts
 from app.services.errors import InvalidInputError, NotFoundError
@@ -47,6 +49,20 @@ def _target(db: Db, ws_id: uuid.UUID, user_id: uuid.UUID) -> tuple[Membership, U
     if m is None or u is None:
         raise NotFoundError("member not found")
     return m, u
+
+
+def _may_manage(db: Db, ws_id: uuid.UUID, viewer: Viewer, u: UserAccount) -> None:
+    """Only a superadmin touches a superadmin, or a user who is also in another workspace
+    (their password, state and name are global)."""
+    if viewer.is_superadmin:
+        return
+    elsewhere = db.scalar(
+        select(func.count())
+        .select_from(Membership)
+        .where(Membership.user_account_id == u.id, Membership.workspace_id != ws_id)
+    )
+    if u.is_admin or elsewhere:
+        raise HTTPException(status_code=403, detail="only the administrator can manage this user")
 
 
 @router.get("/w/{ws}/members", response_model=list[MemberOut])
@@ -89,6 +105,8 @@ def update_member(
     user_id: uuid.UUID, body: MemberUpdate, db: Db, ws: CurrentWorkspace, viewer: AdminViewer
 ) -> MemberOut:
     m, u = _target(db, ws.id, user_id)
+    if body.display_name is not None:
+        _may_manage(db, ws.id, viewer, u)
     if body.role == "rep" and (u.is_admin or u.id == viewer.user_id):
         raise HTTPException(status_code=403, detail="you cannot remove your own admin rights")
     if body.role is not None:
@@ -118,6 +136,7 @@ def reset_password(
     settings: AppSettings,
 ) -> None:
     _, u = _target(db, ws.id, user_id)
+    _may_manage(db, ws.id, viewer, u)
     u.password_hash = passwords.hash_for_new_password(
         body.password, empty_allowed=empty_password_allowed(db, settings, u)
     )
@@ -128,6 +147,7 @@ def reset_password(
 @router.post("/w/{ws}/members/{user_id}/disable", status_code=204)
 def disable_member(user_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: AdminViewer) -> None:
     _, u = _target(db, ws.id, user_id)
+    _may_manage(db, ws.id, viewer, u)
     if u.is_admin or u.id == viewer.user_id:
         raise HTTPException(status_code=403, detail="you cannot disable this account")
     u.disabled = True
@@ -138,6 +158,7 @@ def disable_member(user_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: Adm
 @router.post("/w/{ws}/members/{user_id}/enable", status_code=204)
 def enable_member(user_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: AdminViewer) -> None:
     _, u = _target(db, ws.id, user_id)
+    _may_manage(db, ws.id, viewer, u)
     u.disabled = False
     db.commit()
 

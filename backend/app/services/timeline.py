@@ -111,8 +111,9 @@ def _stage_items(session, ws_id, deal_ids, account_id, before, n, viewer=None) -
     return out
 
 
-def _activity_items(session, ws_id, deal_id, account_id, before, n) -> list[Item]:
+def _activity_items(session, ws_id, deal_id, account_id, before, n, viewer=None) -> list[Item]:
     stmt = select(Activity).where(Activity.workspace_id == ws_id)
+    stmt = stmt.where(*visibility.conds(visibility.deal_gate(viewer, Activity.deal_id)))
     stmt = stmt.where(
         Activity.deal_id == deal_id if deal_id is not None else Activity.account_id == account_id
     )
@@ -208,10 +209,11 @@ def _comment_items(session, ws_id, account_id, before, n) -> list[Item]:
     ]
 
 
-def _document_items(session, ws_id, deal_id, account_id, before, n) -> list[Item]:
+def _document_items(session, ws_id, deal_id, account_id, before, n, viewer=None) -> list[Item]:
     stmt = select(
         Document.id, Document.title, Document.meeting_date, Document.created_at, Document.deal_id
     ).where(Document.workspace_id == ws_id, Document.account_id == account_id)
+    stmt = stmt.where(*visibility.conds(visibility.deal_gate(viewer, Document.deal_id)))
     if deal_id is not None:
         stmt = stmt.where(Document.deal_id == deal_id)
     rows = session.execute(stmt).all()  # a handful per account; text is never loaded
@@ -238,9 +240,10 @@ def _document_items(session, ws_id, deal_id, account_id, before, n) -> list[Item
     return out[:n]
 
 
-def _task_items(session, ws_id, deal_id, account_id, before, n) -> list[Item]:
+def _task_items(session, ws_id, deal_id, account_id, before, n, viewer=None) -> list[Item]:
     at_col = Task.done_at
     stmt = select(Task).where(Task.workspace_id == ws_id)
+    stmt = stmt.where(*visibility.conds(visibility.deal_gate(viewer, Task.deal_id)))
     stmt = stmt.where(
         Task.deal_id == deal_id if deal_id is not None else Task.account_id == account_id
     )
@@ -312,15 +315,15 @@ def build_timeline(
     if want("stage"):
         items += _stage_items(session, ws_id, deal_ids, account, when, n, viewer)
     if want("call", "email", "meeting", "other"):
-        items += _activity_items(session, ws_id, deal_id, account, when, n)
+        items += _activity_items(session, ws_id, deal_id, account, when, n, viewer)
     if want("note"):
         items += _note_items(session, ws_id, account, when, n)
     if want("comment"):
         items += _comment_items(session, ws_id, account, when, n)
     if want("meeting"):
-        items += _document_items(session, ws_id, deal_id, account, when, n)
+        items += _document_items(session, ws_id, deal_id, account, when, n, viewer)
     if want("task"):
-        items += _task_items(session, ws_id, deal_id, account, when, n)
+        items += _task_items(session, ws_id, deal_id, account, when, n, viewer)
     if kinds is not None:
         items = [i for i in items if i.kind in kinds]
     if cursor:

@@ -863,7 +863,7 @@ def unlink_message(
     if msg.state == "linked" and msg.linked_activity_id is not None:
         act = activities.get_activity(db, ws_id, msg.linked_activity_id)
         if act is not None and act.source == "mailbox":
-            activities.delete_activity(db, ws_id, act.id)
+            activities.delete_activity(db, ws_id, act.id, viewer)
     msg.linked_activity_id = None
     msg.state = "suggested"
     db.flush()

@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import func, select
+from sqlalchemy import false, func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas_viz import CrmRef, FlowRef
@@ -155,25 +155,40 @@ def save_model(
     return row
 
 
-def list_models(db: Session, ws_id: uuid.UUID) -> list[SavedModel]:
+def _own(viewer: Viewer | None) -> list[Any]:
+    """A rep sees only the models they created; the admin and *see all* members see all."""
+    if viewer is None or viewer.sees_everything:
+        return []
+    if viewer.app_user_id is None:
+        return [false()]
+    return [SavedModel.created_by_id == viewer.app_user_id]
+
+
+def list_models(db: Session, ws_id: uuid.UUID, viewer: Viewer | None = None) -> list[SavedModel]:
     stmt = (
         select(SavedModel)
-        .where(SavedModel.workspace_id == ws_id)
+        .where(SavedModel.workspace_id == ws_id, *_own(viewer))
         .order_by(SavedModel.created_at.desc(), SavedModel.id)
         .limit(MAX_MODELS_PER_WORKSPACE)
     )
     return list(db.scalars(stmt))
 
 
-def require_model(db: Session, ws_id: uuid.UUID, model_id: uuid.UUID) -> SavedModel:
+def require_model(
+    db: Session, ws_id: uuid.UUID, model_id: uuid.UUID, viewer: Viewer | None = None
+) -> SavedModel:
     row = get_scoped(db, SavedModel, ws_id, model_id)
+    if row is not None and _own(viewer) and row.created_by_id != viewer.app_user_id:  # type: ignore[union-attr]
+        row = None
     if row is None:
         raise NotFoundError("model not found")
     return row
 
 
-def rename_model(db: Session, ws_id: uuid.UUID, model_id: uuid.UUID, name: str) -> SavedModel:
-    row = require_model(db, ws_id, model_id)
+def rename_model(
+    db: Session, ws_id: uuid.UUID, model_id: uuid.UUID, name: str, viewer: Viewer | None = None
+) -> SavedModel:
+    row = require_model(db, ws_id, model_id, viewer)
     row.name = name
     db.flush()
     db.refresh(row)

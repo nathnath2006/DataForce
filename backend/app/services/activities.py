@@ -134,6 +134,7 @@ def require_activity(
 ) -> Activity:
     row = require(session, Activity, ws_id, activity_id)
     visibility.check_account(session, viewer, row.account_id)
+    visibility.check_row_deal(session, viewer, row.deal_id)
     return row
 
 
@@ -234,7 +235,10 @@ def list_activities(
     """Newest first."""
     stmt = select(Activity).where(
         Activity.workspace_id == ws_id,
-        *visibility.conds(visibility.in_accounts(viewer, Activity.account_id)),
+        *visibility.conds(
+            visibility.in_accounts(viewer, Activity.account_id),
+            visibility.deal_gate(viewer, Activity.deal_id),
+        ),
     )
     if account_id is not None:
         require_account(session, ws_id, account_id, viewer)

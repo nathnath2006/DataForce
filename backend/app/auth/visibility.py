@@ -18,7 +18,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, false, or_, select
+from sqlalchemy import ColumnElement, Select, and_, false, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth.viewer import Viewer
@@ -102,7 +102,22 @@ def account_or_deal(
     account."""
     if viewer is None or viewer.sees_everything:
         return None
-    return or_(in_accounts(viewer, account_col), in_deals(viewer, deal_col))
+    return or_(
+        and_(deal_col.is_(None), in_accounts(viewer, account_col)),
+        in_deals(viewer, deal_col),
+    )
+
+
+def deal_gate(viewer: Viewer | None, deal_col: Any) -> ColumnElement[bool] | None:
+    """A row with a deal is visible only if that deal is; a row without one follows its account."""
+    sub = deal_ids(viewer)
+    return None if sub is None else or_(deal_col.is_(None), deal_col.in_(sub))
+
+
+def check_row_deal(session: Session, viewer: Viewer | None, deal_id: uuid.UUID | None) -> None:
+    """404 when the row is tied to a deal the viewer cannot see."""
+    if deal_id is not None:
+        check_deal(session, viewer, deal_id)
 
 
 def note_cond(viewer: Viewer | None) -> ColumnElement[bool] | None:
@@ -179,10 +194,10 @@ def check_row_account(
     """A task or activity: visible through its account, or its deal when it has no account."""
     if viewer is None or viewer.sees_everything:
         return
-    if account_id is not None:
-        check_account(session, viewer, account_id)
-    elif deal_id is not None:
+    if deal_id is not None:
         check_deal(session, viewer, deal_id)
+    elif account_id is not None:
+        check_account(session, viewer, account_id)
     else:
         raise NotFoundError("not found in this workspace")
 

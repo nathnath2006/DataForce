@@ -26,8 +26,8 @@ def _out(row: SavedModel) -> ModelOut:
 
 
 @router.get("/w/{ws}/models", response_model=list[ModelOut])
-def list_models(db: Db, ws: CurrentWorkspace) -> list[ModelOut]:
-    return [_out(r) for r in svc.list_models(db, ws.id)]
+def list_models(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> list[ModelOut]:
+    return [_out(r) for r in svc.list_models(db, ws.id, viewer)]
 
 
 @router.post("/w/{ws}/models", response_model=ModelOut, status_code=201)
@@ -47,13 +47,15 @@ def save_model(
 
 
 @router.get("/w/{ws}/models/{model_id}", response_model=ModelOut)
-def get_model(model_id: uuid.UUID, db: Db, ws: CurrentWorkspace) -> ModelOut:
-    return _out(svc.require_model(db, ws.id, model_id))
+def get_model(model_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> ModelOut:
+    return _out(svc.require_model(db, ws.id, model_id, viewer))
 
 
 @router.patch("/w/{ws}/models/{model_id}", response_model=ModelOut)
-def rename_model(model_id: uuid.UUID, body: ModelRename, db: Db, ws: CurrentWorkspace) -> ModelOut:
-    row = svc.rename_model(db, ws.id, model_id, body.name)
+def rename_model(
+    model_id: uuid.UUID, body: ModelRename, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
+) -> ModelOut:
+    row = svc.rename_model(db, ws.id, model_id, body.name, viewer)
     db.commit()
     return _out(row)
 
