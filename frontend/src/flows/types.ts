@@ -69,6 +69,14 @@ export type BlockConfig =
       descending: boolean; k: number; alias: string; period: "month" | "quarter" | "year" | null;
     }
   | { type: "domain"; column: string; alias: string }
+  | {
+      type: "standardize"; columns: string[]; operations: StdOp[]; output: "overwrite" | "new_column";
+      mapping: Record<string, string>; mapping_ignore_case: boolean; country: PhoneCountry;
+    }
+  | {
+      type: "regex"; column: string; mode: RegexMode; pattern: string; replacement: string;
+      ignore_case: boolean; alias: string | null; split_into: number;
+    }
   | { type: "score"; model_id: string }
   | {
       type: "velocity"; deal_column: string; to_stage_column: string; date_column: string;
@@ -140,11 +148,24 @@ export interface EngagementView {
   weights: Record<string, number>; n_accounts: number; n_penalised: number; formula: string;
   label?: string; caveats?: string[];
 }
+export type StdOp =
+  | "trim" | "collapse_spaces" | "lower" | "upper" | "title" | "remove_accents" | "normalize_unicode"
+  | "strip_punctuation" | "empty_to_null" | "map_values" | "phone_e164" | "email";
+export type PhoneCountry = "FR" | "BE" | "CH" | "DE" | "GB" | "ES" | "IT" | "PT" | "NL" | "US" | "CA";
+export type RegexMode = "extract" | "replace" | "match" | "split";
+export interface StandardizeView {
+  kind: "standardize"; n_rows: number;
+  columns: { column: string; output: string; n_changed: number; n_null: number; n_flagged: number }[];
+}
+export interface RegexView {
+  kind: "regex"; mode: RegexMode; n_cells: number; n_matched: number; match_rate: number | null;
+  n_truncated: number; new_columns: string[];
+}
 export interface ForecastView { kind: "forecast"; label: string; probabilities: Record<string, number>; n_unmapped: number }
 export interface TouchpointView { kind: "touchpoint"; formula: string; n_groups: number; n_no_outreach: number; min_outreach: number; n_below_min: number }
 export type View =
   | PivotView | ChartView | StatsView | ModelView | ClusterView
-  | ScoreView | VelocityView | EngagementView | TouchpointView | ForecastView;
+  | ScoreView | VelocityView | EngagementView | TouchpointView | ForecastView | StandardizeView | RegexView;
 
 export interface NodeResult {
   node_id: string; status: "ok" | "error" | "skipped"; error: string | null; n_rows: number | null;

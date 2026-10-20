@@ -2,13 +2,21 @@ import { useRef, useState, type ReactNode } from "react";
 import { ErrorNote, Field, useAction, useLoad } from "../ui";
 import { modelApi } from "../models/api";
 import { flowApi } from "./flowApi";
-import { DEFAULT_ENGAGEMENT_WEIGHTS, DEFAULT_PROBABILITIES, parseScalar, showScalar } from "./graph";
+import { DEFAULT_ENGAGEMENT_WEIGHTS, DEFAULT_PROBABILITIES, parseScalar, showScalar, validateCleaning } from "./graph";
 import type {
-  AggFn, BlockConfig, Catalog, ColumnInfo, Computed, Condition, DatasetSource, FileOut, FilterOp, WindowFn,
+  AggFn, BlockConfig, Catalog, ColumnInfo, Computed, Condition, DatasetSource, FileOut, FilterOp, PhoneCountry, RegexMode, StdOp, WindowFn,
 } from "./types";
 
 type Cfg<T extends BlockConfig["type"]> = Extract<BlockConfig, { type: T }>;
 const AGG_FNS: AggFn[] = ["count", "count_distinct", "sum", "mean", "median", "min", "max"];
+const STD_OPS: [StdOp, string][] = [
+  ["trim", "Trim"], ["collapse_spaces", "Collapse spaces"], ["lower", "Lower case"], ["upper", "Upper case"],
+  ["title", "Title case"], ["remove_accents", "Remove accents"], ["normalize_unicode", "Normalise Unicode (NFC)"],
+  ["strip_punctuation", "Strip punctuation"], ["empty_to_null", "Empty string to null"], ["map_values", "Map values"],
+  ["phone_e164", "Phone to E.164"], ["email", "Email lower-case and trim"],
+];
+const COUNTRIES: PhoneCountry[] = ["FR", "BE", "CH", "DE", "GB", "ES", "IT", "PT", "NL", "US", "CA"];
+const REGEX_MODES: RegexMode[] = ["extract", "replace", "match", "split"];
 const OPS: FilterOp[] = ["eq", "ne", "lt", "le", "gt", "ge", "contains", "not_contains", "is_null", "not_null", "in"];
 
 function ColSelect(props: {
@@ -342,6 +350,93 @@ export function ConfigForm(p: FormProps) {
         <p className="muted small">With a period, the value column is summed per partition and period (order by a date), then the function runs on those totals: percent change by quarter gives quarter-on-quarter growth. Null order values sort last.</p>
       </div>
     );
+    case "standardize": {
+      const errs = validateCleaning(c);
+      const setOps = (operations: StdOp[]) => p.onChange({ ...c, operations });
+      const move = (i: number, d: number) => {
+        const ops = [...c.operations]; const j = i + d;
+        if (j < 0 || j >= ops.length) return;
+        const a = ops[i]!; ops[i] = ops[j]!; ops[j] = a; setOps(ops);
+      };
+      return (
+        <div className="stack tight">
+          <Field label="Text columns"><MultiCols cols={p.cols} value={c.columns} onChange={(columns) => p.onChange({ ...c, columns })} /></Field>
+          <Field label="Operations, applied in this order">
+            <div className="stack tight">
+              {c.operations.map((op, i) => (
+                <div className="row" key={i}>
+                  <select aria-label="operation" value={op} onChange={(ev) => setOps(c.operations.map((o, k) => (k === i ? (ev.target.value as StdOp) : o)))}>
+                    {STD_OPS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                  </select>
+                  <button type="button" className="btn small" aria-label="move up" onClick={() => move(i, -1)}>↑</button>
+                  <button type="button" className="btn small" aria-label="move down" onClick={() => move(i, 1)}>↓</button>
+                  <button type="button" className="btn small" aria-label="remove operation" onClick={() => setOps(c.operations.filter((_, k) => k !== i))}>×</button>
+                </div>
+              ))}
+              <button type="button" className="btn small" onClick={() => setOps([...c.operations, "trim"])}>Add operation</button>
+            </div>
+          </Field>
+          {c.operations.includes("map_values") && (
+            <Field label="Value map (one 'find => replace' per line, at most 200)">
+              <textarea rows={5} defaultValue={Object.entries(c.mapping).map(([k, v]) => `${k} => ${v}`).join("\n")}
+                onBlur={(ev) => {
+                  const mapping: Record<string, string> = {};
+                  for (const line of ev.target.value.split("\n")) {
+                    const k = line.indexOf("=>");
+                    if (k > 0) mapping[line.slice(0, k).trim()] = line.slice(k + 2).trim();
+                  }
+                  p.onChange({ ...c, mapping });
+                }} />
+              <label><input type="checkbox" checked={c.mapping_ignore_case} onChange={(ev) => p.onChange({ ...c, mapping_ignore_case: ev.target.checked })} /> Ignore case</label>
+            </Field>
+          )}
+          {c.operations.includes("phone_e164") && (
+            <Field label="Default country for phone numbers">
+              <select value={c.country} onChange={(ev) => p.onChange({ ...c, country: ev.target.value as PhoneCountry })}>
+                {COUNTRIES.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </Field>
+          )}
+          <Field label="Result">
+            <select value={c.output} onChange={(ev) => p.onChange({ ...c, output: ev.target.value as typeof c.output })}>
+              <option value="overwrite">Overwrite the column</option><option value="new_column">Add a column named &lt;col&gt;_std</option>
+            </select>
+          </Field>
+          {errs.map((e) => <p key={e} className="note warn small">{e}</p>)}
+          <p className="muted small">Nulls stay null. A phone number that cannot be parsed is left as it is and counted. Plain text rules only: no library, no network.</p>
+        </div>
+      );
+    }
+    case "regex": {
+      const errs = validateCleaning(c);
+      return (
+        <div className="stack tight">
+          <Field label="Text column"><ColSelect cols={p.cols} value={c.column} onChange={(column) => p.onChange({ ...c, column })} /></Field>
+          <Field label="Mode">
+            <select value={c.mode} onChange={(ev) => p.onChange({ ...c, mode: ev.target.value as RegexMode })}>
+              {REGEX_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </Field>
+          <Field label="Pattern (Python syntax, at most 200 characters)">
+            <input value={c.pattern} maxLength={200} onChange={(ev) => p.onChange({ ...c, pattern: ev.target.value })} />
+          </Field>
+          {c.mode === "replace" && (
+            <Field label="Replacement (\\1 or \\g<name> for groups)"><input value={c.replacement} maxLength={200} onChange={(ev) => p.onChange({ ...c, replacement: ev.target.value })} /></Field>
+          )}
+          {c.mode === "split" && (
+            <Field label="Split into (2 to 10 columns)"><input type="number" min={2} max={10} value={c.split_into} onChange={(ev) => p.onChange({ ...c, split_into: Number(ev.target.value) })} /></Field>
+          )}
+          {c.mode !== "extract" && (
+            <Field label={c.mode === "replace" ? "New column name (empty overwrites)" : "Column name"}>
+              <input value={c.alias ?? ""} onChange={(ev) => p.onChange({ ...c, alias: ev.target.value || null })} />
+            </Field>
+          )}
+          <label><input type="checkbox" checked={c.ignore_case} onChange={(ev) => p.onChange({ ...c, ignore_case: ev.target.checked })} /> Ignore case</label>
+          {errs.map((e) => <p key={e} className="note warn small">{e}</p>)}
+          <p className="muted small">Extract: each named group (?P&lt;name&gt;...) becomes a column, null when nothing matches. Cells are cut to 2,000 characters; patterns that nest repeats, like (a+)+, are refused because they can run for a very long time.</p>
+        </div>
+      );
+    }
     case "domain": return (
       <div className="stack tight">
         <Field label="Email or URL column"><ColSelect cols={p.cols} value={c.column} onChange={(column) => p.onChange({ ...c, column })} /></Field>

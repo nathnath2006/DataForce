@@ -334,6 +334,59 @@ class DomainConfig(_Cfg):
     alias: COLUMN = "domain"
 
 
+StdOp = Literal[
+    "trim",
+    "collapse_spaces",
+    "lower",
+    "upper",
+    "title",
+    "remove_accents",
+    "normalize_unicode",
+    "strip_punctuation",
+    "empty_to_null",
+    "map_values",
+    "phone_e164",
+    "email",
+]
+PhoneCountry = Literal["FR", "BE", "CH", "DE", "GB", "ES", "IT", "PT", "NL", "US", "CA"]
+
+
+class StandardizeConfig(_Cfg):
+    """Clean text columns by applying `operations` in order. A column is overwritten or gets a
+    `<col>_std` column. Nulls stay null. Pure text rules: no library, no network."""
+
+    type: Literal["standardize"] = "standardize"
+    columns: list[COLUMN] = Field(min_length=1, max_length=50)
+    operations: list[StdOp] = Field(min_length=1, max_length=30)
+    output: Literal["overwrite", "new_column"] = "overwrite"
+    mapping: dict[Annotated[str, Field(max_length=200)], Annotated[str, Field(max_length=200)]] = {}
+    mapping_ignore_case: bool = False
+    country: PhoneCountry = "FR"
+
+    @model_validator(mode="after")
+    def _check(self) -> StandardizeConfig:
+        if len(self.mapping) > 200:
+            raise ValueError("the value map has at most 200 pairs")
+        if "map_values" in self.operations and not self.mapping:
+            raise ValueError("map_values needs at least one pair in the map")
+        return self
+
+
+class RegexConfig(_Cfg):
+    """Apply a regular expression to one text column. Modes: extract (named groups become
+    columns), replace, match (boolean) and split (up to `split_into` columns). The pattern is
+    limited to 200 characters and checked for catastrophic backtracking (see blocks/regex.py)."""
+
+    type: Literal["regex"] = "regex"
+    column: COLUMN
+    mode: Literal["extract", "replace", "match", "split"] = "extract"
+    pattern: str = Field(min_length=1, max_length=200)
+    replacement: str = Field(default="", max_length=200)
+    ignore_case: bool = False
+    alias: COLUMN | None = None  # replace: new column (None overwrites); match: column name
+    split_into: int = Field(default=3, ge=2, le=10)
+
+
 class ScoreConfig(_Cfg):
     """Apply a saved model's parameters to the input rows. Adds `score` (and `score_class` for a
     classifier). The parameters are resolved from the workspace when the run starts."""
@@ -430,6 +483,8 @@ BlockConfig = Annotated[
     | ForecastConfig
     | WindowConfig
     | DomainConfig
+    | StandardizeConfig
+    | RegexConfig
     | ScoreConfig
     | VelocityConfig
     | EngagementConfig
@@ -454,6 +509,8 @@ BlockType = Literal[
     "forecast",
     "window",
     "domain",
+    "standardize",
+    "regex",
     "score",
     "velocity",
     "engagement",
@@ -480,6 +537,8 @@ PORTS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "forecast": (("in",), ("out",)),
     "window": (("in",), ("out",)),
     "domain": (("in",), ("out",)),
+    "standardize": (("in",), ("out",)),
+    "regex": (("in",), ("out",)),
     "score": (("in",), ("out",)),
     "velocity": (("in",), ("out",)),
     "engagement": (("in",), ("out",)),
@@ -728,6 +787,30 @@ class TouchpointView(BaseModel):
     n_below_min: int = 0  # groups with outreach below the minimum (includes the empty ones)
 
 
+class StdColumnStat(BaseModel):
+    column: str
+    output: str
+    n_changed: int
+    n_null: int  # values that became null
+    n_flagged: int = 0  # phone numbers left as they were because they could not be parsed
+
+
+class StandardizeView(BaseModel):
+    kind: Literal["standardize"] = "standardize"
+    n_rows: int
+    columns: list[StdColumnStat]
+
+
+class RegexView(BaseModel):
+    kind: Literal["regex"] = "regex"
+    mode: str
+    n_cells: int  # non-null cells examined
+    n_matched: int
+    match_rate: float | None
+    n_truncated: int  # cells cut to 2,000 characters
+    new_columns: list[str]
+
+
 View = Annotated[
     PivotView
     | ChartView
@@ -738,7 +821,9 @@ View = Annotated[
     | VelocityView
     | EngagementView
     | TouchpointView
-    | ForecastView,
+    | ForecastView
+    | StandardizeView
+    | RegexView,
     Field(discriminator="kind"),
 ]
 

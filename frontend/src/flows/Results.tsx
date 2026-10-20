@@ -7,7 +7,7 @@ import { ChartSvg } from "./Charts";
 import { fmtCell, isTotalColumn, pivotModel } from "./pivot";
 import type {
   ClusterView, EngagementView, MetricOut, ModelView, NodeResult, PivotView, ScoreView, StatsRow, StatsView,
-  TouchpointView, VelocityView, ForecastView,
+  TouchpointView, VelocityView, ForecastView, StandardizeView, RegexView,
 } from "./types";
 
 /** Where a model block of the open flow can be saved from: the server re-runs the SAVED flow. */
@@ -55,6 +55,8 @@ function ViewSwitch({ view }: { view: NonNullable<NodeResult["view"]> }) {
     case "engagement": return <EngagementPanel view={view} />;
     case "touchpoint": return <TouchpointPanel view={view} />;
     case "forecast": return <ForecastPanel view={view} />;
+    case "standardize": return <StandardizePanel view={view} />;
+    case "regex": return <RegexPanel view={view} />;
   }
 }
 
@@ -145,6 +147,33 @@ function TouchpointPanel({ view }: { view: TouchpointView }) {
     <div className="stack">
       <p className="muted small">{view.formula}</p>
       <p className="muted small">{view.n_groups} groups · {view.n_below_min} below {view.min_outreach} outreach ({view.n_no_outreach} with none): empty ratio, with the reason in the table. No interval is shown.</p>
+    </div>
+  );
+}
+
+function StandardizePanel({ view }: { view: StandardizeView }) {
+  return (
+    <div className="stack">
+      <table className="grid">
+        <thead><tr><th>Column</th><th>Result column</th><th>Changed</th><th>Became null</th><th>Phone not parsed</th></tr></thead>
+        <tbody>
+          {view.columns.map((c) => (
+            <tr key={c.column}><td>{c.column}</td><td>{c.output}</td><td>{c.n_changed} of {view.n_rows}</td><td>{c.n_null}</td><td>{c.n_flagged}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RegexPanel({ view }: { view: RegexView }) {
+  return (
+    <div className="stack">
+      <p className="small">
+        {view.mode}: {view.n_matched} of {view.n_cells} non-empty cells matched
+        {view.match_rate !== null && ` (${formatPct(view.match_rate)})`}. New columns: {view.new_columns.join(", ")}.
+      </p>
+      {view.n_truncated > 0 && <p className="muted small">{view.n_truncated} cells were cut to 2,000 characters before matching.</p>}
     </div>
   );
 }

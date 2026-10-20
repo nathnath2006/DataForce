@@ -22,6 +22,8 @@ export const PORTS: Record<BlockType, { inputs: string[]; outputs: string[] }> =
   forecast: { inputs: ["in"], outputs: ["out"] },
   window: { inputs: ["in"], outputs: ["out"] },
   domain: { inputs: ["in"], outputs: ["out"] },
+  standardize: { inputs: ["in"], outputs: ["out"] },
+  regex: { inputs: ["in"], outputs: ["out"] },
   score: { inputs: ["in"], outputs: ["out"] },
   velocity: { inputs: ["in"], outputs: ["out"] },
   engagement: { inputs: ["in"], outputs: ["out"] },
@@ -37,6 +39,8 @@ export const BLOCKS: { type: BlockType; title: string; group: PaletteGroup }[] =
   { type: "group", title: "Group / aggregate", group: "Transform" },
   { type: "join", title: "Join", group: "Transform" },
   { type: "dedup", title: "Fuzzy dedup", group: "Cleaning" },
+  { type: "standardize", title: "Standardize text", group: "Cleaning" },
+  { type: "regex", title: "Regex", group: "Cleaning" },
   { type: "domain", title: "Domain parser", group: "Cleaning" },
   { type: "aging", title: "Aging and stagnation", group: "Temporal" },
   { type: "window", title: "Window (lag, rolling, rank)", group: "Temporal" },
@@ -82,6 +86,9 @@ export function defaultConfig(type: BlockType): BlockConfig {
     case "window":
       return { type, fn: "lag", column: null, partition_by: [], order_by: "", descending: false, k: 1, alias: "window_value", period: null };
     case "domain": return { type, column: "", alias: "domain" };
+    case "standardize":
+      return { type, columns: [], operations: ["trim", "collapse_spaces"], output: "overwrite", mapping: {}, mapping_ignore_case: false, country: "FR" };
+    case "regex": return { type, column: "", mode: "extract", pattern: "", replacement: "", ignore_case: false, alias: null, split_into: 3 };
     case "score": return { type, model_id: "" };
     case "velocity":
       return {
@@ -239,6 +246,18 @@ export function outputColumns(g: FlowGraph, id: string, ctx: ColumnCtx, depth = 
     case "dedup": return [...up(), { name: "dedup_group", dtype: "integer" }, { name: "is_master", dtype: "boolean" }];
     case "aging": return [...up(), { name: c.alias || "days_since", dtype: "number" }, { name: "stagnant", dtype: "boolean" }];
     case "domain": return [...up(), { name: c.alias || "domain", dtype: "text" }, { name: "is_free_webmail", dtype: "boolean" }];
+    case "standardize": {
+      if (c.output === "overwrite") return up();
+      const base = up();
+      return [...base, ...c.columns.map((n) => ({ name: `${n}_std`, dtype: "text" as const }))];
+    }
+    case "regex": {
+      const base = up();
+      if (c.mode === "replace") return c.alias ? [...base, { name: c.alias, dtype: "text" }] : base;
+      if (c.mode === "match") return [...base, { name: c.alias || "regex_match", dtype: "boolean" }];
+      if (c.mode === "split") return [...base, ...Array.from({ length: c.split_into }, (_, k) => ({ name: `${c.alias || c.column}_${k + 1}`, dtype: "text" as const }))];
+      return [...base, ...[...c.pattern.matchAll(/\(\?P<([A-Za-z_]\w*)>/g)].map((m) => ({ name: m[1] ?? "", dtype: "text" as const }))];
+    }
     case "score": return [...up(), { name: "score", dtype: "number" }];
     case "velocity": return [{ name: c.deal_column || "deal_id", dtype: "text" }, { name: "velocity_index", dtype: "number" }, { name: "velocity_flag", dtype: "text" }];
     case "engagement": return [{ name: c.by || "account_id", dtype: "text" }, { name: "engagement_score", dtype: "number" }];
@@ -398,6 +417,29 @@ export const TEMPLATES: Template[] = [
     }),
   },
   {
+    key: "clean_contacts", title: "Clean contacts", description: "Standardize names and job titles, then flag sales roles with a regex.",
+    build: () => ({
+      version: 1,
+      nodes: [
+        node("n1", 0, 0, { type: "dataset", dataset: { source: "crm", table: "contacts" } }, "Contacts"),
+        node("n2", 280, 0, {
+          ...(defaultConfig("standardize") as Extract<BlockConfig, { type: "standardize" }>),
+          columns: ["full_name"], operations: ["trim", "collapse_spaces", "title"],
+        }, "Standardize names"),
+        node("n3", 560, 0, {
+          ...(defaultConfig("standardize") as Extract<BlockConfig, { type: "standardize" }>),
+          columns: ["title"], operations: ["trim", "collapse_spaces", "empty_to_null"],
+        }, "Standardize titles"),
+        // contacts carry no email column in flows (stored encrypted, never exposed): flag roles instead
+        node("n4", 840, 0, {
+          ...(defaultConfig("regex") as Extract<BlockConfig, { type: "regex" }>),
+          column: "title", mode: "match", pattern: "vente|sales|commercial|business developer", ignore_case: true,
+        }, "Sales role?"),
+      ],
+      edges: [edge("e1", "n1", "n2"), edge("e2", "n2", "n3"), edge("e3", "n3", "n4")],
+    }),
+  },
+  {
     key: "growth", title: "Growth per owner", description: "Closed-won amount per owner and quarter, with the change from the previous quarter.",
     build: () => ({
       version: 1,
@@ -429,4 +471,30 @@ export function parseScalar(s: string): string | number | boolean | null {
 }
 export function showScalar(v: unknown): string {
   return v === null || v === undefined ? "" : String(v);
+}
+
+// ---- validation of the cleaning blocks (mirrors the server's limits) ----
+const NESTED_QUANTIFIER = /\((?:[^()\\]|\\.)*(?:[*+]|\{\d*,\})(?:[^()\\]|\\.)*\)(?:[*+]|\{\d*,\})/;
+
+/** Messages for a standardize or regex config that the server would refuse; [] when fine. */
+export function validateCleaning(c: BlockConfig): string[] {
+  const errs: string[] = [];
+  if (c.type === "standardize") {
+    if (c.columns.length === 0) errs.push("pick at least one column");
+    if (c.operations.length === 0) errs.push("add at least one operation");
+    const pairs = Object.keys(c.mapping).length;
+    if (pairs > 200) errs.push("the value map has at most 200 pairs");
+    if (c.operations.includes("map_values") && pairs === 0) errs.push("map_values needs at least one pair");
+  } else if (c.type === "regex") {
+    if (!c.column) errs.push("pick a column");
+    if (!c.pattern) errs.push("enter a pattern");
+    if (c.pattern.length > 200) errs.push("the pattern has at most 200 characters");
+    else if (c.pattern) {
+      // Python syntax is checked by the server; this only catches the nested-quantifier shape.
+      if (NESTED_QUANTIFIER.test(c.pattern)) errs.push("this pattern may backtrack catastrophically, e.g. (a+)+");
+    }
+    if (c.mode === "extract" && c.pattern && !c.pattern.includes("(?P<")) errs.push("extract needs a named group, e.g. (?P<domain>...)");
+    if (c.mode === "split" && (c.split_into < 2 || c.split_into > 10)) errs.push("split into 2 to 10 columns");
+  }
+  return errs;
 }

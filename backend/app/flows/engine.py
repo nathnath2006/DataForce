@@ -98,7 +98,17 @@ def run_graph(
         today=today or date.today(),
         models=models or {},
     )
-    row_preserving = ("filter", "sort", "columns", "aging", "domain", "dedup", "score")
+    row_preserving = (
+        "filter",
+        "sort",
+        "columns",
+        "aging",
+        "domain",
+        "dedup",
+        "score",
+        "standardize",
+        "regex",
+    )
     multiplied: dict[str, bool] = {}
 
     def origin(nid: str, port: str) -> tuple[str, str] | None:
