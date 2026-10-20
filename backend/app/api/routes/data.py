@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Response, UploadFile
+from fastapi import APIRouter, File, Form, Request, Response, UploadFile
 
 from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas_flows import (
@@ -15,6 +15,8 @@ from app.api.schemas_flows import (
     FileOut,
     TableRef,
 )
+from app.auth import demo
+from app.auth.demo import NotDemo
 from app.auth.visibility import require_admin
 from app.db.models import DataConnection
 from app.flows.ports import SourceError
@@ -28,6 +30,7 @@ router = APIRouter(tags=["data"])
 # --- files ----------------------------------------------------------------------------------------
 @router.post("/w/{ws}/files", response_model=FileOut, status_code=201)
 def upload_file(
+    request: Request,
     db: Db,
     ws: CurrentWorkspace,
     settings: AppSettings,
@@ -36,7 +39,9 @@ def upload_file(
     sheet: Annotated[str | None, Form(max_length=200)] = None,
 ) -> FileOut:
     require_admin(viewer)
-    data = file.file.read(settings.upload_max_bytes + 1)
+    cap = demo.upload_cap(request, settings.upload_max_bytes, demo.client_address(request))
+    data = file.file.read(cap + 1)
+    demo.enforce_size(request, data)
     row = file_service.create_file(db, ws.id, file.filename, data, sheet or None, settings)
     db.commit()
     return FileOut.model_validate(row)
@@ -94,7 +99,9 @@ def list_connections(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> lis
     return [_conn_out(c) for c in conns.list_connections(db, ws.id)]
 
 
-@router.post("/w/{ws}/connections", response_model=ConnectionOut, status_code=201)
+@router.post(
+    "/w/{ws}/connections", response_model=ConnectionOut, status_code=201, dependencies=[NotDemo]
+)
 def create_connection(
     body: ConnectionIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
 ) -> ConnectionOut:
@@ -104,7 +111,9 @@ def create_connection(
     return _conn_out(row)
 
 
-@router.patch("/w/{ws}/connections/{connection_id}", response_model=ConnectionOut)
+@router.patch(
+    "/w/{ws}/connections/{connection_id}", response_model=ConnectionOut, dependencies=[NotDemo]
+)
 def update_connection(
     connection_id: uuid.UUID,
     body: ConnectionPatch,
@@ -119,7 +128,7 @@ def update_connection(
     return _conn_out(row)
 
 
-@router.delete("/w/{ws}/connections/{connection_id}", status_code=204)
+@router.delete("/w/{ws}/connections/{connection_id}", status_code=204, dependencies=[NotDemo])
 def delete_connection(
     connection_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
 ) -> Response:
@@ -129,7 +138,9 @@ def delete_connection(
     return Response(status_code=204)
 
 
-@router.post("/w/{ws}/connections/{connection_id}/test", response_model=ConnectionOut)
+@router.post(
+    "/w/{ws}/connections/{connection_id}/test", response_model=ConnectionOut, dependencies=[NotDemo]
+)
 def test_connection(
     connection_id: uuid.UUID,
     db: Db,

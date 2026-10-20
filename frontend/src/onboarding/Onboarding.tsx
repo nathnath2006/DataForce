@@ -10,14 +10,14 @@ import type { WorkspaceKind } from "./types";
 import "../auth/auth.css";
 import "./onboarding.css";
 
-function Chooser(props: { onPick: (k: WorkspaceKind) => void }) {
+function Chooser(props: { onPick: (k: WorkspaceKind) => void; showTest: boolean }) {
   return (
     <div className="ob-choices">
-      <button type="button" className="ob-choice" onClick={() => props.onPick("test")}>
+      {props.showTest && <button type="button" className="ob-choice" onClick={() => props.onPick("test")}>
         <span className="ob-badge">Synthetic</span>
         <strong>Test workspace</strong>
         <span>Synthetic companies, deals, meetings and six demo reps, to try every feature. Always marked as synthetic.</span>
-      </button>
+      </button>}
       <button type="button" className="ob-choice" onClick={() => props.onPick("real")}>
         <strong>Real workspace</strong>
         <span>Empty, for your own data: import CSV or Excel, connect TamTam, add records.</span>
@@ -50,8 +50,10 @@ function NameForm(props: { kind: WorkspaceKind; name: string; setName: (n: strin
 
 /** Chooser, name form and creation screen. `page` is the /welcome layout, `modal` the top-bar dialog. */
 function Flow(props: { variant: "page" | "modal"; onClose?: () => void; onDone: (slug: string) => void }) {
-  const [step, setStep] = useState<"choose" | "name" | "creating">("choose");
-  const [kind, setKind] = useState<WorkspaceKind>("test");
+  const { user } = useAuth();
+  const showTest = !!user?.is_admin;
+  const [step, setStep] = useState<"choose" | "name" | "creating">(showTest ? "choose" : "name");
+  const [kind, setKind] = useState<WorkspaceKind>(showTest ? "test" : "real");
   const [name, setName] = useState("");
   const [custom, setCustom] = useState<string | null>(null);
   const slug = custom ?? slugify(name);
@@ -62,16 +64,16 @@ function Flow(props: { variant: "page" | "modal"; onClose?: () => void; onDone: 
     return (
       <CreatingScreen
         kind={kind} name={name.trim()} slug={slug} onReady={done}
-        onTryAgain={() => setStep("name")} onChooseAgain={() => setStep("choose")}
+        onTryAgain={() => setStep("name")} onChooseAgain={() => setStep(showTest ? "choose" : "name")}
       />
     );
   }
   const body = step === "choose" ? (
-    <Chooser onPick={(k) => { setKind(k); setStep("name"); if (!name) setName(k === "test" ? "Test data" : ""); }} />
+    <Chooser showTest={showTest} onPick={(k) => { setKind(k); setStep("name"); if (!name) setName(k === "test" ? "Test data" : ""); }} />
   ) : (
     <NameForm
       kind={kind} name={name} setName={setName} slug={slug} touched={custom !== null} setSlug={setCustom}
-      onBack={() => setStep("choose")} onCreate={() => setStep("creating")}
+      onBack={() => (showTest ? setStep("choose") : props.onClose?.())} onCreate={() => setStep("creating")}
     />
   );
   if (props.variant === "modal") {

@@ -30,6 +30,7 @@ from app.api.schemas_companies import (
     RegistryCompanyOut,
     RegistrySearchIn,
 )
+from app.auth.demo import NotDemo
 from app.auth.viewer import Viewer
 from app.db.models import Company
 from app.domain.schemas import AccountIn
@@ -155,7 +156,12 @@ async def registry_search(
     ]
 
 
-@router.post("/w/{ws}/companies/from-registry", response_model=CompanyOut, status_code=201)
+@router.post(
+    "/w/{ws}/companies/from-registry",
+    response_model=CompanyOut,
+    status_code=201,
+    dependencies=[NotDemo],
+)
 async def from_registry(
     body: FromRegistry, db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
 ) -> CompanyOut:
@@ -176,7 +182,11 @@ async def from_registry(
     return _companies_out(db, ws.id, [company], viewer)[0]
 
 
-@router.post("/w/{ws}/companies/{company_id}/refresh-registry", response_model=CompanyOut)
+@router.post(
+    "/w/{ws}/companies/{company_id}/refresh-registry",
+    response_model=CompanyOut,
+    dependencies=[NotDemo],
+)
 async def refresh_registry(
     company_id: uuid.UUID,
     db: Db,

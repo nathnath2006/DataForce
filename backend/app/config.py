@@ -248,6 +248,9 @@ class Settings(BaseSettings):
     stats_random_seed: int = 42
 
     # --- synthetic demo data --------------------------------------------------------------
+    # The workspace behind the public "Try the demo" button (it must exist and be a test
+    # workspace). `dataforce demo reset` rebuilds it every night.
+    demo_workspace: str = Field(default="test-data", pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")
 
     # --- TamTam connector / enrichment (paid lookups only on explicit click) ----------------
     enrichment_provider: Literal["tamtam_mcp", "fake", "none"] = "none"

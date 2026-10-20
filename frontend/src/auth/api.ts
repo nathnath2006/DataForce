@@ -1,14 +1,14 @@
 import { request, w } from "../api";
 import type { SignupIn } from "../api.gen";
 
-export interface AuthUser { id: string; email: string; display_name: string; is_admin: boolean; workspace_credits?: number }
+export interface AuthUser { id: string; email: string; display_name: string; is_admin: boolean; workspace_credits?: number; is_demo?: boolean }
 export interface AuthMembership {
   workspace_slug: string; workspace_name: string; role: "admin" | "rep"; see_all: boolean;
   delete_own: boolean; app_user_id: string | null; app_user_name: string | null;
 }
 export interface Me { user: AuthUser; memberships: AuthMembership[] }
 export interface DemoLogin { email: string; display_name: string }
-export type AuthStatus = import("../api.gen").AuthStatus;
+export type AuthStatus = import("../api.gen").AuthStatus & import("./demoTypes").DemoStatusExtra;
 export interface Member {
   user_id: string; email: string; display_name: string; is_admin: boolean; disabled: boolean;
   has_password: boolean; role: "admin" | "rep"; see_all: boolean; delete_own: boolean;

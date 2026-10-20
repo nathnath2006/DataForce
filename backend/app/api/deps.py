@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.schemas import SLUG_PATTERN
+from app.auth import demo
 from app.auth.viewer import Viewer
 from app.config import Settings, get_settings
 from app.db.models import Membership, UserAccount, Workspace
@@ -62,6 +63,8 @@ def _access(db: Session, request: Request, slug: str) -> tuple[Workspace, Viewer
     user = db.get(UserAccount, user_id)
     if ws is None or user is None:
         raise NotFoundError("workspace not found")
+    if demo.is_demo_session(request) and not ws.is_demo:
+        raise NotFoundError("workspace not found")  # a demo session never leaves test workspaces
     member = db.scalars(
         select(Membership).where(
             Membership.user_account_id == user.id, Membership.workspace_id == ws.id
@@ -87,6 +90,7 @@ def _access(db: Session, request: Request, slug: str) -> tuple[Workspace, Viewer
         )
     else:
         raise NotFoundError("workspace not found")
+    demo.bind_session(db, request)
     request.state.access = (ws, viewer)
     return ws, viewer
 

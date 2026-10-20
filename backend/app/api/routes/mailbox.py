@@ -26,6 +26,7 @@ from app.api.schemas_mailbox import (
     MessageState,
     Provider,
 )
+from app.auth.demo import NotDemo
 from app.auth.visibility import require_admin
 from app.config import is_hosted
 from app.services import mailbox as svc
@@ -45,7 +46,9 @@ def mailbox_status(
     return svc.status_view(db, settings, ws)
 
 
-@router.put("/w/{ws}/mailbox/{provider}/client", response_model=MailboxStatusOut)
+@router.put(
+    "/w/{ws}/mailbox/{provider}/client", response_model=MailboxStatusOut, dependencies=[NotDemo]
+)
 def set_client(
     provider: Provider,
     body: MailboxClientIn,
@@ -60,7 +63,9 @@ def set_client(
     return svc.status_view(db, settings, ws)
 
 
-@router.post("/w/{ws}/mailbox/{provider}/connect", response_model=MailboxConnectOut)
+@router.post(
+    "/w/{ws}/mailbox/{provider}/connect", response_model=MailboxConnectOut, dependencies=[NotDemo]
+)
 async def connect(
     provider: Provider,
     request: Request,
@@ -106,7 +111,7 @@ async def callback(request: Request, db: Db, settings: AppSettings) -> RedirectR
     return redirect
 
 
-@router.post("/w/{ws}/mailbox/sync", response_model=MailboxSyncResultOut)
+@router.post("/w/{ws}/mailbox/sync", response_model=MailboxSyncResultOut, dependencies=[NotDemo])
 async def sync(
     db: Db,
     ws: CurrentWorkspace,
@@ -118,7 +123,7 @@ async def sync(
     return await svc.sync(db, settings, ws.id, body.provider if body else None)
 
 
-@router.delete("/w/{ws}/mailbox/{provider}", status_code=204)
+@router.delete("/w/{ws}/mailbox/{provider}", status_code=204, dependencies=[NotDemo])
 async def disconnect(
     provider: Provider, db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
 ) -> Response:
@@ -150,7 +155,11 @@ def list_messages(
     )
 
 
-@router.post("/w/{ws}/mailbox/messages/{message_id}/link", response_model=MailboxMessageOut)
+@router.post(
+    "/w/{ws}/mailbox/messages/{message_id}/link",
+    response_model=MailboxMessageOut,
+    dependencies=[NotDemo],
+)
 async def link(
     message_id: UUID,
     body: MailboxLinkIn,
@@ -162,7 +171,11 @@ async def link(
     return await svc.link_message(db, settings, ws.id, message_id, body.deal_id, viewer)
 
 
-@router.post("/w/{ws}/mailbox/messages/{message_id}/ignore", response_model=MailboxMessageOut)
+@router.post(
+    "/w/{ws}/mailbox/messages/{message_id}/ignore",
+    response_model=MailboxMessageOut,
+    dependencies=[NotDemo],
+)
 def ignore(
     message_id: UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
 ) -> MailboxMessageOut:
@@ -171,7 +184,11 @@ def ignore(
     return out
 
 
-@router.post("/w/{ws}/mailbox/messages/{message_id}/unlink", response_model=MailboxMessageOut)
+@router.post(
+    "/w/{ws}/mailbox/messages/{message_id}/unlink",
+    response_model=MailboxMessageOut,
+    dependencies=[NotDemo],
+)
 async def unlink(
     message_id: UUID, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
 ) -> MailboxMessageOut:

@@ -24,6 +24,7 @@ from app.api.schemas_admin import (
     UsageReport,
     UsageReportAll,
 )
+from app.auth.demo import NotDemo
 from app.auth.visibility import require_admin
 from app.config import get_settings
 from app.db.models import LlmCall, ModelPrice, SettingOverride, UserAccount
@@ -208,9 +209,7 @@ def _editable(db, settings, ws_id, show_names: bool = True) -> list[EditableLimi
 
 
 def _one(db, settings, ws_id, key: str) -> EditableLimit:
-    return next(
-        x for x in _editable(db, settings, ws_id, show_names=ws_id is None) if x.key == key
-    )
+    return next(x for x in _editable(db, settings, ws_id, show_names=ws_id is None) if x.key == key)
 
 
 @router.get("/admin/limits", response_model=list[EditableLimit])
@@ -218,7 +217,7 @@ def global_limits(db: Db, user: SuperAdmin, settings: AppSettings) -> list[Edita
     return _editable(db, settings, None)
 
 
-@router.put("/admin/limits/{key}", response_model=EditableLimit)
+@router.put("/admin/limits/{key}", response_model=EditableLimit, dependencies=[NotDemo])
 def put_global_limit(
     key: str, body: LimitUpdate, db: Db, user: SuperAdmin, settings: AppSettings
 ) -> EditableLimit:
@@ -236,7 +235,7 @@ def workspace_limits(
     return _editable(db, settings, ws.id, show_names=False)
 
 
-@router.put("/w/{ws}/admin/limits/{key}", response_model=EditableLimit)
+@router.put("/w/{ws}/admin/limits/{key}", response_model=EditableLimit, dependencies=[NotDemo])
 def put_workspace_limit(
     key: str,
     body: LimitUpdate,
@@ -288,7 +287,7 @@ def model_prices(db: Db, user: SuperAdmin) -> list[ModelPriceOut]:
     return [_price_out(p) for p in usage_service.prices(db).values()]
 
 
-@router.put("/admin/model-prices", response_model=ModelPriceOut)
+@router.put("/admin/model-prices", response_model=ModelPriceOut, dependencies=[NotDemo])
 def put_model_price(body: ModelPriceIn, db: Db, user: SuperAdmin) -> ModelPriceOut:
     row = usage_service.set_price(
         db,
@@ -302,7 +301,7 @@ def put_model_price(body: ModelPriceIn, db: Db, user: SuperAdmin) -> ModelPriceO
     return _price_out(row)
 
 
-@router.delete("/admin/model-prices/{price_id}", status_code=204)
+@router.delete("/admin/model-prices/{price_id}", status_code=204, dependencies=[NotDemo])
 def delete_model_price(price_id: uuid.UUID, db: Db, user: SuperAdmin) -> Response:
     if not usage_service.delete_price(db, price_id):
         raise HTTPException(status_code=404, detail="no such price")

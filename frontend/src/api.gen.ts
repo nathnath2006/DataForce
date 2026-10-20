@@ -310,6 +310,7 @@ export interface AskTurn {
 }
 
 export interface AuthStatus {
+  demo_available?: boolean;
   demo_logins?: DemoLogin[];
   setup_needed: boolean;
   signed_in: boolean;
@@ -321,6 +322,7 @@ export interface AuthUserOut {
   email: string;
   id: string;
   is_admin: boolean;
+  is_demo?: boolean;
   workspace_credits?: number;
 }
 
@@ -711,9 +713,31 @@ export interface DedupConfig {
   type?: "dedup";
 }
 
+export interface DemoAiKeyIn {
+  api_key: string;
+  model: string;
+  provider: "gemini" | "anthropic";
+}
+
+export interface DemoAiKeyOut {
+  model?: string | null;
+  provider?: "gemini" | "anthropic" | null;
+  set?: boolean;
+}
+
+export interface DemoIdentity {
+  as: string;
+  label: string;
+  role: "admin" | "rep";
+}
+
 export interface DemoLogin {
   display_name: string;
   email: string;
+}
+
+export interface DemoStartIn {
+  as?: string | null;
 }
 
 export type Dimension = "lead_source" | "segment" | "industry" | "region" | "owner" | "amount_band";

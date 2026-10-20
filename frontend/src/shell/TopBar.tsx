@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
-import { UserMenu } from "../auth";
+import { UserMenu, DemoBar, useAuth } from "../auth";
+import { demoBlocked } from "../auth/demoLogic";
 import { ThemeToggle } from "../theme";
 import "./shell.css";
 
@@ -10,6 +11,7 @@ export function TopBar(props: {
 }) {
   const nav = useNavigate();
   const [q, setQ] = useState("");
+  const { isDemo } = useAuth();
   return (
     <header className="top">
       <button className="ghost menu" aria-label="Menu" onClick={props.onMenu}>☰</button>
@@ -26,7 +28,7 @@ export function TopBar(props: {
             {w.name}{w.is_demo && !/synthetic/i.test(w.name) ? " (synthetic)" : ""}
           </option>
         ))}
-        <option value="__new">+ New workspace…</option>
+        {!demoBlocked(isDemo, "workspace_create") && <option value="__new">+ New workspace…</option>}
       </select>
       <form className="gsearch" role="search" onSubmit={(e) => {
         e.preventDefault();
@@ -39,7 +41,8 @@ export function TopBar(props: {
       <span className="spacer" />
       <ThemeToggle />
       {props.children}
-      <UserMenu />
+      <DemoBar />
+      {!isDemo && <UserMenu />}
     </header>
   );
 }

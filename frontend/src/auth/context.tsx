@@ -9,6 +9,7 @@ export interface AuthState {
   memberships: AuthMembership[];
   setupNeeded: boolean;
   isAdmin: boolean;
+  isDemo: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -18,7 +19,7 @@ export interface AuthState {
 
 const noop = async () => {};
 const Ctx = createContext<AuthState>({
-  user: null, membership: null, memberships: [], setupNeeded: false, isAdmin: false, loading: true,
+  user: null, membership: null, memberships: [], setupNeeded: false, isAdmin: false, isDemo: false, loading: true,
   signOut: noop, refresh: noop, setMe: () => {},
 });
 
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const membership = slug ? memberships.find((m) => decodeURIComponent(slug) === m.workspace_slug) ?? null : null;
     return {
       user: me?.user ?? null, membership, memberships, setupNeeded, loading, signOut, refresh,
+      isDemo: !!me?.user.is_demo,
       isAdmin: !!me && (me.user.is_admin || membership?.role === "admin"),
       setMe: (m) => { setMe(m); setSetupNeeded(false); },
     };

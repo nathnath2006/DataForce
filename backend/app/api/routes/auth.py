@@ -13,7 +13,11 @@ from app.api.deps import AppSettings, Db, SessionUser
 from app.api.schemas_auth import (
     AuthStatus,
     AuthUserOut,
+    DemoAiKeyIn,
+    DemoAiKeyOut,
+    DemoIdentity,
     DemoLogin,
+    DemoStartIn,
     ForgotIn,
     JoinIn,
     LoginIn,
@@ -23,11 +27,12 @@ from app.api.schemas_auth import (
     SetupIn,
     SignupIn,
 )
-from app.auth import passwords, ratelimit, reset, sessions
+from app.auth import demo, passwords, ratelimit, reset, sessions
 from app.auth.access import empty_password_allowed, is_loopback
 from app.config import Settings, is_hosted, ui_origin
+from app.connectors import crypto
 from app.db.models import AppUser, Membership, UserAccount, Workspace
-from app.services import access_codes, mailer, user_accounts
+from app.services import access_codes, llm_settings, mailer, user_accounts
 from app.services.errors import AlreadyExistsError
 
 log = logging.getLogger(__name__)
@@ -37,11 +42,12 @@ SETUP_LOCK_KEY = 7_204_001  # pg_advisory_xact_lock key for the first-run setup
 _BAD_LOGIN = "wrong email or password"
 
 
-def set_cookie(response: Response, token: str, settings: Settings) -> None:
+def set_cookie(response: Response, token: str, settings: Settings, *, demo: bool = False) -> None:
+    ttl = sessions.DEMO_TTL if demo else sessions.ABSOLUTE
     response.set_cookie(
         sessions.COOKIE,
         token,
-        max_age=int(sessions.ABSOLUTE.total_seconds()),
+        max_age=int(ttl.total_seconds()),
         httponly=True,
         samesite="lax",
         path="/",
@@ -56,6 +62,7 @@ def _user_out(u: UserAccount) -> AuthUserOut:
         display_name=u.display_name,
         is_admin=u.is_admin,
         workspace_credits=u.workspace_credits,
+        is_demo=u.is_demo,
     )
 
 
@@ -66,12 +73,13 @@ def status(
     settings: AppSettings,
     df_session: Annotated[str | None, Cookie()] = None,
 ) -> AuthStatus:
-    demo = user_accounts.demo_logins(db) if is_loopback(settings) else []
+    demo_chips = user_accounts.demo_logins(db) if is_loopback(settings) else []
     return AuthStatus(
         setup_needed=not user_accounts.admin_exists(db),
         signed_in=getattr(request.state, "user_id", None) is not None,
         signup_enabled=settings.signup_enabled,
-        demo_logins=[DemoLogin(email=e, display_name=n) for e, n in demo],
+        demo_logins=[DemoLogin(email=e, display_name=n) for e, n in demo_chips],
+        demo_available=demo.demo_workspace(db, settings) is not None,
     )
 
 
@@ -105,7 +113,7 @@ def login(
         raise HTTPException(status_code=429, detail=str(exc)) from None
     user = user_accounts.get_by_email(db, email)
     ok = False
-    if user is None:
+    if user is None or user.is_demo:  # demo accounts only start through /auth/demo
         passwords.dummy_verify(body.password)
     elif user.password_hash is None:
         passwords.dummy_verify(body.password)
@@ -133,7 +141,7 @@ def forgot(body: ForgotIn, request: Request, db: Db, settings: AppSettings) -> d
         raise HTTPException(status_code=429, detail=str(exc)) from None
     ratelimit.record_failure(email, client)
     user = user_accounts.get_by_email(db, body.email)
-    if user is not None and not user.disabled:
+    if user is not None and not user.disabled and not user.is_demo:
         token = reset.make_token(settings, user)
         if token is not None:
             link = f"{ui_origin(settings)}/reset?token={token}"
@@ -165,7 +173,12 @@ def reset_password(
     bad = HTTPException(status_code=400, detail="This link is invalid or expired.")
     parsed = reset.parse_token(body.token)
     user = db.get(UserAccount, parsed[0]) if parsed else None
-    if parsed is None or user is None or not reset.verify(settings, user, parsed[1], parsed[2]):
+    if (
+        parsed is None
+        or user is None
+        or user.is_demo
+        or not reset.verify(settings, user, parsed[1], parsed[2])
+    ):
         ratelimit.record_failure(client, client)
         raise bad
     user.password_hash = passwords.hash_for_new_password(
@@ -208,7 +221,9 @@ def signup(
         ratelimit.record_failure(key, client)
         return HTTPException(status_code=400, detail=_BAD_CODE)
 
-    if user_accounts.get_by_email(db, email) is not None:
+    if user_accounts.get_by_email(db, email) is not None or email.endswith(
+        user_accounts.RESERVED_DOMAIN
+    ):
         raise fail()
     row = (
         access_codes.consume_code(db, body.code)
@@ -234,7 +249,7 @@ def signup(
     return _me(db, user)
 
 
-@router.post("/join", response_model=MeOut)
+@router.post("/join", response_model=MeOut, dependencies=[demo.NotDemo])
 def join(body: JoinIn, request: Request, db: Db, user: SessionUser) -> MeOut:
     """A signed-in person joins a workspace with a join token."""
     client = "join:" + _client(request)
@@ -259,6 +274,89 @@ def logout(response: Response, db: Db, df_session: Annotated[str | None, Cookie(
     sessions.end_session(db, df_session)
     db.commit()
     response.delete_cookie(sessions.COOKIE, path="/")
+
+
+# --- the public demo (docs/M6-ACCOUNTS-ADMIN-CONTRACT.md section E) -------------------------------
+def _demo_only(request: Request) -> None:
+    if not demo.is_demo_session(request):
+        raise HTTPException(status_code=403, detail="only in the demo")
+
+
+@router.post("/demo", response_model=MeOut)
+def start_demo(
+    body: DemoStartIn, request: Request, response: Response, db: Db, settings: AppSettings
+) -> MeOut:
+    """Public. Start a demo session as the demo admin (or a rep). Called from a demo session it
+    switches identity and keeps the session's AI key. A normal session is refused."""
+    signed_in = getattr(request.state, "user_id", None) is not None
+    switching = demo.is_demo_session(request)
+    if signed_in and not switching:
+        raise HTTPException(status_code=403, detail=demo.DEMO_BLOCKED)
+    if not switching and not demo.take_start(_client(request)):
+        raise HTTPException(status_code=429, detail="Too many demo starts; try again later.")
+    ws = demo.demo_workspace(db, settings)
+    if ws is None:
+        raise HTTPException(status_code=404, detail="The demo is not available.")
+    target = demo.find_identity(db, ws, body.as_)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Unknown demo identity.")
+    carry: tuple[str | None, str | None, str | None] = (None, None, None)
+    old = demo.session_row(db, request) if switching else None
+    if old is not None:
+        carry = (old.llm_provider, old.llm_model, old.llm_key_enc)
+        db.delete(old)
+    sessions.delete_expired_demo_sessions(db)
+    token = sessions.create_session(
+        db, target, request.headers.get("user-agent"), demo=True, ai_key=carry
+    )
+    db.commit()
+    set_cookie(response, token, settings, demo=True)
+    return _me(db, target)
+
+
+@router.get("/demo/identities", response_model=list[DemoIdentity])
+def demo_identities(request: Request, db: Db, settings: AppSettings) -> list[dict[str, str]]:
+    _demo_only(request)
+    ws = demo.demo_workspace(db, settings)
+    return demo.identities(db, ws) if ws is not None else []
+
+
+def _key_out(row) -> DemoAiKeyOut:  # noqa: ANN001 - a UserSession
+    if row is None or not (row.llm_provider and row.llm_model and row.llm_key_enc):
+        return DemoAiKeyOut()
+    return DemoAiKeyOut(provider=row.llm_provider, model=row.llm_model, set=True)
+
+
+@router.get("/demo/ai-key", response_model=DemoAiKeyOut)
+def get_demo_ai_key(request: Request, db: Db) -> DemoAiKeyOut:
+    _demo_only(request)
+    return _key_out(demo.session_row(db, request))
+
+
+@router.put("/demo/ai-key", response_model=DemoAiKeyOut)
+def put_demo_ai_key(
+    body: DemoAiKeyIn, request: Request, db: Db, settings: AppSettings
+) -> DemoAiKeyOut:
+    """Keep the visitor's own key, sealed, on their session only (never on the workspace)."""
+    _demo_only(request)
+    row = demo.session_row(db, request)
+    if row is None:
+        raise HTTPException(status_code=401, detail="sign in required")
+    key = llm_settings.validate_key(body.api_key)
+    row.llm_provider, row.llm_model = body.provider, body.model
+    row.llm_key_enc = crypto.seal(key, settings)
+    db.commit()
+    return _key_out(row)
+
+
+@router.delete("/demo/ai-key", status_code=204)
+def delete_demo_ai_key(request: Request, db: Db) -> Response:
+    _demo_only(request)
+    row = demo.session_row(db, request)
+    if row is not None:
+        row.llm_provider = row.llm_model = row.llm_key_enc = None
+        db.commit()
+    return Response(status_code=204)
 
 
 def _me(db: Db, user: UserAccount) -> MeOut:

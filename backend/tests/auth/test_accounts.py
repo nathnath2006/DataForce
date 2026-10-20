@@ -309,9 +309,7 @@ def test_invite_email_workspace_cap(client, db_session, sent, app, api_settings)
 def test_active_join_token_cap(client, db_session, app, api_settings):
     workspaces.create_workspace(db_session, "w1", "W1", is_demo=False)
     _cfg(app, api_settings, join_tokens_max_active=2)
-    ids = [
-        client.post("/api/w/w1/join-tokens", json={"label": "a"}).json()["id"] for _ in range(2)
-    ]
+    ids = [client.post("/api/w/w1/join-tokens", json={"label": "a"}).json()["id"] for _ in range(2)]
     assert client.post("/api/w/w1/join-tokens", json={"label": "a"}).status_code == 409
     client.post(f"/api/w/w1/join-tokens/{ids[0]}/revoke")
     assert client.post("/api/w/w1/join-tokens", json={"label": "a"}).status_code == 201

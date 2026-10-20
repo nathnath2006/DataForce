@@ -1912,6 +1912,11 @@
    },
    "AuthStatus": {
     "properties": {
+     "demo_available": {
+      "default": false,
+      "title": "Demo Available",
+      "type": "boolean"
+     },
      "demo_logins": {
       "default": [],
       "items": {
@@ -1958,6 +1963,11 @@
      },
      "is_admin": {
       "title": "Is Admin",
+      "type": "boolean"
+     },
+     "is_demo": {
+      "default": false,
+      "title": "Is Demo",
       "type": "boolean"
      },
      "workspace_credits": {
@@ -4580,6 +4590,102 @@
     "title": "DedupConfig",
     "type": "object"
    },
+   "DemoAiKeyIn": {
+    "additionalProperties": false,
+    "properties": {
+     "api_key": {
+      "maxLength": 400,
+      "minLength": 1,
+      "title": "Api Key",
+      "type": "string"
+     },
+     "model": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$",
+      "title": "Model",
+      "type": "string"
+     },
+     "provider": {
+      "enum": [
+       "gemini",
+       "anthropic"
+      ],
+      "title": "Provider",
+      "type": "string"
+     }
+    },
+    "required": [
+     "provider",
+     "model",
+     "api_key"
+    ],
+    "title": "DemoAiKeyIn",
+    "type": "object"
+   },
+   "DemoAiKeyOut": {
+    "description": "The visitor's session AI key. The key itself is never returned.",
+    "properties": {
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "provider": {
+      "anyOf": [
+       {
+        "enum": [
+         "gemini",
+         "anthropic"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Provider"
+     },
+     "set": {
+      "default": false,
+      "title": "Set",
+      "type": "boolean"
+     }
+    },
+    "title": "DemoAiKeyOut",
+    "type": "object"
+   },
+   "DemoIdentity": {
+    "properties": {
+     "as": {
+      "title": "As",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "role": {
+      "enum": [
+       "admin",
+       "rep"
+      ],
+      "title": "Role",
+      "type": "string"
+     }
+    },
+    "required": [
+     "as",
+     "label",
+     "role"
+    ],
+    "title": "DemoIdentity",
+    "type": "object"
+   },
    "DemoLogin": {
     "properties": {
      "display_name": {
@@ -4596,6 +4702,26 @@
      "display_name"
     ],
     "title": "DemoLogin",
+    "type": "object"
+   },
+   "DemoStartIn": {
+    "additionalProperties": false,
+    "description": "Who to be in the demo: \"admin\" (default) or the app_user id of a rep.",
+    "properties": {
+     "as": {
+      "anyOf": [
+       {
+        "maxLength": 36,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As"
+     }
+    },
+    "title": "DemoStartIn",
     "type": "object"
    },
    "Dimension": {
@@ -14929,6 +15055,146 @@
     "summary": "Global Usage",
     "tags": [
      "admin"
+    ]
+   }
+  },
+  "/api/auth/demo": {
+   "post": {
+    "description": "Public. Start a demo session as the demo admin (or a rep). Called from a demo session it\nswitches identity and keeps the session's AI key. A normal session is refused.",
+    "operationId": "start_demo_api_auth_demo_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DemoStartIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Demo",
+    "tags": [
+     "auth"
+    ]
+   }
+  },
+  "/api/auth/demo/ai-key": {
+   "delete": {
+    "operationId": "delete_demo_ai_key_api_auth_demo_ai_key_delete",
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Delete Demo Ai Key",
+    "tags": [
+     "auth"
+    ]
+   },
+   "get": {
+    "operationId": "get_demo_ai_key_api_auth_demo_ai_key_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DemoAiKeyOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Demo Ai Key",
+    "tags": [
+     "auth"
+    ]
+   },
+   "put": {
+    "description": "Keep the visitor's own key, sealed, on their session only (never on the workspace).",
+    "operationId": "put_demo_ai_key_api_auth_demo_ai_key_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DemoAiKeyIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DemoAiKeyOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Put Demo Ai Key",
+    "tags": [
+     "auth"
+    ]
+   }
+  },
+  "/api/auth/demo/identities": {
+   "get": {
+    "operationId": "demo_identities_api_auth_demo_identities_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/DemoIdentity"
+         },
+         "title": "Response Demo Identities Api Auth Demo Identities Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Demo Identities",
+    "tags": [
+     "auth"
     ]
    }
   },

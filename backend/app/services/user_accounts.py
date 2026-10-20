@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.db.models import AppUser, Membership, UserAccount, Workspace
 from app.services.errors import AlreadyExistsError, InvalidInputError, NotFoundError
 
+RESERVED_DOMAIN = "@demo.invalid"  # the public demo's own addresses: nobody can sign up with one
+
 
 def normalize_email(email: str) -> str:
     value = email.strip().lower()
@@ -38,15 +40,22 @@ def create_account(
     password_hash: str | None,
     *,
     is_admin: bool = False,
+    is_demo: bool = False,
 ) -> UserAccount:
     email = normalize_email(email)
+    if email.endswith(RESERVED_DOMAIN) and not is_demo:
+        raise InvalidInputError("this email address is reserved")
     name = display_name.strip()
     if not name:
         raise InvalidInputError("the name is empty")
     if get_by_email(db, email) is not None:
         raise AlreadyExistsError("an account with this email already exists")
     user = UserAccount(
-        email=email, display_name=name, password_hash=password_hash, is_admin=is_admin
+        email=email,
+        display_name=name,
+        password_hash=password_hash,
+        is_admin=is_admin,
+        is_demo=is_demo,
     )
     db.add(user)
     db.flush()
@@ -80,6 +89,8 @@ def add_membership(
 ) -> Membership:
     if get_membership(db, user.id, ws.id) is not None:
         raise AlreadyExistsError("this person is already a member of the workspace")
+    if user.is_demo and not ws.is_demo:
+        raise InvalidInputError("a demo account can only belong to a test workspace")
     check_app_user(db, ws.id, app_user_id)
     row = Membership(
         user_account_id=user.id,
@@ -129,6 +140,7 @@ def demo_logins(db: Session, limit: int = 12) -> list[tuple[str, str]]:
             UserAccount.is_admin.is_(False),
             UserAccount.disabled.is_(False),
             UserAccount.password_hash.is_(None),
+            UserAccount.is_demo.is_(False),  # those use the "Try the demo" button
             select(Membership.id).where(Membership.user_account_id == UserAccount.id).exists(),
             ~select(Membership.id)
             .join(Workspace, Workspace.id == Membership.workspace_id)

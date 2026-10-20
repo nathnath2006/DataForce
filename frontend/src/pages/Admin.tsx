@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { adminApi } from "../admin/api";
 import { formatBytes, formatDuration } from "../admin/format";
 import { HealthBar } from "../quality/HealthBar";
@@ -8,7 +9,8 @@ import { People } from "../admin/People";
 import { Limits } from "../admin/Limits";
 import { Usage } from "../admin/Usage";
 import { AccessCodes } from "../admin/AccessCodes";
-import { useAuth } from "../auth";
+import { DemoBlockedNote, useAuth } from "../auth";
+import "../analysis/analysis.css";
 import { Empty, ErrorNote, Loading, Tag, useLoad } from "../ui";
 
 const KINDS = ["demo_generate", "stats_scan", "flow_run", "title_normalize", "org_rules", "theme_analysis", "agent_call"];
@@ -16,8 +18,16 @@ const STATUSES = ["running", "succeeded", "partial", "failed"];
 
 export function AdminPage() {
   const { ws } = useWs();
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, user, isDemo } = useAuth();
   const [globalLimits, setGlobalLimits] = useState(false);
+  const [sp, setSp] = useSearchParams();
+  const tabs = [
+    ...(isAdmin ? [["people", "People and access"] as const] : []),
+    ["usage", "Usage"], ["codes", "Access codes"], ["limits", "Limits"], ["database", "Database"], ["runs", "Recent runs"],
+  ] as const;
+  const want = sp.get("tab");
+  const tab = tabs.some(([k]) => k === want) ? want : tabs[0][0];
+  const pick = (k: string) => setSp((p) => { const n = new URLSearchParams(p); n.set("tab", k); return n; }, { replace: true });
   const [kind, setKind] = useState("");
   const [status, setStatus] = useState("");
   const ov = useLoad(() => adminApi.overview(ws.slug), [ws.slug]);
@@ -31,8 +41,13 @@ export function AdminPage() {
   return (
     <section className="stack">
       <h1>Admin</h1>
-      {isAdmin && <People slug={ws.slug} />}
-      <div className="card stack">
+      <div className="an-tabs" role="tablist" aria-label="Admin sections">
+        {tabs.map(([k, l]) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} className={`adm-tab${tab === k ? " active" : ""}`} onClick={() => pick(k)}>{l}</button>
+        ))}
+      </div>
+      {tab === "people" && isAdmin && (isDemo ? <DemoBlockedNote title="People and access" /> : <People slug={ws.slug} />)}
+      {tab === "database" && <div className="card stack">
         <h2>Database</h2>
         <ErrorNote error={ov.error} />
         {ov.loading && !db ? <Loading /> : db && sc && (
@@ -61,12 +76,12 @@ export function AdminPage() {
             </div>
           </>
         )}
-      </div>
+      </div>}
 
-      <Usage ws={ws.slug} superadmin={!!user?.is_admin} />
-      <AccessCodes ws={ws.slug} superadmin={!!user?.is_admin} />
+      {tab === "usage" && <Usage ws={ws.slug} superadmin={!!user?.is_admin} />}
+      {tab === "codes" && (isDemo ? <DemoBlockedNote title="Access codes" /> : <AccessCodes ws={ws.slug} superadmin={!!user?.is_admin} />)}
 
-      <div className="card stack">
+      {tab === "runs" && <div className="card stack">
         <div className="row between">
           <h2>Recent runs</h2>
           <span className="row">
@@ -90,18 +105,12 @@ export function AdminPage() {
             ))}</tbody>
           </table></div>
         ))}
-      </div>
+      </div>}
 
-      <div className="stack">
-        {user?.is_admin && (
-          <label>Limits for
-            <select value={globalLimits ? "global" : "ws"} onChange={(e) => setGlobalLimits(e.target.value === "global")}>
-              <option value="ws">This workspace</option><option value="global">All workspaces (global)</option>
-            </select>
-          </label>
-        )}
-        <Limits ws={user?.is_admin && globalLimits ? null : ws.slug} />
-      </div>
+      {tab === "limits" && (
+        <Limits ws={user?.is_admin && globalLimits ? null : ws.slug} readOnly={isDemo}
+          scope={user?.is_admin ? (globalLimits ? "global" : "ws") : undefined} onScope={(v) => setGlobalLimits(v === "global")} />
+      )}
     </section>
   );
 }

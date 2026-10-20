@@ -15,6 +15,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import AppSettings, CurrentViewer, CurrentWorkspace, Db
 from app.api.schemas import ConnectorOut, ConnectStart
+from app.auth.demo import NotDemo
 from app.auth.visibility import require_admin
 from app.config import is_hosted
 from app.connectors import tamtam
@@ -34,7 +35,12 @@ def get_tamtam(
     return tamtam.status_view(db, settings, ws)
 
 
-@router.post("/w/{ws}/connectors/tamtam/connect", response_model=ConnectStart, tags=["connectors"])
+@router.post(
+    "/w/{ws}/connectors/tamtam/connect",
+    response_model=ConnectStart,
+    tags=["connectors"],
+    dependencies=[NotDemo],
+)
 async def connect_tamtam(
     request: Request,
     db: Db,
@@ -80,7 +86,12 @@ async def tamtam_callback(request: Request, db: Db, settings: AppSettings) -> Re
     return redirect
 
 
-@router.post("/w/{ws}/connectors/tamtam/check", response_model=ConnectorOut, tags=["connectors"])
+@router.post(
+    "/w/{ws}/connectors/tamtam/check",
+    response_model=ConnectorOut,
+    tags=["connectors"],
+    dependencies=[NotDemo],
+)
 async def check_tamtam(
     db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
 ) -> ConnectorOut:
@@ -89,7 +100,9 @@ async def check_tamtam(
     return await run_in_threadpool(tamtam.status_view, db, settings, ws)
 
 
-@router.delete("/w/{ws}/connectors/tamtam", status_code=204, tags=["connectors"])
+@router.delete(
+    "/w/{ws}/connectors/tamtam", status_code=204, tags=["connectors"], dependencies=[NotDemo]
+)
 async def disconnect_tamtam(
     db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
 ) -> Response:

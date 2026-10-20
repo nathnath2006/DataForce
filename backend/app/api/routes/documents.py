@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import date
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, File, Form, Query, Response, UploadFile
+from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import defer
 
@@ -20,7 +20,7 @@ from app.api.schemas_documents import (
     DocumentOut,
     SpeakerOut,
 )
-from app.auth import visibility
+from app.auth import demo, visibility
 from app.auth.viewer import Viewer
 from app.db.models import Account, Document, DocumentChunk
 from app.services import companies as company_svc
@@ -104,6 +104,7 @@ def _order(stmt):
 
 @router.post("/w/{ws}/accounts/{account_id}/documents", response_model=DocumentOut, status_code=201)
 def upload_document(
+    request: Request,
     account_id: uuid.UUID,
     db: Db,
     ws: CurrentWorkspace,
@@ -115,7 +116,9 @@ def upload_document(
     deal_id: Annotated[uuid.UUID | None, Form()] = None,
 ) -> DocumentOut:
     require_account(db, ws.id, account_id, viewer)
-    data = file.file.read(settings.transcript_max_bytes + 1)
+    cap = demo.upload_cap(request, settings.transcript_max_bytes, demo.client_address(request))
+    data = file.file.read(cap + 1)
+    demo.enforce_size(request, data)
     doc = svc.import_file(
         db,
         ws.id,

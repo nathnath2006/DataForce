@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.connectors import crypto
-from app.db.models import LlmCredential
+from app.db.models import LlmCredential, UserSession
 from app.enrichment.errors import EnrichmentConfigError
 from app.services.errors import InvalidInputError
 
@@ -36,6 +36,8 @@ SUGGESTED_MODELS: dict[str, list[str]] = {
     "anthropic": ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"],
 }
 NOT_CONFIGURED = "Set an AI model in Settings"
+NOT_CONFIGURED_DEMO = "Add your own key to try AI in the demo"
+DEMO_INFO_KEY = "demo_session_id"  # set on the DB session by app.auth.demo.bind_session
 ERROR_MAX_CHARS = 300
 
 _TOKEN_RES = (
@@ -59,8 +61,28 @@ def sanitize_error(message: str, *secrets: str | None) -> str:
     return text[:ERROR_MAX_CHARS]
 
 
-def get_credential(session: Session, ws_id: uuid.UUID) -> LlmCredential | None:
+def stored_credential(session: Session, ws_id: uuid.UUID) -> LlmCredential | None:
+    """The workspace's own saved AI model (the settings page edits only this one)."""
     return session.scalar(select(LlmCredential).where(LlmCredential.workspace_id == ws_id))
+
+
+def get_credential(session: Session, ws_id: uuid.UUID) -> LlmCredential | None:
+    """The AI model to use for a call. THE one place every AI feature (assistant, summaries,
+    titles, themes, organisation) loads it. In a demo session this is only the visitor's own key
+    from their session, and never the workspace's stored key, even when the workspace has one."""
+    if DEMO_INFO_KEY in session.info:
+        row = session.get(UserSession, session.info[DEMO_INFO_KEY])
+        if row is None or not (row.llm_provider and row.llm_model and row.llm_key_enc):
+            return None
+        # Not added to the session: it is never written. The key stays sealed until used.
+        return LlmCredential(
+            workspace_id=ws_id,
+            provider=row.llm_provider,
+            model=row.llm_model,
+            api_key_enc=row.llm_key_enc,
+            allow_meeting_org=True,  # synthetic data and the visitor's own key
+        )
+    return stored_credential(session, ws_id)
 
 
 def validate_key(raw: str) -> str:
@@ -82,7 +104,7 @@ def save_settings(
     if provider not in PROVIDERS:
         raise InvalidInputError("provider must be gemini or anthropic")
     key = validate_key(api_key) if api_key and api_key.strip() else None
-    cred = get_credential(session, ws_id)
+    cred = stored_credential(session, ws_id)
     if cred is None:
         if key is None:
             raise InvalidInputError("an API key is required")
@@ -110,7 +132,7 @@ def save_settings(
 
 
 def delete_settings(session: Session, ws_id: uuid.UUID) -> None:
-    cred = get_credential(session, ws_id)
+    cred = stored_credential(session, ws_id)
     if cred is not None:
         session.delete(cred)
         session.flush()
@@ -119,7 +141,9 @@ def delete_settings(session: Session, ws_id: uuid.UUID) -> None:
 def require_credential(session: Session, ws_id: uuid.UUID) -> LlmCredential:
     cred = get_credential(session, ws_id)
     if cred is None:
-        raise EnrichmentConfigError(NOT_CONFIGURED)
+        raise EnrichmentConfigError(
+            NOT_CONFIGURED_DEMO if DEMO_INFO_KEY in session.info else NOT_CONFIGURED
+        )
     return cred
 
 

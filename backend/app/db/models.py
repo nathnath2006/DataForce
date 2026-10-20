@@ -930,6 +930,10 @@ class UserAccount(Base):
     workspace_credits: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default=text("0")
     )
+    # A public-demo account: no password, never signs in through /login, only in the demo workspace.
+    is_demo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
 
 
 class Membership(Base):
@@ -970,6 +974,15 @@ class UserSession(Base):
     last_seen_at: Mapped[datetime] = _created()
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     user_agent: Mapped[str | None] = mapped_column(String(200))
+    # Demo sessions (docs/M6-ACCOUNTS-ADMIN-CONTRACT.md section E): at most 4 hours, and they may
+    # carry the visitor's own AI key, sealed. It dies with the
+    # session and never reaches a workspace.
+    is_demo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    llm_provider: Mapped[str | None] = mapped_column(String(16))
+    llm_model: Mapped[str | None] = mapped_column(String(64))
+    llm_key_enc: Mapped[str | None] = mapped_column(Text)
 
 
 # --- M6: creation codes and join tokens (migration 0013_accounts) --------------------------------

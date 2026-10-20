@@ -7,6 +7,7 @@ import { McpPanel } from "../agent/McpPanel";
 import { MailboxSection } from "../mailbox";
 import type { AiProvider } from "../types";
 import { useWs } from "../context";
+import { DemoAiKeyCard, DemoBlockedNote, useAuth } from "../auth";
 import { formatDateTime, isSafeAuthorizeUrl, tamtamReason } from "../lib";
 import { meetingOrgNotice } from "../orgchart/model";
 import { Confirm, ErrorNote, Loading, Tag, useAction, useLoad } from "../ui";
@@ -27,6 +28,7 @@ export function SettingsPage() {
   const raw = sp.get("tab") ?? "integrations";
   const tab: TabKey = TABS.some((t) => t.key === raw) ? (raw as TabKey) : "integrations";
   const current = TABS.find((t) => t.key === tab)!;
+  const { isDemo } = useAuth();
   return (
     <section className="stack">
       <div className="page-head">
@@ -42,9 +44,9 @@ export function SettingsPage() {
           ))}
         </nav>
         <div className="stack settings-body">
-                    {tab === "integrations" && <><section className="tile"><MailboxSection /></section><TamtamSection /></>}
-          {tab === "ai" && <AiSection />}
-          {tab === "data" && <ConnectionsPanel />}
+                    {tab === "integrations" && (isDemo ? <DemoBlockedNote title="Mail & TamTam" /> : <><section className="tile"><MailboxSection /></section><TamtamSection /></>)}
+          {tab === "ai" && (isDemo ? <DemoAiKeyCard /> : <AiSection />)}
+          {tab === "data" && (isDemo ? <DemoBlockedNote title="Data connections" /> : <ConnectionsPanel />)}
           {tab === "assistants" && <McpPanel />}
         </div>
       </div>

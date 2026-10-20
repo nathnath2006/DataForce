@@ -27,6 +27,7 @@ from app.api.schemas_ai import (
 from app.assistant.ask import run_turn
 from app.assistant.context import build_context, validate_scope
 from app.assistant.ratelimit import check_and_count
+from app.auth.demo import NotDemo
 from app.auth.visibility import require_admin
 from app.config import Settings
 from app.db.models import LlmCredential
@@ -130,7 +131,7 @@ def get_models(
     )
 
 
-@router.put("/w/{ws}/ai", response_model=AiSettingsOut)
+@router.put("/w/{ws}/ai", response_model=AiSettingsOut, dependencies=[NotDemo])
 def put_ai(
     body: AiSettingsIn, db: Db, ws: CurrentWorkspace, settings: AppSettings, viewer: CurrentViewer
 ) -> AiSettingsOut:
@@ -147,7 +148,7 @@ def put_ai(
     return _out(cred)
 
 
-@router.put("/w/{ws}/ai/meeting-org", response_model=AiSettingsOut)
+@router.put("/w/{ws}/ai/meeting-org", response_model=AiSettingsOut, dependencies=[NotDemo])
 def put_meeting_org(
     body: MeetingOrgIn, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer
 ) -> AiSettingsOut:
@@ -158,7 +159,7 @@ def put_meeting_org(
     return _out(cred)
 
 
-@router.delete("/w/{ws}/ai", status_code=204)
+@router.delete("/w/{ws}/ai", status_code=204, dependencies=[NotDemo])
 def delete_ai(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> Response:
     require_admin(viewer)
     llm_settings.delete_settings(db, ws.id)
@@ -166,7 +167,7 @@ def delete_ai(db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> Response:
     return Response(status_code=204)
 
 
-@router.post("/w/{ws}/ai/test", response_model=AiSettingsOut)
+@router.post("/w/{ws}/ai/test", response_model=AiSettingsOut, dependencies=[NotDemo])
 def test_ai(
     db: Db, ws: CurrentWorkspace, settings: AppSettings, factory: Factory, viewer: CurrentViewer
 ) -> AiSettingsOut:

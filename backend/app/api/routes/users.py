@@ -11,6 +11,7 @@ from app.api.deps import AdminViewer, AppSettings, CurrentWorkspace, Db
 from app.api.schemas_auth import MemberCreate, MemberOut, MemberUpdate, PasswordReset
 from app.auth import passwords, sessions
 from app.auth.access import empty_password_allowed
+from app.auth.demo import NotDemo
 from app.auth.viewer import Viewer
 from app.db.models import Membership, UserAccount
 from app.services import user_accounts
@@ -70,7 +71,7 @@ def list_members(db: Db, ws: CurrentWorkspace, viewer: AdminViewer) -> list[Memb
     return [_out(*row) for row in user_accounts.list_members(db, ws.id)]
 
 
-@router.post("/w/{ws}/members", response_model=MemberOut, status_code=201)
+@router.post("/w/{ws}/members", response_model=MemberOut, status_code=201, dependencies=[NotDemo])
 def add_member(
     body: MemberCreate, db: Db, ws: CurrentWorkspace, viewer: AdminViewer, settings: AppSettings
 ) -> MemberOut:
@@ -100,7 +101,7 @@ def add_member(
     return _one(db, ws.id, user.id)
 
 
-@router.patch("/w/{ws}/members/{user_id}", response_model=MemberOut)
+@router.patch("/w/{ws}/members/{user_id}", response_model=MemberOut, dependencies=[NotDemo])
 def update_member(
     user_id: uuid.UUID, body: MemberUpdate, db: Db, ws: CurrentWorkspace, viewer: AdminViewer
 ) -> MemberOut:
@@ -126,7 +127,7 @@ def update_member(
     return _one(db, ws.id, user_id)
 
 
-@router.post("/w/{ws}/members/{user_id}/password", status_code=204)
+@router.post("/w/{ws}/members/{user_id}/password", status_code=204, dependencies=[NotDemo])
 def reset_password(
     user_id: uuid.UUID,
     body: PasswordReset,
@@ -144,7 +145,7 @@ def reset_password(
     db.commit()
 
 
-@router.post("/w/{ws}/members/{user_id}/disable", status_code=204)
+@router.post("/w/{ws}/members/{user_id}/disable", status_code=204, dependencies=[NotDemo])
 def disable_member(user_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: AdminViewer) -> None:
     _, u = _target(db, ws.id, user_id)
     _may_manage(db, ws.id, viewer, u)
@@ -155,7 +156,7 @@ def disable_member(user_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: Adm
     db.commit()
 
 
-@router.post("/w/{ws}/members/{user_id}/enable", status_code=204)
+@router.post("/w/{ws}/members/{user_id}/enable", status_code=204, dependencies=[NotDemo])
 def enable_member(user_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: AdminViewer) -> None:
     _, u = _target(db, ws.id, user_id)
     _may_manage(db, ws.id, viewer, u)
@@ -163,7 +164,7 @@ def enable_member(user_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: Admi
     db.commit()
 
 
-@router.delete("/w/{ws}/members/{user_id}", status_code=204)
+@router.delete("/w/{ws}/members/{user_id}", status_code=204, dependencies=[NotDemo])
 def remove_member(user_id: uuid.UUID, db: Db, ws: CurrentWorkspace, viewer: AdminViewer) -> None:
     m, u = _target(db, ws.id, user_id)
     if u.is_admin or u.id == viewer.user_id:

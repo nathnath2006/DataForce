@@ -459,9 +459,7 @@ def test_set_override_survives_a_concurrent_first_write(db_session):
         out = real(stmt, *a, **k)
         if calls["n"] <= 2:  # both lookups see nothing, then a rival inserts
             if calls["n"] == 2:
-                db_session.execute(
-                    insert(SettingOverride).values(key="flow_max_rows", value=2000)
-                )
+                db_session.execute(insert(SettingOverride).values(key="flow_max_rows", value=2000))
             return None
         return out
 
@@ -471,9 +469,7 @@ def test_set_override_survives_a_concurrent_first_write(db_session):
     finally:
         db_session.scalar = real
     db_session.commit()
-    row = db_session.scalar(
-        select(SettingOverride).where(SettingOverride.key == "flow_max_rows")
-    )
+    row = db_session.scalar(select(SettingOverride).where(SettingOverride.key == "flow_max_rows"))
     assert row.value == 3000
 
 

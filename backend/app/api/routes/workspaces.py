@@ -15,6 +15,7 @@ from app.api.deps import (
     SuperAdmin,
 )
 from app.api.schemas import UserCreate, UserOut, WorkspaceCreate, WorkspaceOut, WorkspaceSetup
+from app.auth.demo import NotDemo
 from app.auth.visibility import require_admin
 from app.db.models import Membership, UserAccount, Workspace
 from app.domain.schemas import UserIn
@@ -53,7 +54,13 @@ def list_workspaces(db: Db, user: SessionUser) -> list[WorkspaceOut]:
 QUOTA_STOP_PCT = 80  # no new test workspace when the database is this full
 
 
-@router.post("/workspaces", response_model=WorkspaceOut, status_code=201, tags=["workspaces"])
+@router.post(
+    "/workspaces",
+    response_model=WorkspaceOut,
+    status_code=201,
+    tags=["workspaces"],
+    dependencies=[NotDemo],
+)
 def create_workspace(
     body: WorkspaceCreate,
     db: Db,
@@ -62,6 +69,8 @@ def create_workspace(
     factory: SessionFactory,
 ) -> WorkspaceOut:
     """A superadmin, or an account with workspace credits (one is taken). The creator is admin."""
+    if body.kind == "test" and not user.is_admin:
+        raise ForbiddenError("Only an administrator can create a test workspace.")
     if not user.is_admin:
         # One atomic decrement: two requests cannot spend the same credit.
         spent = db.execute(
@@ -123,7 +132,7 @@ def workspace_setup_status(slug: str, db: Db, user: SessionUser) -> WorkspaceSet
     return WorkspaceSetup(state="preparing", step=job.step, done=job.done, total=total, error=None)
 
 
-@router.delete("/workspaces/{slug}", status_code=204, tags=["workspaces"])
+@router.delete("/workspaces/{slug}", status_code=204, tags=["workspaces"], dependencies=[NotDemo])
 def delete_workspace(slug: str, db: Db, admin: SuperAdmin) -> Response:
     ws = workspaces.get_workspace_by_slug(db, slug)
     if ws is None:
@@ -142,7 +151,13 @@ def list_users(db: Db, ws: CurrentWorkspace) -> list[UserOut]:
     return [UserOut.model_validate(u) for u in users.list_users(db, ws.id)]
 
 
-@router.post("/w/{ws}/users", response_model=UserOut, status_code=201, tags=["workspaces"])
+@router.post(
+    "/w/{ws}/users",
+    response_model=UserOut,
+    status_code=201,
+    tags=["workspaces"],
+    dependencies=[NotDemo],
+)
 def create_user(body: UserCreate, db: Db, ws: CurrentWorkspace, viewer: CurrentViewer) -> UserOut:
     require_admin(viewer)
     user = users.create_user(db, ws.id, UserIn(**body.model_dump()))

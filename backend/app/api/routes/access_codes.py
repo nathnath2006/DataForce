@@ -17,6 +17,7 @@ from app.api.schemas_access import (
     JoinTokenCreated,
     JoinTokenOut,
 )
+from app.auth.demo import NotDemo
 from app.config import ui_origin
 from app.db.models import CreationCode, JoinToken
 from app.services import access_codes, mailer
@@ -48,7 +49,12 @@ def list_creation_codes(db: Db, admin: SuperAdmin) -> list[CreationCodeOut]:
     return [CreationCodeOut(**_code_out(r)) for r in rows]
 
 
-@router.post("/admin/creation-codes", response_model=CreationCodeCreated, status_code=201)
+@router.post(
+    "/admin/creation-codes",
+    response_model=CreationCodeCreated,
+    status_code=201,
+    dependencies=[NotDemo],
+)
 def create_creation_code(
     body: CreationCodeCreate, db: Db, admin: SuperAdmin
 ) -> CreationCodeCreated:
@@ -59,7 +65,9 @@ def create_creation_code(
     return CreationCodeCreated(**_code_out(row), code=code)
 
 
-@router.post("/admin/creation-codes/{code_id}/revoke", response_model=CreationCodeOut)
+@router.post(
+    "/admin/creation-codes/{code_id}/revoke", response_model=CreationCodeOut, dependencies=[NotDemo]
+)
 def revoke_creation_code(code_id: str, db: Db, admin: SuperAdmin) -> CreationCodeOut:
     row = db.get(CreationCode, _uuid(code_id))
     if row is None:
@@ -81,7 +89,9 @@ def list_join_tokens(db: Db, ws: CurrentWorkspace, viewer: AdminViewer) -> list[
     return [JoinTokenOut(**_token_out(r)) for r in rows]
 
 
-@router.post("/w/{ws}/join-tokens", response_model=JoinTokenCreated, status_code=201)
+@router.post(
+    "/w/{ws}/join-tokens", response_model=JoinTokenCreated, status_code=201, dependencies=[NotDemo]
+)
 def create_join_token(
     body: JoinTokenCreate,
     db: Db,
@@ -110,7 +120,9 @@ def create_join_token(
     return JoinTokenCreated(**_token_out(row), token=token, link=link, email_queued=queued)
 
 
-@router.post("/w/{ws}/join-tokens/{token_id}/revoke", response_model=JoinTokenOut)
+@router.post(
+    "/w/{ws}/join-tokens/{token_id}/revoke", response_model=JoinTokenOut, dependencies=[NotDemo]
+)
 def revoke_join_token(
     token_id: str, db: Db, ws: CurrentWorkspace, viewer: AdminViewer
 ) -> JoinTokenOut:

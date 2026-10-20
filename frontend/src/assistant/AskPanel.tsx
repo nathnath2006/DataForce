@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useWs } from "../context";
+import { DemoAiKeyDialog, useAuth } from "../auth";
 import { ErrorNote, useAction, useLoad } from "../ui";
 import { ApiError } from "../lib";
 import type { AskOut, AskScope, AskTurn } from "../types";
@@ -43,7 +44,9 @@ export function AskPanel({ scope, bare }: { scope: AskScope; bare?: boolean }) {
   const what = scope.kind;
   const info = useLoad(() => aiApi.scope(ws.slug, scope), [ws.slug, scope.kind, scope.id]);
   const target = info.data?.company_name ?? `this ${what === "company" ? "company" : "account"}`;
-  const notConfigured = a.error instanceof ApiError && a.error.code === "connector_not_configured";
+  const { isDemo } = useAuth();
+  const [keyOpen, setKeyOpen] = useState(false);
+  const notConfigured = a.error instanceof ApiError && (a.error.code === "connector_not_configured" || (isDemo && a.error.status === 403));
   const provider = turns.length ? turns[turns.length - 1]!.out.provider : "your configured AI provider";
   const end = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
@@ -124,8 +127,11 @@ export function AskPanel({ scope, bare }: { scope: AskScope; bare?: boolean }) {
         <div ref={end} />
       </div>
       {notConfigured ? (
-        <div className="note warn" role="alert">No AI model is set. <Link to={`/w/${ws.slug}/settings`}>Set an AI model in Settings</Link>.</div>
+        <div className="note warn" role="alert">{isDemo
+          ? <>Add your own key to try AI in the demo. <button type="button" className="link" onClick={() => setKeyOpen(true)}>Use your own key</button></>
+          : <>No AI model is set. <Link to={`/w/${ws.slug}/settings`}>Set an AI model in Settings</Link>.</>}</div>
       ) : <ErrorNote error={a.error} />}
+      {keyOpen && <DemoAiKeyDialog onClose={() => setKeyOpen(false)} onChanged={() => a.clear()} />}
       <form className="composer" onSubmit={(e) => { e.preventDefault(); ask(); }}>
         <textarea ref={box} rows={1} maxLength={2000} value={question} aria-label="Your question"
           placeholder={`Ask about ${target}…`} onChange={(e) => setQuestion(e.target.value)}

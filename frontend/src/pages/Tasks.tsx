@@ -80,14 +80,17 @@ export function TasksPage() {
         <div className="kb-chips">
           {t.due_on && <span className={`kb-chip ${tone}`}>{tone === "today" ? "Due today" : tone === "overdue" ? `Overdue ${formatDate(t.due_on)}` : formatDate(t.due_on)}</span>}
           <span className="kb-avatar" title={t.owner_name ?? "Unassigned"} aria-label={`Owner: ${t.owner_name ?? "unassigned"}`}>{initial(t.owner_name)}</span>
-          <span className="kb-spacer" />
+        </div>
+        <div className="kb-actions">
+          <span className="kb-txts">
           {t.status === "suggested" && <button type="button" className="kb-txt" onClick={() => move(t, "open")}>Accept</button>}
           {(t.status === "suggested" || t.status === "open") && <button type="button" className="kb-txt" onClick={() => move(t, "dismissed")}>Dismiss</button>}
           {t.status === "dismissed" && <button type="button" className="kb-txt" onClick={() => move(t, "open")}>Reopen</button>}
-          {t.status !== "dismissed" && <>
+          </span>
+          {t.status !== "dismissed" && <span className="kb-arrows">
             <button type="button" className="kb-arrow" disabled={!left} aria-label={`Move "${t.title}" left`} onClick={() => left && move(t, left)}><Chev dir="l" /></button>
             <button type="button" className="kb-arrow" disabled={!right} aria-label={`Move "${t.title}" right`} onClick={() => right && move(t, right)}><Chev dir="r" /></button>
-          </>}
+          </span>}
         </div>
       </li>
     );
@@ -109,13 +112,13 @@ export function TasksPage() {
           )}
         </div>
       </div>
-      <div className="row wrap filters">
+      <div className="kb-filters">
         {seesAll && (
           <select aria-label="Owner" value={owner} onChange={(e) => setOwner(e.target.value)}>
             <option value="">All owners</option>{users.map((u) => <option key={u.id} value={u.id}>{u.display_name}</option>)}
           </select>
         )}
-        <label className="row"><input type="checkbox" checked={showDismissed} onChange={(e) => setShowDismissed(e.target.checked)} /> Show dismissed</label>
+        <label className="kb-check"><input type="checkbox" checked={showDismissed} onChange={(e) => setShowDismissed(e.target.checked)} /> Show dismissed</label>
       </div>
       <ErrorNote error={loadError as never} /><ErrorNote error={act.error} />
       {tasks === null ? <p className="muted">Loading…</p> : (

@@ -15,6 +15,7 @@ from app.demo.generator import generate
 from app.demo.loader import load_dataset
 from app.domain.enums import RunKind, RunStatus
 from app.services import analytics, runs, workspaces
+from app.services.errors import InvalidInputError
 
 app = typer.Typer(
     help="Synthetic demo data (generate, load, check).",
@@ -130,6 +131,32 @@ def testdata_cmd(
     for k, v in counts.items():
         if k not in ("workspace_id", "workspace_slug"):
             console.print(f"  {k}: {v}")
+
+
+@app.command("reset")
+@cli_command
+def reset_cmd(
+    workspace: Annotated[
+        str, typer.Option("--workspace", help="Slug of the public demo workspace.")
+    ] = "",
+) -> None:
+    """Rebuild the public demo workspace from the planted seed-42 data (run it nightly).
+
+    Safe while the app is serving: the new copy is built aside, then swapped in one short step.
+    Every demo session, and the AI keys on them, ends. Refuses a workspace that is not a test
+    workspace."""
+    from app.config import get_settings
+    from app.demo.reset import reset_demo
+
+    slug = workspace or get_settings().demo_workspace
+    try:
+        done = reset_demo(session_factory(), slug, lambda m: console.print(f"  {m}", markup=False))
+    except InvalidInputError as exc:
+        raise fail(str(exc)) from exc
+    if not done:
+        console.print("Another demo reset is already running: nothing to do.", markup=False)
+        return
+    console.print(f"Demo workspace {slug} rebuilt (data is SYNTHETIC).", markup=False)
 
 
 @app.command("check")

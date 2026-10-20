@@ -23,6 +23,7 @@ class AuthStatus(BaseModel):
     signed_in: bool
     demo_logins: list[DemoLogin] = []
     signup_enabled: bool = True
+    demo_available: bool = False  # the "Try the demo" button works
 
 
 class ForgotIn(_In):
@@ -63,6 +64,7 @@ class AuthUserOut(BaseModel):
     display_name: str
     is_admin: bool
     workspace_credits: int = 0  # workspaces this person may still create
+    is_demo: bool = False  # a public-demo account
 
 
 class MembershipOut(BaseModel):
@@ -118,3 +120,33 @@ class MemberUpdate(_In):
 
 class PasswordReset(_In):
     password: str = Field(max_length=200)
+
+
+class DemoStartIn(_In):
+    """Who to be in the demo: "admin" (default) or the app_user id of a rep."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, populate_by_name=True)
+
+    as_: str | None = Field(default=None, alias="as", max_length=36)
+
+
+class DemoIdentity(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    as_: str = Field(alias="as")
+    label: str
+    role: Literal["admin", "rep"]
+
+
+class DemoAiKeyIn(_In):
+    provider: Literal["gemini", "anthropic"]
+    model: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$")
+    api_key: str = Field(min_length=1, max_length=400)
+
+
+class DemoAiKeyOut(BaseModel):
+    """The visitor's session AI key. The key itself is never returned."""
+
+    provider: Literal["gemini", "anthropic"] | None = None
+    model: str | None = None
+    set: bool = False
