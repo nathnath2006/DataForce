@@ -16,6 +16,8 @@
   `dataforce-migrate` (`alembic upgrade head`, run before a deploy that needs a migration). Cloud Scheduler:
   `dataforce-demo-nightly` at 04:00 Europe/Paris (service account `dataforce-scheduler`, allowed to run that job
   only) and `dataforce-keep-awake` at 09:00. Artifact Registry keeps the last 2 images.
+- **Updated 2026-10-25:** revision `dataforce-00003-6tj` (image `app:ad5ff27`, Home and Summary merged into one
+  dashboard). No migration. The `dataforce-migrate` and `dataforce-demo-reset` jobs point at the same image.
 
 Free-plan terms change often. They were checked on 2026-10-20 from the sources in §6; confirm them
 on each provider's page before deploying.
