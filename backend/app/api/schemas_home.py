@@ -29,6 +29,16 @@ class HomeDeal(BaseModel):
     owner_name: str | None
 
 
+class HomeStage(BaseModel):
+    stage: str
+    count: int  # exact count of visible deals in that stage
+    amount_eur: Decimal  # sum of their amounts (a missing amount counts 0)
+
+
+class HomeStalledDeal(HomeDeal):
+    days_in_stage: int  # days since the last stage change (or since creation)
+
+
 class HomeTask(BaseModel):
     id: UUID
     title: str
@@ -53,6 +63,10 @@ class HomeActivity(BaseModel):
 
 class HomeOut(BaseModel):
     kpis: HomeKpis
-    open_deals: list[HomeDeal]
+    open_deals: list[HomeDeal]  # the newest open deals
+    top_deals: list[HomeDeal] = []  # the biggest open deals
+    stalled_deals: list[HomeStalledDeal] = []  # open, no stage change for STALL_DAYS or more
+    stalled_total: int = 0  # how many such deals in all (the list shows the oldest few)
+    by_stage: list[HomeStage] = []  # every stage, in pipeline order
     tasks: list[HomeTask]
     activity: list[HomeActivity]

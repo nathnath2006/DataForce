@@ -4,19 +4,29 @@ sampling). With `owner`, the admin and *see all* members see one rep's numbers i
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import Select, case, func, select
 from sqlalchemy.orm import Session
 
-from app.api.schemas_home import HomeActivity, HomeDeal, HomeKpis, HomeOut, HomeTask
+from app.api.schemas_home import (
+    HomeActivity,
+    HomeDeal,
+    HomeKpis,
+    HomeOut,
+    HomeStage,
+    HomeStalledDeal,
+    HomeTask,
+)
 from app.auth import visibility
 from app.auth.viewer import Viewer
 from app.db.models import Account, Activity, AppUser, Deal, DealStageEvent, Task
-from app.domain.enums import OPEN_STAGES
+from app.domain.enums import OPEN_STAGES, DealStage
 from app.services.tasks import week_end
 
 LIST_SIZE = 10
+TOP_SIZE = 5
+STALL_DAYS = 30  # an open deal without a stage change for this long is stalling
 _OPEN = [s.value for s in OPEN_STAGES]
 
 
@@ -78,6 +88,90 @@ def _kpis(db: Session, ws_id: uuid.UUID, viewer: Viewer, today: date) -> HomeKpi
         tasks_due_week=int(due_week),
         tasks_overdue=int(overdue),
     )
+
+
+def _deal_out(d: Deal, account: str, owner: str | None) -> HomeDeal:
+    return HomeDeal(
+        id=d.id,
+        name=d.name,
+        account_id=d.account_id,
+        account_name=account,
+        stage=d.stage,
+        amount_eur=d.amount_eur,
+        created_on=d.created_on,
+        owner_name=owner,
+    )
+
+
+def _top_deals(db: Session, ws_id: uuid.UUID, viewer: Viewer) -> list[HomeDeal]:
+    """The biggest open deals (a deal without an amount comes last)."""
+    rows = db.execute(
+        select(Deal, Account.name, AppUser.display_name)
+        .join(Account, Account.id == Deal.account_id)
+        .outerjoin(AppUser, AppUser.id == Deal.owner_id)
+        .where(
+            Deal.workspace_id == ws_id,
+            Deal.stage.in_(_OPEN),
+            *visibility.conds(visibility.deals_cond(viewer)),
+        )
+        .order_by(Deal.amount_eur.desc().nulls_last(), Deal.id)
+        .limit(TOP_SIZE)
+    ).all()
+    return [_deal_out(d, a, o) for d, a, o in rows]
+
+
+def _stalled_deals(
+    db: Session, ws_id: uuid.UUID, viewer: Viewer, today: date
+) -> tuple[list[HomeStalledDeal], int]:
+    """Open deals whose stage has not moved for STALL_DAYS days or more, the oldest first."""
+    last = (
+        select(DealStageEvent.deal_id, func.max(DealStageEvent.changed_at).label("at"))
+        .where(DealStageEvent.workspace_id == ws_id)
+        .group_by(DealStageEvent.deal_id)
+        .subquery()
+    )
+    since = func.coalesce(func.date(last.c.at), Deal.created_on)
+    cond = [
+        Deal.workspace_id == ws_id,
+        Deal.stage.in_(_OPEN),
+        *visibility.conds(visibility.deals_cond(viewer)),
+        since <= today - timedelta(days=STALL_DAYS),
+    ]
+    total = db.scalar(
+        select(func.count(Deal.id)).outerjoin(last, last.c.deal_id == Deal.id).where(*cond)
+    )
+    rows = db.execute(
+        select(Deal, Account.name, AppUser.display_name, since.label("since"))
+        .join(Account, Account.id == Deal.account_id)
+        .outerjoin(AppUser, AppUser.id == Deal.owner_id)
+        .outerjoin(last, last.c.deal_id == Deal.id)
+        .where(*cond)
+        .order_by(since.asc(), Deal.id)
+        .limit(TOP_SIZE)
+    ).all()
+    return [
+        HomeStalledDeal(**_deal_out(d, a, o).model_dump(), days_in_stage=(today - since_day).days)
+        for d, a, o, since_day in rows
+    ], int(total or 0)
+
+
+def _by_stage(db: Session, ws_id: uuid.UUID, viewer: Viewer) -> list[HomeStage]:
+    rows = {
+        stage: (int(n), amount)
+        for stage, n, amount in db.execute(
+            select(Deal.stage, func.count(Deal.id), func.coalesce(func.sum(Deal.amount_eur), 0))
+            .where(Deal.workspace_id == ws_id, *visibility.conds(visibility.deals_cond(viewer)))
+            .group_by(Deal.stage)
+        )
+    }
+    return [
+        HomeStage(
+            stage=s.value,
+            count=rows.get(s.value, (0, 0))[0],
+            amount_eur=rows.get(s.value, (0, 0))[1],
+        )
+        for s in DealStage
+    ]
 
 
 def _open_deals(db: Session, ws_id: uuid.UUID, viewer: Viewer) -> list[HomeDeal]:
@@ -209,9 +303,14 @@ def home(
     """403 for `owner_id` unless the viewer is the admin or sees everything."""
     eff = visibility.scoped_viewer(db, viewer, owner_id)
     today = today or datetime.now(UTC).date()
+    stalled, stalled_total = _stalled_deals(db, ws_id, eff, today)
     return HomeOut(
         kpis=_kpis(db, ws_id, eff, today),
         open_deals=_open_deals(db, ws_id, eff),
+        top_deals=_top_deals(db, ws_id, eff),
+        stalled_deals=stalled,
+        stalled_total=stalled_total,
+        by_stage=_by_stage(db, ws_id, eff),
         tasks=_tasks(db, ws_id, eff, today),
         activity=_activity(db, ws_id, eff),
     )

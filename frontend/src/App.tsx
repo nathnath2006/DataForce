@@ -25,7 +25,6 @@ const AnalysisPage = lazy(() => import("./pages/Analysis").then((m) => ({ defaul
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 const AdminPage = lazy(() => import("./pages/Admin").then((m) => ({ default: m.AdminPage })));
 const MySettingsPage = lazy(() => import("./pages/MySettings").then((m) => ({ default: m.MySettingsPage })));
-const SummaryPage = lazy(() => import("./pages/Summary").then((m) => ({ default: m.SummaryPage })));
 const DocsPage = lazy(() => import("./docs/DocsPage").then((m) => ({ default: m.DocsPage })));
 const CompaniesPage = lazy(() => import("./companies/CompaniesPage").then((m) => ({ default: m.CompaniesPage })));
 const CompanyDetailPage = lazy(() => import("./companies/CompanyDetail").then((m) => ({ default: m.CompanyDetailPage })));
@@ -58,7 +57,7 @@ export function App() {
         <Route index element={<HomePage />} />
         <Route path="home" element={<HomePage />} />
         <Route path="tasks" element={<TasksPage />} />
-        <Route path="summary" element={<SummaryPage />} />
+        <Route path="summary" element={<Navigate to="../home" replace />} />
         <Route path="companies" element={<CompaniesPage />} />
         <Route path="companies/:id" element={<CompanyDetailPage />} />
         <Route path="accounts" element={<AccountsPage />} />

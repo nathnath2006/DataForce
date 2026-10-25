@@ -405,6 +405,15 @@ def test_home_counts_only_own_rows(client, world):
     assert float(h["kpis"]["open_pipeline_eur"]) == 1200
     assert {d["name"] for d in h["open_deals"]} == {"dA", "dSA"}
     assert all(a["deal_name"] in ("dA", "dSA") for a in h["activity"])
+    # the new widgets follow the same visibility
+    assert {d["name"] for d in h["top_deals"]} <= {"dA", "dSA"}
+    assert {d["name"] for d in h["stalled_deals"]} <= {"dA", "dSA"}
+    stages = {s["stage"]: s for s in h["by_stage"]}
+    assert len(h["by_stage"]) == 6
+    open_n = sum(
+        stages[k]["count"] for k in ("prospecting", "qualification", "proposal", "negotiation")
+    )
+    assert open_n == 2
     # the admin sees everyone, and can look at one rep
     w.admin()
     assert client.get(f"{w.base}/home").json()["kpis"]["open_deals"] == 5
@@ -413,6 +422,7 @@ def test_home_counts_only_own_rows(client, world):
     assert float(mine["kpis"]["open_pipeline_eur"]) == 1200
     theirs = client.get(f"{w.base}/home", params={"owner": w.b}).json()
     assert float(theirs["kpis"]["open_pipeline_eur"]) == 12000
+    assert {d["name"] for d in mine["top_deals"]} <= {"dA", "dSA"}
 
 
 def test_home_owner_is_for_admin_and_see_all_only(client, world):
@@ -467,3 +477,51 @@ def test_activities_page(client, world):
     today = datetime.now(UTC).date().isoformat()
     both = client.get(f"{w.base}/activities", params={"date_to": today}).json()
     assert both["total"] == 2
+
+
+def test_home_stalled_deals_and_top_deals(db_session, ws_id):
+    """Stalled: open, no stage move for 30 days (or created that long ago without one)."""
+    from datetime import date, timedelta
+
+    from app.auth.viewer import Viewer
+    from app.db.models import Account, Deal
+    from app.services import home as home_service
+
+    acc = Account(workspace_id=ws_id, name="Acme")
+    db_session.add(acc)
+    db_session.flush()
+    today = date(2026, 10, 25)
+    old = Deal(
+        workspace_id=ws_id,
+        account_id=acc.id,
+        name="Old",
+        stage="proposal",
+        amount_eur=100,
+        created_on=today - timedelta(days=60),
+    )
+    fresh = Deal(
+        workspace_id=ws_id,
+        account_id=acc.id,
+        name="Fresh",
+        stage="proposal",
+        amount_eur=900,
+        created_on=today - timedelta(days=3),
+    )
+    won = Deal(
+        workspace_id=ws_id,
+        account_id=acc.id,
+        name="Won",
+        stage="closed_won",
+        amount_eur=5000,
+        created_on=today - timedelta(days=90),
+        closed_on=today,
+    )
+    db_session.add_all([old, fresh, won])
+    db_session.flush()
+    admin = Viewer(workspace_id=ws_id, user_id=None, app_user_id=None, role="admin")
+    h = home_service.home(db_session, ws_id, admin, today=today)
+    assert [(d.name, d.days_in_stage) for d in h.stalled_deals] == [("Old", 60)]
+    assert h.stalled_total == 1
+    assert [d.name for d in h.top_deals] == ["Fresh", "Old"]  # open deals only, biggest first
+    by = {s.stage: s for s in h.by_stage}
+    assert by["proposal"].count == 2 and by["closed_won"].count == 1

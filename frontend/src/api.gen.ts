@@ -1108,9 +1108,31 @@ export interface HomeKpis {
 
 export interface HomeOut {
   activity: HomeActivity[];
+  by_stage?: HomeStage[];
   kpis: HomeKpis;
   open_deals: HomeDeal[];
+  stalled_deals?: HomeStalledDeal[];
+  stalled_total?: number;
   tasks: HomeTask[];
+  top_deals?: HomeDeal[];
+}
+
+export interface HomeStage {
+  amount_eur: string;
+  count: number;
+  stage: string;
+}
+
+export interface HomeStalledDeal {
+  account_id: string;
+  account_name: string;
+  amount_eur: string | null;
+  created_on: string;
+  days_in_stage: number;
+  id: string;
+  name: string;
+  owner_name: string | null;
+  stage: string;
 }
 
 export interface HomeTask {

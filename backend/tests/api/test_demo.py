@@ -585,7 +585,8 @@ def test_ensure_accounts_skips_members_of_real_workspaces(session_factory, demo_
         ws = workspaces.get_workspace_by_slug(s, "test-data")
         real = workspaces.create_workspace(s, "real", "Real", is_demo=False)
         acc = s.scalars(
-            select(UserAccount).join(Membership, Membership.user_account_id == UserAccount.id)
+            select(UserAccount)
+            .join(Membership, Membership.user_account_id == UserAccount.id)
             .where(Membership.workspace_id == ws.id, Membership.app_user_id.is_not(None))
         ).first()
         acc.is_demo = False
@@ -610,7 +611,9 @@ def test_expired_demo_sessions_purged_on_lookup(visitor, session_factory):
         admin = s.scalars(select(UserAccount).where(UserAccount.email == demo.ADMIN_EMAIL)).one()
         s.add(
             UserSession(
-                user_account_id=admin.id, token_hash="x" * 64, is_demo=True,
+                user_account_id=admin.id,
+                token_hash="x" * 64,
+                is_demo=True,
                 created_at=datetime.now(UTC) - timedelta(hours=9),
                 last_seen_at=datetime.now(UTC) - timedelta(hours=9),
                 expires_at=datetime.now(UTC) - timedelta(hours=5),

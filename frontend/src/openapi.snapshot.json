@@ -6853,6 +6853,14 @@
       "title": "Activity",
       "type": "array"
      },
+     "by_stage": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/HomeStage"
+      },
+      "title": "By Stage",
+      "type": "array"
+     },
      "kpis": {
       "$ref": "#/components/schemas/HomeKpis"
      },
@@ -6863,11 +6871,32 @@
       "title": "Open Deals",
       "type": "array"
      },
+     "stalled_deals": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/HomeStalledDeal"
+      },
+      "title": "Stalled Deals",
+      "type": "array"
+     },
+     "stalled_total": {
+      "default": 0,
+      "title": "Stalled Total",
+      "type": "integer"
+     },
      "tasks": {
       "items": {
        "$ref": "#/components/schemas/HomeTask"
       },
       "title": "Tasks",
+      "type": "array"
+     },
+     "top_deals": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/HomeDeal"
+      },
+      "title": "Top Deals",
       "type": "array"
      }
     },
@@ -6878,6 +6907,99 @@
      "activity"
     ],
     "title": "HomeOut",
+    "type": "object"
+   },
+   "HomeStage": {
+    "properties": {
+     "amount_eur": {
+      "title": "Amount Eur",
+      "type": "string"
+     },
+     "count": {
+      "title": "Count",
+      "type": "integer"
+     },
+     "stage": {
+      "title": "Stage",
+      "type": "string"
+     }
+    },
+    "required": [
+     "stage",
+     "count",
+     "amount_eur"
+    ],
+    "title": "HomeStage",
+    "type": "object"
+   },
+   "HomeStalledDeal": {
+    "properties": {
+     "account_id": {
+      "format": "uuid",
+      "title": "Account Id",
+      "type": "string"
+     },
+     "account_name": {
+      "title": "Account Name",
+      "type": "string"
+     },
+     "amount_eur": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount Eur"
+     },
+     "created_on": {
+      "format": "date",
+      "title": "Created On",
+      "type": "string"
+     },
+     "days_in_stage": {
+      "title": "Days In Stage",
+      "type": "integer"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "owner_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner Name"
+     },
+     "stage": {
+      "title": "Stage",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "account_id",
+     "account_name",
+     "stage",
+     "amount_eur",
+     "created_on",
+     "owner_name",
+     "days_in_stage"
+    ],
+    "title": "HomeStalledDeal",
     "type": "object"
    },
    "HomeTask": {

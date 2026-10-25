@@ -47,7 +47,6 @@ interface Group { title: string; items: Item[]; adminOnly?: boolean }
 export const NAV_GROUPS: Group[] = [
   { title: "My work", items: [
     { key: "home", label: "Home", to: "home" },
-    { key: "summary", label: "Summary", to: "summary" },
     { key: "tasks", label: "Tasks", to: "tasks" } ] },
   { title: "Customers", items: [
     { key: "companies", label: "Companies", to: "companies" },
